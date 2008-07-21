@@ -142,7 +142,7 @@ create_and_mount_image() {
 	/bin/echo "" >> $LOG_FILE
 	[ -e ${DMG_BASE_NAME}.${CREATE_DATE}.sparseimage ] && $CREATE_DATE		
 	/usr/bin/hdiutil create -size $DMG_SIZE -type SPARSE -fs HFS+ $DMG_SCRATCH/${DMG_BASE_NAME}.${CREATE_DATE} >> $LOG_FILE
-	CURRENT_IMAGE_MOUNT_DEV=`/usr/bin/hdiutil attach $DMG_SCRATCH/$DMG_BASE_NAME.$CREATE_DATE.sparseimage -mountrandom $DMG_MOUNTS -private | /usr/bin/head -n 1 |  /usr/bin/awk '{ print $1 }'`
+	CURRENT_IMAGE_MOUNT_DEV=`/usr/bin/hdiutil attach $DMG_SCRATCH/$DMG_BASE_NAME.$CREATE_DATE.sparseimage -mountrandom $DMG_MOUNTS | /usr/bin/head -n 1 |  /usr/bin/awk '{ print $1 }'`
 	/bin/echo "Image mounted at $CURRENT_IMAGE_MOUNT_DEV" >> $LOG_FILE
 	/bin/echo "" >> $LOG_FILE
 	
@@ -182,7 +182,7 @@ mount_os_install() {
 	/bin/echo "" >> $LOG_FILE
 	/bin/ls -A1 $INSTALLER_FOLDER | /usr/bin/sed '/.DS_Store/d' | /usr/bin/sed '/InstallerChoices.xml/d'| while read i
 	do
-	 /usr/bin/hdiutil attach "$INSTALLER_FOLDER/$i" -mountrandom $DMG_MOUNTS -private >> $LOG_FILE
+	 /usr/bin/hdiutil attach "$INSTALLER_FOLDER/$i" -mountrandom $DMG_MOUNTS >> $LOG_FILE
 	done
 	if [ -f $DMG_MOUNTS/*/System/Installation/Packages/ServerSetup.pkg ]
 		then
@@ -392,7 +392,7 @@ timestamp() {
 
 # Call the handlers as needed to make it all happen.
 check_root
-check_lock
+#check_lock
 #call_trap
 create_and_mount_image
 mount_os_install
