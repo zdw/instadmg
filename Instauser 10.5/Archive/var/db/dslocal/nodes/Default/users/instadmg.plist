@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>_writers_LinkedIdentity</key>
+	<array>
+		<string>instadmg</string>
+	</array>
+	<key>_writers_UserCertificate</key>
+	<array>
+		<string>instadmg</string>
+	</array>
+	<key>_writers_hint</key>
+	<array>
+		<string>instadmg</string>
+	</array>
+	<key>_writers_jpegphoto</key>
+	<array>
+		<string>instadmg</string>
+	</array>
+	<key>_writers_passwd</key>
+	<array>
+		<string>instadmg</string>
+	</array>
+	<key>_writers_picture</key>
+	<array>
+		<string>instadmg</string>
+	</array>
+	<key>_writers_realname</key>
+	<array>
+		<string>instadmg</string>
+	</array>
+	<key>authentication_authority</key>
+	<array>
+		<string>;ShadowHash;</string>
+	</array>
+	<key>generateduid</key>
+	<array>
+		<string>A7F9C53B-4B33-4BE1-9F3F-857600281ADC</string>
+	</array>
+	<key>gid</key>
+	<array>
+		<string>20</string>
+	</array>
+	<key>hint</key>
+	<array/>
+	<key>home</key>
+	<array>
+		<string>/Users/instadmg</string>
+	</array>
+	<key>name</key>
+	<array>
+		<string>instadmg</string>
+	</array>
+	<key>passwd</key>
+	<array>
+		<string>********</string>
+	</array>
+	<key>picture</key>
+	<array>
+		<string>/Library/User Pictures/Fun/Orange.tif</string>
+	</array>
+	<key>realname</key>
+	<array>
+		<string>Insta DMG</string>
+	</array>
+	<key>shell</key>
+	<array>
+		<string>/bin/bash</string>
+	</array>
+	<key>uid</key>
+	<array>
+		<string>501</string>
+	</array>
+</dict>
+</plist>

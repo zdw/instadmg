@@ -1,0 +1,152 @@
+						<key>choiceIdentifier</key>
+						<string>EssentialSystemSoftwareGroup</string>
+--
+						<key>choiceIdentifier</key>
+						<string>AdditionalEssentials</string>
+--
+						<key>choiceIdentifier</key>
+						<string>AdditionalSpeechVoices</string>
+--
+						<key>choiceIdentifier</key>
+						<string>AsianLanguagesSupport</string>
+--
+						<key>choiceIdentifier</key>
+						<string>MediaFiles</string>
+--
+						<key>choiceIdentifier</key>
+						<string>MigrationAssistant</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Mail</string>
+--
+						<key>choiceIdentifier</key>
+						<string>AddressBook</string>
+--
+						<key>choiceIdentifier</key>
+						<string>iCal</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Automator</string>
+--
+						<key>choiceIdentifier</key>
+						<string>DVDPlayer</string>
+--
+						<key>choiceIdentifier</key>
+						<string>iTunes</string>
+--
+						<key>choiceIdentifier</key>
+						<string>iChat</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Java</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Safari</string>
+--
+						<key>choiceIdentifier</key>
+						<string>OxfordDictionaries</string>
+--
+				<key>choiceIdentifier</key>
+				<string>EssentialSystemSoftware</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Brother_Printer_Drivers</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Canon_Printer_Drivers</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Epson_Printer_Drivers</string>
+--
+						<key>choiceIdentifier</key>
+						<string>HP_Printer_Drivers</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Lexmark_Printer_Drivers</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Guten_Printer_Drivers</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Ricoh_Printer_Drivers</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Xerox_Printer_Drivers</string>
+--
+						<key>choiceIdentifier</key>
+						<string>FujiXerox_Printer_Drivers</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Samsung_Printer_Drivers</string>
+--
+				<key>choiceIdentifier</key>
+				<string>PrinterDriversGroup</string>
+--
+				<key>choiceIdentifier</key>
+				<string>AdditionalFonts</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Japanese</string>
+--
+						<key>choiceIdentifier</key>
+						<string>German</string>
+--
+						<key>choiceIdentifier</key>
+						<string>French</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Spanish</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Italian</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Dutch</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Danish</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Finnish</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Korean</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Norwegian</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Russian</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Swedish</string>
+--
+						<key>choiceIdentifier</key>
+						<string>BrazilianPortuguese</string>
+--
+						<key>choiceIdentifier</key>
+						<string>SimplifiedChinese</string>
+--
+						<key>choiceIdentifier</key>
+						<string>TraditionalChinese</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Portuguese</string>
+--
+						<key>choiceIdentifier</key>
+						<string>Polish</string>
+--
+				<key>choiceIdentifier</key>
+				<string>LanguageTranslations</string>
+--
+				<key>choiceIdentifier</key>
+				<string>X11</string>
+--
+				<key>choiceIdentifier</key>
+				<string>ACL</string>
+--
+				<key>choiceIdentifier</key>
+				<string>OSInstallScripts</string>
+--
+		<key>choiceIdentifier</key>
+		<string>__ROOT_CHOICE_IDENT__</string>

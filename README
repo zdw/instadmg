@@ -1,0 +1,32 @@
+INTRO
+InstaDMG creates ASR ready deployment images from Mac OS X Installer packages. It operates on the idea that everything is packaged. This may require the re-packaging of installers and updates that don't want to be installed on a non-boot volume. You can use PackageMaker to create new packages. JAMF's Composer tool is the easiest way to generate a package from an install.
+
+Forums, news, and reference downloads at http://www.afp548.com
+CVS and bug tracking at http://sourceforge.net
+
+USING
+Full documentation is in the included InstaDMG.pdf file, but if you are in a hurry...
+
+The InstaDMG folder contains several folders and is self-contained. This allows you to put it on an external drive to move from Mac to Mac. To use simply do the following.
+
+1. Image a Mac OS X installer disk or the retail disks that came with your Mac. Place the dmg files in the BaseOS folder. If you have an InstallerChoices.xml file for a Leopard install just place it in the same directory as the instadmg script.
+2. Place any Apple updates in the AppleUpdates folder. Each pkg needs to be in a numbered directory. This will allow the ordering of packages without changing their names.
+3. Place any custom installers in the CustomPKG folder. Each pkg needs to be in a numbered directory. This will allow the ordering of packages without changing their names.
+4. Edit variables and uncomment handler calls as needed in the instadmg.bash file.
+5. Run with sudo.
+
+The result will be an ASR prepared deployment image.
+
+KNOWN ISSUES
+Needs testing on more hardware, specifically PPC.
+
+Needs more testing on 10.4 as I am focusing on 10.5 from now on.
+
+If you are running on 10.5 it will try to apply any InstallerChoices.xml file it finds. Next revision will also detect the OS being installed and not try to apply it to 10.4 build trains running on 10.5.
+
+On 10.4 installs all packages in the OSInstall.mpkg will be installed. This is a limitation of the 10.4 installer.
+
+The core instadmg script assumes you are executing from it's directory and has hard coded paths as such.
+
+VERSION
+1.4b2
