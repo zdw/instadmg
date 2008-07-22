@@ -6,7 +6,6 @@ Changed log format name (Now Date + Time) to allow for one log per run.
 Variables:
 Moved hardware detection to arch rather than sysctl.
 Intermediary image name is now randomized to prevent conflicts.
-Added DMG_MOUNTS definition for image mountpoint.
 Added Lockfile definition.
 Changed AppleUpdates folder to BaseUpdates.
 Determine working directory and store in WORKING_DIR.
