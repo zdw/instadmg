@@ -2,7 +2,7 @@ INTRO
 InstaDMG creates ASR ready deployment images from Mac OS X Installer packages. It operates on the idea that everything is packaged. This may require the re-packaging of installers and updates that don't want to be installed on a non-boot volume. You can use PackageMaker to create new packages. JAMF's Composer tool is the easiest way to generate a package from an install.
 
 Forums, news, and reference downloads at http://www.afp548.com
-CVS and bug tracking at http://sourceforge.net
+CVS and bug tracking at http://code.google.com/p/instadmg/
 
 USING
 Full documentation is in the included InstaDMG.pdf file, but if you are in a hurry...
@@ -10,7 +10,7 @@ Full documentation is in the included InstaDMG.pdf file, but if you are in a hur
 The InstaDMG folder contains several folders and is self-contained. This allows you to put it on an external drive to move from Mac to Mac. To use simply do the following.
 
 1. Image a Mac OS X installer disk or the retail disks that came with your Mac. Place the dmg files in the BaseOS folder. If you have an InstallerChoices.xml file for a Leopard install just place it in the same directory as the instadmg script.
-2. Place any Apple updates in the AppleUpdates folder. Each pkg needs to be in a numbered directory. This will allow the ordering of packages without changing their names.
+2. Place any Apple updates in the BaseUpdates folder. Each pkg needs to be in a numbered directory. This will allow the ordering of packages without changing their names.
 3. Place any custom installers in the CustomPKG folder. Each pkg needs to be in a numbered directory. This will allow the ordering of packages without changing their names.
 4. Edit variables and uncomment handler calls as needed in the instadmg.bash file.
 5. Run with sudo.
