@@ -6,7 +6,6 @@
 
 #
 # Josh Wisenbaker - macshome@afp548.com - Maintainer
-# Portions by - Joel Rennich, Fred Licht
 #
 
 # Version 1.4b2
@@ -99,7 +98,7 @@ check_root() {
     fi
 }
 
-# Checks to make sure another instance is not running.  Exit if another is found.
+# Checks to make sure another instance is not running.  Exit if another is found. Not all hooked in yet.
 check_lock () {
 	MYPID=`head -n 1 "${LOCKFILE}"`
 	TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
@@ -142,7 +141,7 @@ create_and_mount_image() {
 	/bin/echo "" >> $LOG_FILE
 	[ -e ${DMG_BASE_NAME}.${CREATE_DATE}.sparseimage ] && $CREATE_DATE		
 	/usr/bin/hdiutil create -size $DMG_SIZE -type SPARSE -fs HFS+ $DMG_SCRATCH/${DMG_BASE_NAME}.${CREATE_DATE} >> $LOG_FILE
-	CURRENT_IMAGE_MOUNT_DEV=`/usr/bin/hdiutil attach $DMG_SCRATCH/$DMG_BASE_NAME.$CREATE_DATE.sparseimage -mountrandom $DMG_MOUNTS | /usr/bin/head -n 1 |  /usr/bin/awk '{ print $1 }'`
+	CURRENT_IMAGE_MOUNT_DEV=`/usr/bin/hdiutil attach $DMG_SCRATCH/$DMG_BASE_NAME.$CREATE_DATE.sparseimage | /usr/bin/head -n 1 |  /usr/bin/awk '{ print $1 }'`
 	/bin/echo "Image mounted at $CURRENT_IMAGE_MOUNT_DEV" >> $LOG_FILE
 	/bin/echo "" >> $LOG_FILE
 	
@@ -157,7 +156,7 @@ create_and_mount_image() {
 			#(PPC Mac)
 				/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME APMformat $CURRENT_IMAGE_MOUNT_DEV >> $LOG_FILE
 				/bin/echo "" >> $LOG_FILE
-				CURRENT_IMAGE_MOUNT=$DMG_MOUNTS/$DMG_BASE_NAME
+				CURRENT_IMAGE_MOUNT=/Volumes/$DMG_BASE_NAME
 		else 
 			/bin/echo "I'm Running on Intel Platform" >> $LOG_FILE
 			/bin/echo "Setting format to GPT" >> $LOG_FILE
@@ -165,7 +164,7 @@ create_and_mount_image() {
 			#(Intel Mac)
 				/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME GPTFormat $CURRENT_IMAGE_MOUNT_DEV >> $LOG_FILE
 				/bin/echo "" >> $LOG_FILE
-				CURRENT_IMAGE_MOUNT=$DMG_MOUNTS/$DMG_BASE_NAME
+				CURRENT_IMAGE_MOUNT=/Volumes/$DMG_BASE_NAME
 		fi
 		/bin/echo "Intimediary image creation complete" >> $LOG_FILE
 		/bin/date +%H:%M:%S >> $LOG_FILE
@@ -182,13 +181,20 @@ mount_os_install() {
 	/bin/echo "" >> $LOG_FILE
 	/bin/ls -A1 $INSTALLER_FOLDER | /usr/bin/sed '/.DS_Store/d' | /usr/bin/sed '/InstallerChoices.xml/d'| while read i
 	do
-	 /usr/bin/hdiutil attach "$INSTALLER_FOLDER/$i" -mountrandom $DMG_MOUNTS >> $LOG_FILE
+	 /usr/bin/hdiutil mount "$INSTALLER_FOLDER/$i" >> $LOG_FILE
 	done
-	if [ -f $DMG_MOUNTS/*/System/Installation/Packages/ServerSetup.pkg ]
+	if [ -d /Volumes/Mac\ OS\ X\ Install\ Disc\ 1 ]
 		then
-		SERVER_INSTALL="1"
+		CURRENT_OS_INSTALL_MOUNT="/Volumes/Mac OS X Install Disc 1"
+		else
+			if [ -d /Volumes/Mac\ OS\ X\ Server\ Install\ Disc ]
+				then
+				CURRENT_OS_INSTALL_MOUNT="/Volumes/Mac OS X Server Install Disc"
+				SERVER_INSTALL="1"
+				else
+			CURRENT_OS_INSTALL_MOUNT="/Volumes/Mac OS X Install DVD"
+			fi
 	fi
-	CURRENT_OS_INSTALL_MOUNT="`ls $DMG_MOUNTS`"
 	/bin/echo "Mac OS X installer image mounted" >> $LOG_FILE
 	/bin/date +%H:%M:%S >> $LOG_FILE
 	/bin/echo "" >> $LOG_FILE
@@ -314,7 +320,7 @@ close_up_and_compress() {
 	#CURRENT_IMAGE_MOUNT=/Volumes/$ASR_FS_NAME
 
 	/usr/sbin/diskutil rename $CURRENT_IMAGE_MOUNT OS-Build-${CREATE_DATE} >> $LOG_FILE
-	CURRENT_IMAGE_MOUNT=$DMG_MOUNTS/OS-Build-${CREATE_DATE}
+	CURRENT_IMAGE_MOUNT=/Volumes/OS-Build-${CREATE_DATE}
 	/bin/echo "New ASR source volume name is " $CURRENT_IMAGE_MOUNT >> $LOG_FILE
 	/bin/echo "" >> $LOG_FILE
 
