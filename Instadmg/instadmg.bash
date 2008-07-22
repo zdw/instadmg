@@ -69,8 +69,6 @@ ASR_TARGET_VOLUME=/Volumes/foo
 # Collect path to instadmg working directory
 WORKING_DIR=`pwd`
 
-# Define the lock file
-LOCKFILE=./instadmg.lock
 
 # Handler calls are at the end of the script. Other than that you should not need to modify anything below this line.
 
@@ -93,33 +91,6 @@ check_root() {
         /bin/echo "you need to be root to do this so use sudo"
         exit 0;
     fi
-}
-
-# Checks to make sure another instance is not running.  Exit if another is found. Not all hooked in yet.
-check_lock () {
-	MYPID=`head -n 1 "${LOCKFILE}"`
-	TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
-	if [ -z "${TEST_RUNNING}" ]; then
-		# The process is not running
-	    # Echo current PID into lock file
-		echo “Not running”
-		echo $$ > "${LOCKFILE}"
-	else
-		/bin/echo "`basename $0` is already running [${MYPID}]"
-		exit 0;	
-	fi
-}
-
-# This captures the signals to exit or terminal ( CTRL+C ) and clean up on exit. 
-call_trap() {
-	trap "{ 
-		echo "Canceling Build"
-		# Add code here to kill child processes.  
-		# Unmount mounted images
-		# Delete DMS scratch disk
-		rm -f $LOCKFILE ; 
-		exit 255; 
-	}" SIGINT SIGTERM EXIT
 }
 
 # setup and create the DMG.
@@ -395,8 +366,6 @@ timestamp() {
 
 # Call the handlers as needed to make it all happen.
 check_root
-#check_lock
-#call_trap
 create_and_mount_image
 mount_os_install
 install_system
