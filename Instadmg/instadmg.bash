@@ -44,9 +44,6 @@ ASR_FOLDER=./ASR_Output
 # This is where DMG scratch is done. Set this to whatever you want.
 DMG_SCRATCH=./DMG_Scratch
 
-# This is where DMG mounts will be mounted.
-DMG_MOUNTS=./DMG_Mounts
-
 # This string is the intermediary image name.
 DMG_BASE_NAME=`uuidgen`
 
