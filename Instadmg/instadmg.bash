@@ -260,68 +260,41 @@ install_system() {
 		/bin/echo "" >> $PKG_LOG
 }
 
-# install the updates to the DMG
-install_updates() {
-	/bin/echo "#####Beginning Baseload update Installs from $UPDATE_FOLDER#####" >> $LOG_FILE
-	/bin/echo "#####Beginning Baseload update Installs from $UPDATE_FOLDER#####" >> $PKG_LOG
-	/bin/date +%H:%M:%S >> $LOG_FILE
-	/bin/date +%H:%M:%S >> $PKG_LOG
-	/bin/echo "" >> $LOG_FILE
-	/bin/echo "" >> $PKG_LOG
+# install packages from a folder of folders (01, 02, 03...etc)
+install_packages_from_folder() {
+	SELECTED_FOLDER="$1"
 	
-	/bin/ls -A1 $UPDATE_FOLDER | /usr/bin/sed '/.DS_Store/d' | while read UPDATE_PKG
-		do
-		if [ -e $UPDATE_FOLDER/$UPDATE_PKG/InstallerChoices.xml ]
-		then
-			/usr/sbin/installer -verbose -applyChoiceChangesXML $UPDATE_FOLDER/$UPDATE_PKG/InstallerChoices.xml -pkg "${UPDATE_FOLDER}/${UPDATE_PKG}/`/bin/ls ${UPDATE_FOLDER}/${UPDATE_PKG} | /usr/bin/sed -e '/.DS_Store/d' -e '/InstallerChoices.xml/d'`" -target $CURRENT_IMAGE_MOUNT >> $LOG_FILE
-			/bin/echo "Installed ${UPDATE_FOLDER}/${UPDATE_PKG}/`/bin/ls ${UPDATE_FOLDER}/${UPDATE_PKG} | /usr/bin/sed -e '/.DS_Store/d' -e '/InstallerChoices.xml/d'` with installer choices." >> $PKG_LOG
-		else
-			/usr/sbin/installer -verbose -pkg "${UPDATE_FOLDER}/${UPDATE_PKG}/`/bin/ls ${UPDATE_FOLDER}/${UPDATE_PKG} | /usr/bin/sed '/.DS_Store/d'`" -target $CURRENT_IMAGE_MOUNT >> $LOG_FILE
-			/bin/echo "Installed ${UPDATE_FOLDER}/${UPDATE_PKG}/`/bin/ls ${UPDATE_FOLDER}/${UPDATE_PKG} | /usr/bin/sed '/.DS_Store/d'`" >> $PKG_LOG
-		fi
-	done
-	/bin/echo "" >> $LOG_FILE
-	/bin/echo "" >> $PKG_LOG
-	/bin/echo "Baseload updates installed" >> $LOG_FILE
-	/bin/echo "Baseload updates installed" >> $PKG_LOG
-	/bin/date +%H:%M:%S >> $LOG_FILE
-	/bin/date +%H:%M:%S >> $PKG_LOG
-	/bin/echo "" >> $LOG_FILE
-	/bin/echo "" >> $LOG_FILE
-	/bin/echo "" >> $PKG_LOG
-	/bin/echo "" >> $PKG_LOG
-}
+	/bin/date "+#####Beginning Update Installs from $SELECTED_FOLDER#####\n%H:%M:%S\n" | /usr/bin/tee -a "$LOG_FILE" "$PKG_LOG"
 
-# install the custom pieces to the DMG
-install_custom() {
-	/bin/echo "#####Beginning Update Installs from $CUSTOM_FOLDER#####" >> $LOG_FILE
-	/bin/echo "#####Beginning Update Installs from $CUSTOM_FOLDER#####" >> $PKG_LOG
-	/bin/date +%H:%M:%S >> $LOG_FILE
-	/bin/date +%H:%M:%S >> $PKG_LOG
-	/bin/echo "" >> $LOG_FILE
-	/bin/echo "" >> $PKG_LOG
+	if [ "$SELECTED_FOLDER" == "" ]; then
+		/bin/echo "Error: install_packages_from_folder called without folder"
+		exit 1;
+	fi
 	
-	/bin/ls -A1 $CUSTOM_FOLDER | /usr/bin/sed '/.DS_Store/d' | while read CUSTOM_PKG
+	/bin/ls -A1 "$SELECTED_FOLDER" | /usr/bin/awk "/^[[:digit:]]+$/" | while read ORDERED_FOLDER
+	do
+		/bin/ls -A1 "$SELECTED_FOLDER/$ORDERED_FOLDER" | /usr/bin/awk 'tolower($1) ~ /\.(m)?pkg$/' | while read UPDATE_PKG
 		do
-		if [ -e $CUSTOM_FOLDER/$CUSTOM_PKG/InstallerChoices.xml ]
-		then
-			/usr/sbin/installer -verbose -applyChoiceChangesXML "${CUSTOM_FOLDER}/${CUSTOM_PKG}/InstallerChoices.xml" -pkg "${CUSTOM_FOLDER}/${CUSTOM_PKG}/`/bin/ls ${CUSTOM_FOLDER}/${CUSTOM_PKG} | /usr/bin/sed -e '/.DS_Store/d' -e '/InstallerChoices.xml/d'`" -target $CURRENT_IMAGE_MOUNT >> $LOG_FILE
-			/bin/echo "Installed ${CUSTOM_FOLDER}/${CUSTOM_PKG}/`/bin/ls ${CUSTOM_FOLDER}/${CUSTOM_PKG} | /usr/bin/sed -e '/.DS_Store/d' -e '/InstallerChoices.xml/d'`" >> $PKG_LOG
-		else
-			/usr/sbin/installer -verbose -pkg "${CUSTOM_FOLDER}/${CUSTOM_PKG}/`/bin/ls ${CUSTOM_FOLDER}/${CUSTOM_PKG} | /usr/bin/sed '/.DS_Store/d'`" -target $CURRENT_IMAGE_MOUNT >> $LOG_FILE
-			/bin/echo "Installed ${CUSTOM_FOLDER}/${CUSTOM_PKG}/`/bin/ls ${CUSTOM_FOLDER}/${CUSTOM_PKG} | /usr/bin/sed '/.DS_Store/d'`" >> $PKG_LOG
-		fi
+			
+			if [ -e "$SELECTED_FOLDER/$ORDERED_FOLDER/InstallerChoices.xml" ]; then
+				CHOICES_FILE="InstallerChoices.xml"
+				# TODO: better handle multiple pkg's and InstallerChoice files named for the file they should handle
+			fi
+			
+			if [ "$OS_REV" -eq 0 ]; then
+				CHOICES_FILE="" # 10.4 can not use them
+			fi			
+			
+			if [ "$CHOICES_FILE" != "" ]; then
+				/usr/sbin/installer -verbose -applyChoiceChangesXML "$SELECTED_FOLDER/$ORDERED_FOLDER/$CHOICES_FILE" -pkg "$SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | /usr/bin/tee -a "$LOG_FILE"
+				/bin/echo "	Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG with XML Choices file: $CHOICES_FILE" | /usr/bin/tee -a "$LOG_FILE" "$PKG_LOG"
+				
+			else
+				/usr/sbin/installer -verbose -pkg "$SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | /usr/bin/tee -a "$LOG_FILE"
+				/bin/echo "	Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" | /usr/bin/tee -a "$LOG_FILE" "$PKG_LOG"
+			fi
+		done
 	done
-	/bin/echo "" >> $LOG_FILE
-	/bin/echo "" >> $PKG_LOG
-	/bin/echo "Custom packages installed" >> $LOG_FILE
-	/bin/echo "Custom packages installed" >> $PKG_LOG
-	/bin/date +%H:%M:%S >> $LOG_FILE
-	/bin/date +%H:%M:%S >> $PKG_LOG
-	/bin/echo "" >> $LOG_FILE
-	/bin/echo "" >> $LOG_FILE
-	/bin/echo "" >> $PKG_LOG
-	/bin/echo "" >> $PKG_LOG
 }
 
 # close up the DMG, compress and scan for restore
@@ -417,8 +390,8 @@ check_root
 create_and_mount_image
 mount_os_install
 install_system
-install_updates
-install_custom
+install_packages_from_folder "$UPDATE_FOLDER"
+install_packages_from_folder "$CUSTOM_FOLDER"
 close_up_and_compress
 clean_up
 timestamp
