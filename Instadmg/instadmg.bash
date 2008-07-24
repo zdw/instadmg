@@ -147,22 +147,70 @@ mount_os_install() {
 	/bin/echo "#####Mounting Mac OS X installer image#####" >> $LOG_FILE
 	/bin/date +%H:%M:%S >> $LOG_FILE
 	/bin/echo "" >> $LOG_FILE
-	/bin/ls -A1 $INSTALLER_FOLDER | /usr/bin/sed '/.DS_Store/d' | /usr/bin/sed '/InstallerChoices.xml/d'| while read i
+	
+	TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX` # to get around bash variable scope difficulties
+	
+	/usr/bin/find "$INSTALLER_FOLDER" -iname "*.dmg" | while read IMAGE_FILE
 	do
-	 /usr/bin/hdiutil mount "$INSTALLER_FOLDER/$i" >> $LOG_FILE
-	done
-	if [ -d /Volumes/Mac\ OS\ X\ Install\ Disc\ 1 ]
-		then
-		CURRENT_OS_INSTALL_MOUNT="/Volumes/Mac OS X Install Disc 1"
-		else
-			if [ -d /Volumes/Mac\ OS\ X\ Server\ Install\ Disc ]
-				then
-				CURRENT_OS_INSTALL_MOUNT="/Volumes/Mac OS X Server Install Disc"
-				SERVER_INSTALL="1"
-				else
-			CURRENT_OS_INSTALL_MOUNT="/Volumes/Mac OS X Install DVD"
+		# Look to see if this is the first installer disk
+		# TODO: look at the dmg (internally) to see if it looks like the installer rather than relying on the name
+		if [ "$IMAGE_FILE" == "$INSTALLER_FOLDER/Mac OS X Install Disc 1.dmg" ] || [ "$IMAGE_FILE" == "$INSTALLER_FOLDER/Mac OS X Install DVD.dmg" ]; then
+			# this is the installer disk, and we can mount it hidden
+			
+			# but first we have to make sure that it is not already mounted
+			/usr/bin/hdiutil info | while read HDIUTIL_LINE
+			do
+				if [ `/bin/echo "$HDIUTIL_LINE" | /usr/bin/grep -c '================================================'` -eq 1 ]; then
+					# this is the marker for a new section, so we need to clear things out
+					IMAGE_LOCATION=""
+					MOUNTED_IMAGES=""
+			
+				elif [ "`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk '/^image-path/'`" != "" ]; then
+					IMAGE_LOCATION=`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk 'sub("^image-path[[:space:]]+:[[:space:]]+", "")'`
+					
+					# check the inodes to see if we are pointing at the same file
+					if [ "`/bin/ls -Li "$IMAGE_LOCATION" | awk '{ print $1 }'`" != "`/bin/ls -Li "$IMAGE_FILE" | awk '{ print $1 }'`" ]; then
+						# this is not the droid we are looking for
+						IMAGE_LOCATION=""
+						
+						# if it is the same thing, then we let it through to get the mount point below
+					fi
+				elif [ "$IMAGE_LOCATION" != "" ] && [ "`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk '/\/dev\/.+[[:space:]]+Apple_HFS[[:space:]]+\//'`" != "" ]; then
+					# find the mount point
+					CURRENT_OS_INSTALL_MOUNT=`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk 'sub("/dev/.+[[:space:]]+Apple_HFS[[:space:]]+", "")'`
+					`/bin/echo "$CURRENT_OS_INSTALL_MOUNT" > "$TEMPFILE"` # to get around bash variable scope difficulties
+					# Here we are done!
+					/bin/echo "	The main OS Installer Disk was already mounted at: $CURRENT_OS_INSTALL_MOUNT" | /usr/bin/tee -a $LOG_FILE
+				fi
+			done
+			
+			if [ "$CURRENT_OS_INSTALL_MOUNT" == "" ]; then
+				# since it was not already mounted, we have to mount it
+				#	we are going to mount it non-browsable, so it does not appear in the finder, and we are going to mount it to a temp folder
+				
+				CURRENT_OS_INSTALL_MOUNT=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX`
+				/bin/echo "	Mounting the main OS Installer Disk from: $IMAGE_FILE at: $CURRENT_OS_INSTALL_MOUNT" | /usr/bin/tee -a $LOG_FILE
+				/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" | /usr/bin/tee -a $LOG_FILE
+				`/bin/echo "$CURRENT_OS_INSTALL_MOUNT" > "$TEMPFILE"` # to get arround bash variable scope difficulties
 			fi
+	
+		else
+			# this is probably a supporting disk, so we have to mount it browseable
+			# TODO: add this mount to the list of things we are going to unmount
+			# TODO: use union mounting to see if we can't co-mount this
+			/bin/echo "	Mounting a support disk from $INSTALLER_FOLDER/$IMAGE_FILE" | /usr/bin/tee -a $LOG_FILE
+			/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly | /usr/bin/tee -a $LOG_FILE >&4
+		fi
+	done
+	
+	CURRENT_OS_INSTALL_MOUNT=`/bin/cat "$TEMPFILE"` # to get arround bash variable scope difficulties
+	/bin/rm "$TEMPFILE"
+	
+	if [ ! -d "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages" ]; then
+		/bin/echo "ERROR: the main install disk was not sucessfully mounted!" | /usr/bin/tee -a $LOG_FILE
+		exit 1
 	fi
+	
 	/bin/echo "Mac OS X installer image mounted" >> $LOG_FILE
 	/bin/date +%H:%M:%S >> $LOG_FILE
 	/bin/echo "" >> $LOG_FILE
