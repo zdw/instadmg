@@ -14,6 +14,26 @@
 # some defaults to get us started
 #
 
+# Set up some safety measures
+
+IFS=' 	
+'
+
+unset -f unalias
+
+\unalias -a
+
+unset -f command
+
+# set path to a known path
+
+SYSPATH="$(command -p getconf PATH 2>/dev/null)"
+if [[ -z "SYSPATH" ]]; then
+	SYSPATH="/usr/bin:/bin:/usr/sbin:/sbin"
+fi
+PATH="$SYSPATH"; export PATH
+
+
 # Set the creation date in a variable so it's consistant during execution.
 CREATE_DATE=`date +%y-%m-%d`
 
