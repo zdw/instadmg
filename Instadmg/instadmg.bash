@@ -343,9 +343,8 @@ install_packages_from_folder() {
 	
 	/bin/ls -A1 "$SELECTED_FOLDER" | /usr/bin/awk "/^[[:digit:]]+$/" | while read ORDERED_FOLDER
 	do
-		/bin/ls -A1 "$SELECTED_FOLDER/$ORDERED_FOLDER" | /usr/bin/awk 'tolower($1) ~ /\.(m)?pkg$/' | while read UPDATE_PKG
+		/bin/ls -A1 "$SELECTED_FOLDER/$ORDERED_FOLDER" | /usr/bin/awk 'tolower($1) ~ /\.(m)?pkg$/ && $1 !~ /^\._/' | while read UPDATE_PKG
 		do
-			
 			if [ -e "$SELECTED_FOLDER/$ORDERED_FOLDER/InstallerChoices.xml" ]; then
 				CHOICES_FILE="InstallerChoices.xml"
 				# TODO: better handle multiple pkg's and InstallerChoice files named for the file they should handle
