@@ -1,3 +1,9 @@
+Changes in instadmg 1.4b3
+
+Handlers:
+InstallerChoices.xml file for OS install now goes in BaseOS folder.
+
+------------------------
 Changes in instadmg 1.4b2
 
 Logging:
