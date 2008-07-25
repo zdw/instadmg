@@ -33,6 +33,8 @@ if [[ -z "SYSPATH" ]]; then
 fi
 PATH="$SYSPATH"; export PATH
 
+VERSION="1.4b1"
+PROGRAM=$( (basename $0) )
 
 # Set the creation date in a variable so it's consistant during execution.
 CREATE_DATE=`date +%y-%m-%d`
@@ -44,10 +46,10 @@ OS_REV=`/usr/bin/sw_vers | /usr/bin/grep -c 10.5`
 CPU_TYPE=`arch | /usr/bin/grep -c i386`
 
 # Default ISO code for default install language. Script default is English.
-ISO_CODE="en"
+#ISO_CODE="en"
 
-# Are we installing Mac OS X Server. This defaults to 0 for no.
-SERVER_INSTALL="0"
+# Are we installing Mac OS X . This defaults to 0 for no.
+#SERVER_INSTALL="0"
 
 # Put images of your install DVDs in here
 INSTALLER_FOLDER=./BaseOS
@@ -99,19 +101,67 @@ WORKING_DIR=`pwd`
 export COMMAND_LINE_INSTALL=1
 export CM_BUILD=CM_BUILD
 
+
 #
 # Now for the meat
 #
 
+bail()
+{	
+	#If we get here theres a problem, print the usage message and then exit with a non-zero status
+	
+	usage
+	exit $1
+}
+
+version()
+{
+
+# Show the version number
+
+	echo "$PROGRAM version $VERSION"
+}
+
+usage()
+{
+
+# Usage format
+
+cat <<EOF
+Usage:  $PROGRAM
+	[ -h "Help about this utility"]
+	[ -v "Version number"]
+	[ -s "Server install"]
+ 	[ -l "Language"]
+	[ -i "Install folder"]
+	[ -u "Update folder"]
+	[ -c "Custom folder"]
+	[ -a "ASR output folder"]
+	[ -d "DMG Scratch folder"]
+	[ -l "Log Folder"]
+	[ -q "Quiet mode"]
+EOF
+}
+
+rootcheck()
+{
+
+# Root is required to run instadmg
+
+echo "Warning:  You must run this utility using sudo or as root!"
+exit 64
+
+}
+
 # check to make sure we are root, can't do these things otherwise
 
-check_root() {
-    if [ `whoami` != "root" ]
-    then
-        /bin/echo "you need to be root to do this so use sudo"
-        exit 0;
-    fi
-}
+#check_root() {
+#    if [ `whoami` != "root" ]
+#    then
+#        /bin/echo "you need to be root to do this so use sudo"
+#        exit 0;
+#    fi
+#}
 
 # setup and create the DMG.
 
@@ -406,7 +456,71 @@ timestamp() {
 }
 
 # Call the handlers as needed to make it all happen.
-check_root
+
+if [ $EUID != 0 ]
+then
+	rootcheck
+fi
+
+lang=""
+SERVER_INSTALL="0"
+exec 4>/dev/null
+while getopts "l:svb:u:c:a:l:qh" opt
+do
+	echo "$opt" $OPTIND $OPTARG
+	case $opt in
+	l )
+		lang="$OPTARG"
+		;;
+	b )
+		INSTALLER_FOLDER="$OPTARG $INSTALLER_FOLDER"
+		;;
+	u )
+		UPDATE_FOLDER="$OPTARG $UPDATE_FOLDER"
+		;;
+	c )
+		CUSTOM_FOLDER="$OPTARG $CUSTOM_FOLDER"
+		;;
+	a )
+		ASR_FOLDER="$OPTARG $ASR_FOLDER"
+		;;
+	d )
+		DMG_SCRATCH="$OPTARG $DMG_SCRATCH"
+		;;
+	l )
+		LOG_FOLDER="$OPTARG $LOG_FOLDER"
+		;;
+	s )
+		SERVER_INSTALL="1"
+		;;
+	v )
+		version
+		exit 0
+		;;
+	q )
+		exec 6>&1
+		exec >>$LOG_FILE
+		exec 4>>$PKG_LOG
+		;;
+	h )
+		usage 
+		exit 0
+		;;
+	"?" )
+		printf "\n$0: invalid option -$OPTARG\n\n" >&2
+		;;
+	esac
+done
+
+shift $((OPTIND -1 ))
+
+if [ "${lang%"${lang#?}"}" = "-" ] || [ "$lang" = "" ]
+then
+	printf "\n\tA language was not specified!!\n\n"
+	bail
+fi
+
+#check_root
 create_and_mount_image
 mount_os_install
 install_system
