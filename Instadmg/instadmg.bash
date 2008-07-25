@@ -260,7 +260,7 @@ mount_os_install() {
 					CURRENT_OS_INSTALL_MOUNT=`log "$HDIUTIL_LINE" | /usr/bin/awk 'sub("/dev/.+[[:space:]]+Apple_HFS[[:space:]]+", "")'`
 					`log "$CURRENT_OS_INSTALL_MOUNT" > "$TEMPFILE"` # to get around bash variable scope difficulties
 					# Here we are done!
-					log "	The main OS Installer Disk was already mounted at: $CURRENT_OS_INSTALL_MOUNT" | /usr/bin/tee -a $LOG_FILE
+					log "	The main OS Installer Disk was already mounted at: $CURRENT_OS_INSTALL_MOUNT" 
 				fi
 			done
 			
@@ -269,8 +269,8 @@ mount_os_install() {
 				#	we are going to mount it non-browsable, so it does not appear in the finder, and we are going to mount it to a temp folder
 				
 				CURRENT_OS_INSTALL_MOUNT=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX`
-				log "	Mounting the main OS Installer Disk from: $IMAGE_FILE at: $CURRENT_OS_INSTALL_MOUNT" | /usr/bin/tee -a $LOG_FILE
-				/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" | /usr/bin/tee -a $LOG_FILE
+				log "	Mounting the main OS Installer Disk from: $IMAGE_FILE at: $CURRENT_OS_INSTALL_MOUNT" 
+				/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" 
 				`log "$CURRENT_OS_INSTALL_MOUNT" > "$TEMPFILE"` # to get arround bash variable scope difficulties
 			fi
 	
@@ -278,8 +278,8 @@ mount_os_install() {
 			# this is probably a supporting disk, so we have to mount it browseable
 			# TODO: add this mount to the list of things we are going to unmount
 			# TODO: use union mounting to see if we can't co-mount this
-			log "	Mounting a support disk from $INSTALLER_FOLDER/$IMAGE_FILE" | /usr/bin/tee -a $LOG_FILE
-			/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly | /usr/bin/tee -a $LOG_FILE >&4
+			log "	Mounting a support disk from $INSTALLER_FOLDER/$IMAGE_FILE" 
+			/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly  >&4
 		fi
 	done
 	
@@ -287,7 +287,7 @@ mount_os_install() {
 	/bin/rm "$TEMPFILE"
 	
 	if [ ! -d "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages" ]; then
-		log "ERROR: the main install disk was not sucessfully mounted!" | /usr/bin/tee -a $LOG_FILE
+		log "ERROR: the main install disk was not sucessfully mounted!" 
 		exit 1
 	fi
 	
@@ -344,7 +344,9 @@ install_system() {
 install_packages_from_folder() {
 	SELECTED_FOLDER="$1"
 	
-	/bin/date "+#####Beginning Update Installs from $SELECTED_FOLDER#####\n%H:%M:%S\n" | /usr/bin/tee -a "$LOG_FILE" "$PKG_LOG"
+	log "+#####Beginning Update Installs from $SELECTED_FOLDER#####\n%H:%M:%S\n"
+	log "+#####Beginning Update Installs from $SELECTED_FOLDER#####\n%H:%M:%S\n" >&4
+	
 
 	if [ "$SELECTED_FOLDER" == "" ]; then
 		log "Error: install_packages_from_folder called without folder"
@@ -365,12 +367,14 @@ install_packages_from_folder() {
 			fi			
 			
 			if [ "$CHOICES_FILE" != "" ]; then
-				/usr/sbin/installer -verbose -applyChoiceChangesXML "$SELECTED_FOLDER/$ORDERED_FOLDER/$CHOICES_FILE" -pkg "$SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | /usr/bin/tee -a "$LOG_FILE"
-				log "	Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG with XML Choices file: $CHOICES_FILE" | /usr/bin/tee -a "$LOG_FILE" "$PKG_LOG"
+				/usr/sbin/installer -verbose -applyChoiceChangesXML "$SELECTED_FOLDER/$ORDERED_FOLDER/$CHOICES_FILE" -pkg "$SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT"
+				log "	Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG with XML Choices file: $CHOICES_FILE"
+				log "	Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG with XML Choices file: $CHOICES_FILE" >&4
 				
 			else
-				/usr/sbin/installer -verbose -pkg "$SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | /usr/bin/tee -a "$LOG_FILE"
-				log "	Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" | /usr/bin/tee -a "$LOG_FILE" "$PKG_LOG"
+				/usr/sbin/installer -verbose -pkg "$SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT"
+				log "	Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG"
+				log "	Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" >&4
 			fi
 		done
 	done
@@ -378,24 +382,25 @@ install_packages_from_folder() {
 
 # clean up some generic installer mistakes
 clean_up_image() {
-	/bin/date "+$CREATE_DATE %H:%M:%S: Correcting some generic installer errors" | /usr/bin/tee -a "$LOG_FILE" "$PKG_LOG"
-
+	log "+$CREATE_DATE %H:%M:%S: Correcting some generic installer errors"
+	log "+$CREATE_DATE %H:%M:%S: Correcting some generic installer errors" >&4
+	
 	# find all the symlinks that are pointing to $CURRENT_IMAGE_MOUNT, and make them point at the "root"
 	/usr/bin/find -x "$CURRENT_IMAGE_MOUNT" -type l | while read THIS_LINK
 	do
 		if [ `/usr/bin/readlink "$THIS_LINK" | /usr/bin/grep -c "$CURRENT_IMAGE_MOUNT"` -gt 0 ]; then
 		
-			log "	Correcting soft-link: $THIS_LINK" | /usr/bin/tee -a "$LOG_FILE"
+			log "	Correcting soft-link: $THIS_LINK"
 			CORRECTED_LINK=`/usr/bin/readlink "$THIS_LINK" | /usr/bin/awk "sub(\"$CURRENT_IMAGE_MOUNT\", \"\") { print }"`
 			
-			/bin/rm "$THIS_LINK" | /usr/bin/tee -a "$LOG_FILE"
-			/bin/ln -fs "$CORRECTED_LINK" "$THIS_LINK" | /usr/bin/tee -a "$LOG_FILE"
+			/bin/rm "$THIS_LINK"
+			/bin/ln -fs "$CORRECTED_LINK" "$THIS_LINK"
 		
 		fi
 	done
 	
 	# make sure that we have not left any open files behind
-	/usr/sbin/lsof | /usr/bin/grep "$CURRENT_IMAGE_MOUNT/" | /usr/bin/awk '{ print $2 }' | /usr/bin/sort -u | /usr/bin/xargs /bin/kill 2>&1 | /usr/bin/tee -a "$LOG_FILE"
+	/usr/sbin/lsof | /usr/bin/grep "$CURRENT_IMAGE_MOUNT/" | /usr/bin/awk '{ print $2 }' | /usr/bin/sort -u | /usr/bin/xargs /bin/kill 2>&1
 }
 
 # close up the DMG, compress and scan for restore
