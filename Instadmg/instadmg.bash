@@ -367,6 +367,28 @@ install_packages_from_folder() {
 	done
 }
 
+# clean up some generic installer mistakes
+clean_up_image() {
+	/bin/date "+$CREATE_DATE %H:%M:%S: Correcting some generic installer errors" | /usr/bin/tee -a "$LOG_FILE" "$PKG_LOG"
+
+	# find all the symlinks that are pointing to $CURRENT_IMAGE_MOUNT, and make them point at the "root"
+	/usr/bin/find -x "$CURRENT_IMAGE_MOUNT" -type l | while read THIS_LINK
+	do
+		if [ `/usr/bin/readlink "$THIS_LINK" | /usr/bin/grep -c "$CURRENT_IMAGE_MOUNT"` -gt 0 ]; then
+		
+			/bin/echo "	Correcting soft-link: $THIS_LINK" | /usr/bin/tee -a "$LOG_FILE"
+			CORRECTED_LINK=`/usr/bin/readlink "$THIS_LINK" | /usr/bin/awk "sub(\"$CURRENT_IMAGE_MOUNT\", \"\") { print }"`
+			
+			/bin/rm "$THIS_LINK" | /usr/bin/tee -a "$LOG_FILE"
+			/bin/ln -fs "$CORRECTED_LINK" "$THIS_LINK" | /usr/bin/tee -a "$LOG_FILE"
+		
+		fi
+	done
+	
+	# make sure that we have not left any open files behind
+	/usr/sbin/lsof | /usr/bin/grep "$CURRENT_IMAGE_MOUNT/" | /usr/bin/awk '{ print $2 }' | /usr/bin/sort -u | /usr/bin/xargs /bin/kill 2>&1 | /usr/bin/tee -a "$LOG_FILE"
+}
+
 # close up the DMG, compress and scan for restore
 close_up_and_compress() {
 	/bin/echo "#####Creating the deployment DMG and scanning for ASR#####" >> $LOG_FILE
@@ -526,6 +548,7 @@ mount_os_install
 install_system
 install_packages_from_folder "$UPDATE_FOLDER"
 install_packages_from_folder "$CUSTOM_FOLDER"
+clean_up_image
 close_up_and_compress
 clean_up
 timestamp
