@@ -321,7 +321,7 @@ install_system() {
 				then
 				log "InstallerChoices.xml file found. Applying Choices" 
 				printf "\n" 
-				/usr/sbin/installer -verbose -applyChoiceChangesXML ./InstallerChoices.xml -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target $CURRENT_IMAGE_MOUNT -lang $ISO_CODE 
+				/usr/sbin/installer -verbose -applyChoiceChangesXML ./BaseOS/InstallerChoices.xml -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target $CURRENT_IMAGE_MOUNT -lang $ISO_CODE 
 				else
 				log "No InstallerChoices.xml file found. Installing full mpkg" 
 				printf "\n" 
