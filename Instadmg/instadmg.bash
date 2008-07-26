@@ -143,6 +143,94 @@ Usage:  $PROGRAM
 EOF
 }
 
+
+# Log a message - takes up to two arguments
+
+#	The first argument is the message to send. If blank log prints the date to the standard places for the selcted log level
+
+#	The second argument tells the type of message. The default is information. The options are:
+#		section		- header announcing that a new section is being started
+#		warning		- non-fatal warning
+#		error		- non-recoverable error
+#		information	- general information
+#		detail		- verbose detail
+
+# everything will always be logged to the full log
+# depending on the second argument and the loggin levels for CONSOLE_LOG_LEVEL and PACKAGE_LOG_LEVEL the following will be logged
+
+# Error:		always logged to everything
+# Section:		CONSOLE level 1 and higher, PACKAGE level 1 and higher
+# Warning:		CONSOLE level 2 and higher, PACKAGE level 1 and higher
+# Information:	CONSOLE level 2 and higher, PACKAGE level 2 and higher
+# Detail:		CONSOLE level 3 and higher, PACKAGE level 3 and higher
+
+# commands should all have the following appended to them:
+#	| (while read INPUT; do log $INPUT "information"; done)
+
+ERROR_LOG_FORMAT="ERROR: %s\n"
+SECTION_LOG_FORMAT="######%s######\n"
+WARNING_LOG_FORMAT="WARNING: %s\n"
+INFORMATION_LOG_FORMAT="	%s\n"
+DETAIL_LOG_FORMAT="		%s\n"
+
+log_2() {
+	if [ -z "$1" ]; then
+		$1="$(date +%H:%M:%S )\n"
+	fi
+	
+	if [ -z "$2" ]; then
+		$2="information"
+	fi	
+
+	if [ "$2" == "error" ]; then
+		/usr/bin/printf $SECTION_LOG_FORMAT $1 | /usr/bin/tee "$LOG_FILE" "$PKG_LOG"
+	fi
+
+	if [ "$2" == "section" ]; then
+		/usr/bin/printf "$SECTION_LOG_FORMAT" "$1" >> "$LOG_FILE"
+	
+		if [ $CONSOLE_LOG_LEVEL -ge 1 ]; then 
+			/usr/bin/printf "$SECTION_LOG_FORMAT" "$1"
+		fi
+		if [ $PACKAGE_LOG_LEVEL -ge 1 ]; then
+			/usr/bin/printf "$SECTION_LOG_FORMAT" "$1" >> "$PKG_LOG"
+		fi
+	fi
+	
+	if [ "$2" == "warning" ]; then
+		/usr/bin/printf "$WARNING_LOG_FORMAT" "$1" >> "$LOG_FILE"
+	
+		if [ $CONSOLE_LOG_LEVEL -ge 2 ]; then 
+			/usr/bin/printf "$WARNING_LOG_FORMAT" "$1"
+		fi
+		if [ $PACKAGE_LOG_LEVEL -ge 1 ]; then
+			/usr/bin/printf "$WARNING_LOG_FORMAT" "$1" >> "$PKG_LOG"
+		fi
+	fi
+	
+	if [ "$2" == "information" ]; then
+		/usr/bin/printf "$INFORMATION_LOG_FORMAT" "$1" >> "$LOG_FILE"
+	
+		if [ $CONSOLE_LOG_LEVEL -ge 2 ]; then 
+			/usr/bin/printf "$INFORMATION_LOG_FORMAT" "$1"
+		fi
+		if [ $PACKAGE_LOG_LEVEL -ge 2 ]; then
+			/usr/bin/printf "$INFORMATION_LOG_FORMAT" "$1" >> "$PKG_LOG"
+		fi
+	fi
+	
+	if [ "$2" == "detail" ]; then
+		/usr/bin/printf "$DETAIL_LOG_FORMAT" "$1" >> "$LOG_FILE"
+	
+		if [ $CONSOLE_LOG_LEVEL -ge 3 ]; then 
+			/usr/bin/printf "$DETAIL_LOG_FORMAT" "$1"
+		fi
+		if [ $PACKAGE_LOG_LEVEL -ge 3 ]; then
+			/usr/bin/printf "$DETAIL_LOG_FORMAT" "$1" >> "$PKG_LOG"
+		fi
+	fi
+}
+
 log()
 {
 if [ "$1" = "" ]
@@ -240,13 +328,13 @@ mount_os_install() {
 			# but first we have to make sure that it is not already mounted
 			/usr/bin/hdiutil info | while read HDIUTIL_LINE
 			do
-				if [ `log "$HDIUTIL_LINE" | /usr/bin/grep -c '================================================'` -eq 1 ]; then
+				if [ `/bin/echo "$HDIUTIL_LINE" | /usr/bin/grep -c '================================================'` -eq 1 ]; then
 					# this is the marker for a new section, so we need to clear things out
 					IMAGE_LOCATION=""
 					MOUNTED_IMAGES=""
 			
-				elif [ "`log "$HDIUTIL_LINE" | /usr/bin/awk '/^image-path/'`" != "" ]; then
-					IMAGE_LOCATION=`log "$HDIUTIL_LINE" | /usr/bin/awk 'sub("^image-path[[:space:]]+:[[:space:]]+", "")'`
+				elif [ "`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk '/^image-path/'`" != "" ]; then
+					IMAGE_LOCATION=`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk 'sub("^image-path[[:space:]]+:[[:space:]]+", "")'`
 					
 					# check the inodes to see if we are pointing at the same file
 					if [ "`/bin/ls -Li "$IMAGE_LOCATION" | awk '{ print $1 }'`" != "`/bin/ls -Li "$IMAGE_FILE" | awk '{ print $1 }'`" ]; then
@@ -255,10 +343,10 @@ mount_os_install() {
 						
 						# if it is the same thing, then we let it through to get the mount point below
 					fi
-				elif [ "$IMAGE_LOCATION" != "" ] && [ "`log "$HDIUTIL_LINE" | /usr/bin/awk '/\/dev\/.+[[:space:]]+Apple_HFS[[:space:]]+\//'`" != "" ]; then
+				elif [ "$IMAGE_LOCATION" != "" ] && [ "`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk '/\/dev\/.+[[:space:]]+Apple_HFS[[:space:]]+\//'`" != "" ]; then
 					# find the mount point
-					CURRENT_OS_INSTALL_MOUNT=`log "$HDIUTIL_LINE" | /usr/bin/awk 'sub("/dev/.+[[:space:]]+Apple_HFS[[:space:]]+", "")'`
-					`log "$CURRENT_OS_INSTALL_MOUNT" > "$TEMPFILE"` # to get around bash variable scope difficulties
+					CURRENT_OS_INSTALL_MOUNT=`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk 'sub("/dev/.+[[:space:]]+Apple_HFS[[:space:]]+", "")'`
+					`/bin/echo "$CURRENT_OS_INSTALL_MOUNT" > "$TEMPFILE"` # to get around bash variable scope difficulties
 					# Here we are done!
 					log "	The main OS Installer Disk was already mounted at: $CURRENT_OS_INSTALL_MOUNT" 
 				fi
@@ -271,7 +359,7 @@ mount_os_install() {
 				CURRENT_OS_INSTALL_MOUNT=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX`
 				log "	Mounting the main OS Installer Disk from: $IMAGE_FILE at: $CURRENT_OS_INSTALL_MOUNT" 
 				/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" 
-				`log "$CURRENT_OS_INSTALL_MOUNT" > "$TEMPFILE"` # to get arround bash variable scope difficulties
+				`/bin/echo "$CURRENT_OS_INSTALL_MOUNT" > "$TEMPFILE"` # to get arround bash variable scope difficulties
 			fi
 	
 		else
