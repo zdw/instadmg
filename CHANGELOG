@@ -2,6 +2,17 @@ Changes in instadmg 1.4b3
 
 Handlers:
 InstallerChoices.xml file for OS install now goes in BaseOS folder.
+install_OS_updates and install_custom have been merged into one function, install_pacakges_from_folder.
+mount_os_install now mounts the DVD image with -nobrowse.
+All installer functions now filter ._metafiles.
+clean_up_image added to kill processes on target dmg and to correct softlinks that go outside the image. (This should fix the iTunes hang and iLife installer bugs)
+
+Logging:
+Totally new logging system that supports multiple verbosity levels.
+
+General:
+Removed instadmg-rmlcll-revision.bash as it was out of date.
+Changed contact info in the main script to be accurate of new dev system.
 
 ------------------------
 Changes in instadmg 1.4b2
