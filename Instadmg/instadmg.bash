@@ -5,10 +5,11 @@
 #
 
 #
-# Josh Wisenbaker - macshome@afp548.com - Maintainer
+# Maintained by the InstaDMG dev team @ http://code.google.com/p/instadmg/
+# Latest news, releases, and user forums @ http://www.afp548.com
 #
 
-# Version 1.4b2
+# Version 1.4b3
 
 #
 # some defaults to get us started
