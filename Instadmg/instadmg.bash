@@ -174,60 +174,67 @@ WARNING_LOG_FORMAT="WARNING: %s\n"
 INFORMATION_LOG_FORMAT="	%s\n"
 DETAIL_LOG_FORMAT="		%s\n"
 
+CONSOLE_LOG_LEVEL=2
+PACKAGE_LOG_LEVEL=2
+
 log_2() {
 	if [ -z "$1" ]; then
-		$1="$(date +%H:%M:%S )\n"
+		MESSAGE="$(date +%H:%M:%S )\n"
+	else
+		MESSAGE="$1"
 	fi
 	
 	if [ -z "$2" ]; then
-		$2="information"
+		LEVEL="information"
+	else
+		LEVEL="$2"
 	fi	
 
-	if [ "$2" == "error" ]; then
-		/usr/bin/printf $SECTION_LOG_FORMAT $1 | /usr/bin/tee "$LOG_FILE" "$PKG_LOG"
+	if [ "$LEVEL" == "error" ]; then
+		/usr/bin/printf "$SECTION_LOG_FORMAT" "$MESSAGE" | /usr/bin/tee "$LOG_FILE" "$PKG_LOG"
 	fi
 
-	if [ "$2" == "section" ]; then
-		/usr/bin/printf "$SECTION_LOG_FORMAT" "$1" >> "$LOG_FILE"
+	if [ "$LEVEL" == "section" ]; then
+		/usr/bin/printf "$SECTION_LOG_FORMAT" "$MESSAGE" >> "$LOG_FILE"
 	
 		if [ $CONSOLE_LOG_LEVEL -ge 1 ]; then 
-			/usr/bin/printf "$SECTION_LOG_FORMAT" "$1"
+			/usr/bin/printf "$SECTION_LOG_FORMAT" "$MESSAGE"
 		fi
 		if [ $PACKAGE_LOG_LEVEL -ge 1 ]; then
-			/usr/bin/printf "$SECTION_LOG_FORMAT" "$1" >> "$PKG_LOG"
+			/usr/bin/printf "$SECTION_LOG_FORMAT" "$MESSAGE" >> "$PKG_LOG"
 		fi
 	fi
 	
-	if [ "$2" == "warning" ]; then
-		/usr/bin/printf "$WARNING_LOG_FORMAT" "$1" >> "$LOG_FILE"
+	if [ "$LEVEL" == "warning" ]; then
+		/usr/bin/printf "$WARNING_LOG_FORMAT" "$MESSAGE" >> "$LOG_FILE"
 	
 		if [ $CONSOLE_LOG_LEVEL -ge 2 ]; then 
-			/usr/bin/printf "$WARNING_LOG_FORMAT" "$1"
+			/usr/bin/printf "$WARNING_LOG_FORMAT" "$MESSAGE"
 		fi
 		if [ $PACKAGE_LOG_LEVEL -ge 1 ]; then
-			/usr/bin/printf "$WARNING_LOG_FORMAT" "$1" >> "$PKG_LOG"
+			/usr/bin/printf "$WARNING_LOG_FORMAT" "$MESSAGE" >> "$PKG_LOG"
 		fi
 	fi
 	
-	if [ "$2" == "information" ]; then
-		/usr/bin/printf "$INFORMATION_LOG_FORMAT" "$1" >> "$LOG_FILE"
+	if [ "$LEVEL" == "information" ]; then
+		/usr/bin/printf "$INFORMATION_LOG_FORMAT" "$MESSAGE" >> "$LOG_FILE"
 	
 		if [ $CONSOLE_LOG_LEVEL -ge 2 ]; then 
-			/usr/bin/printf "$INFORMATION_LOG_FORMAT" "$1"
+			/usr/bin/printf "$INFORMATION_LOG_FORMAT" "$MESSAGE"
 		fi
 		if [ $PACKAGE_LOG_LEVEL -ge 2 ]; then
-			/usr/bin/printf "$INFORMATION_LOG_FORMAT" "$1" >> "$PKG_LOG"
+			/usr/bin/printf "$INFORMATION_LOG_FORMAT" "$MESSAGE" >> "$PKG_LOG"
 		fi
 	fi
 	
-	if [ "$2" == "detail" ]; then
-		/usr/bin/printf "$DETAIL_LOG_FORMAT" "$1" >> "$LOG_FILE"
+	if [ "$LEVEL" == "detail" ]; then
+		/usr/bin/printf "$DETAIL_LOG_FORMAT" "$MESSAGE" >> "$LOG_FILE"
 	
 		if [ $CONSOLE_LOG_LEVEL -ge 3 ]; then 
-			/usr/bin/printf "$DETAIL_LOG_FORMAT" "$1"
+			/usr/bin/printf "$DETAIL_LOG_FORMAT" "$MESSAGE"
 		fi
 		if [ $PACKAGE_LOG_LEVEL -ge 3 ]; then
-			/usr/bin/printf "$DETAIL_LOG_FORMAT" "$1" >> "$PKG_LOG"
+			/usr/bin/printf "$DETAIL_LOG_FORMAT" "$MESSAGE" >> "$PKG_LOG"
 		fi
 	fi
 }
