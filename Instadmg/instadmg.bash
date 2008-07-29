@@ -67,6 +67,12 @@ ASR_FOLDER=./ASR_Output
 # This is where DMG scratch is done. Set this to whatever you want.
 DMG_SCRATCH=./DMG_Scratch
 
+# This is where cached copies of an installed version of the base image are stored
+#	They are stored using a naming convention involving the checksum of the image
+BASE_IMAGE_CACHE="BaseImageCache"
+BASE_IMAGE_CACHING_ALLOWED=true # setting this to false turns off caching
+# TODO: make sure that the cached images are not indexed
+
 # This string is the intermediary image name.
 DMG_BASE_NAME=`uuidgen`
 
@@ -92,8 +98,8 @@ ASR_TARGET_VOLUME=/Volumes/foo
 # Collect path to instadmg working directory
 WORKING_DIR=`pwd`
 
-
 # Handler calls are at the end of the script. Other than that you should not need to modify anything below this line.
+
 
 #
 # Some shell variables we need
@@ -102,6 +108,16 @@ WORKING_DIR=`pwd`
 export COMMAND_LINE_INSTALL=1
 export CM_BUILD=CM_BUILD
 
+#
+# Variables that will be filled in durring the process
+#
+
+CURRENT_IMAGE_MOUNT=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX` # the location where the target is mounted, we will choose this initially
+
+BASE_IMAGE_CHECKSUM="" # the checksum reported by diskutil for the OS Instal disk image
+SCRATCH_FILE_LOCATION="" # the location of the intermediate file that will be scanned for the ASR output
+CURRENT_OS_INSTALL_MOUNT="" # the location where the primary installer disk is mounted
+BASE_IMAGE_CACHE_FOUND=false
 
 #
 # Now for the meat
@@ -144,7 +160,6 @@ Usage:  $PROGRAM
 EOF
 }
 
-
 # Log a message - takes up to two arguments
 
 #	The first argument is the message to send. If blank log prints the date to the standard places for the selcted log level
@@ -164,6 +179,9 @@ EOF
 # Warning:		CONSOLE level 2 and higher, PACKAGE level 1 and higher
 # Information:	CONSOLE level 2 and higher, PACKAGE level 2 and higher
 # Detail:		CONSOLE level 3 and higher, PACKAGE level 3 and higher
+# Detail 2:		CONSOLE level 4 and higher, PACKAGE leval 4 and higher 
+
+# Detail 2 is lines that begin with "installer:"
 
 # commands should all have the following appended to them:
 #	| (while read INPUT; do log $INPUT "information"; done)
@@ -171,15 +189,17 @@ EOF
 ERROR_LOG_FORMAT="ERROR: %s\n"
 SECTION_LOG_FORMAT="######%s######\n"
 WARNING_LOG_FORMAT="WARNING: %s\n"
+SUBPACKAGE_LOG_FORMAT="		%s\n"
 INFORMATION_LOG_FORMAT="	%s\n"
 DETAIL_LOG_FORMAT="		%s\n"
 
 CONSOLE_LOG_LEVEL=2
 PACKAGE_LOG_LEVEL=2
 
-log_2() {
-	if [ -z "$1" ]; then
-		MESSAGE="$(date +%H:%M:%S )\n"
+log () {
+	if [ -z "$1" ] || [ "$1" == "" ] || [ "$1" == "#" ]; then
+		# there is nothing to log
+		return
 	else
 		MESSAGE="$1"
 	fi
@@ -195,7 +215,8 @@ log_2() {
 	fi
 
 	if [ "$LEVEL" == "section" ]; then
-		/usr/bin/printf "$SECTION_LOG_FORMAT" "$MESSAGE" >> "$LOG_FILE"
+		TIMESTAMP=`date "+%H:%M:%S"`
+		/usr/bin/printf "$TIMESTAMP $SECTION_LOG_FORMAT" "$MESSAGE" >> "$LOG_FILE"
 	
 		if [ $CONSOLE_LOG_LEVEL -ge 1 ]; then 
 			/usr/bin/printf "$SECTION_LOG_FORMAT" "$MESSAGE"
@@ -229,17 +250,36 @@ log_2() {
 	
 	if [ "$LEVEL" == "detail" ]; then
 		/usr/bin/printf "$DETAIL_LOG_FORMAT" "$MESSAGE" >> "$LOG_FILE"
-	
-		if [ $CONSOLE_LOG_LEVEL -ge 3 ]; then 
-			/usr/bin/printf "$DETAIL_LOG_FORMAT" "$MESSAGE"
-		fi
-		if [ $PACKAGE_LOG_LEVEL -ge 3 ]; then
-			/usr/bin/printf "$DETAIL_LOG_FORMAT" "$MESSAGE" >> "$PKG_LOG"
+		
+		# here we are going to split the "detail" and "detail 2" groups
+		# the different packages will also cause "informational" messages
+		
+		if [[ $MESSAGE == *Installing* ]]; then
+			if [ $CONSOLE_LOG_LEVEL -ge 2 ]; then 
+				/usr/bin/printf "$SUBPACKAGE_LOG_FORMAT" "$MESSAGE"
+			fi
+			if [ $PACKAGE_LOG_LEVEL -ge 2 ]; then
+				/usr/bin/printf "$SUBPACKAGE_LOG_FORMAT" "$MESSAGE" >> "$PKG_LOG"
+			fi		
+		elif [[ $MESSAGE == installer:* ]]; then
+			if [ $CONSOLE_LOG_LEVEL -ge 4 ]; then 
+				/usr/bin/printf "$DETAIL_LOG_FORMAT" "$MESSAGE"
+			fi
+			if [ $PACKAGE_LOG_LEVEL -ge 4 ]; then
+				/usr/bin/printf "$DETAIL_LOG_FORMAT" "$MESSAGE" >> "$PKG_LOG"
+			fi		
+		else
+			if [ $CONSOLE_LOG_LEVEL -ge 3 ]; then 
+				/usr/bin/printf "$DETAIL_LOG_FORMAT" "$MESSAGE"
+			fi
+			if [ $PACKAGE_LOG_LEVEL -ge 3 ]; then
+				/usr/bin/printf "$DETAIL_LOG_FORMAT" "$MESSAGE" >> "$PKG_LOG"
+			fi
 		fi
 	fi
 }
 
-log()
+log_old()
 {
 if [ "$1" = "" ]
 	then
@@ -269,69 +309,87 @@ exit 64
 #    fi
 #}
 
-# setup and create the DMG.
-
-create_and_mount_image() {
-	log "#############################################################" 
-	log "InstaDMG build initiated" 
-	log "#############################################################" >&4
-	log "InstaDMG build initiated" >&4
-	printf "\n" 
-	log $CREATE_DATE 
-	printf "\n" 
-	printf "\n" >&4
-	log "####Creating intermediary disk image#####" 
-	log 
-	printf "\n" 
-	[ -e ${DMG_BASE_NAME}.${CREATE_DATE}.sparseimage ] && $CREATE_DATE		
-	/usr/bin/hdiutil create -size $DMG_SIZE -type SPARSE -fs HFS+ $DMG_SCRATCH/${DMG_BASE_NAME}.${CREATE_DATE} 
-	CURRENT_IMAGE_MOUNT_DEV=`/usr/bin/hdiutil attach $DMG_SCRATCH/$DMG_BASE_NAME.$CREATE_DATE.sparseimage | /usr/bin/head -n 1 |  /usr/bin/awk '{ print $1 }'`
-	log "Image mounted at $CURRENT_IMAGE_MOUNT_DEV" 
-	printf "\n" 
-	
-	# Format the DMG so that the Installer will like it 
-
-	# Determine the platform
-		if [ $CPU_TYPE -eq 0 ]; then 
-			log "I'm Running on PPC Platform" 
-			log "Setting format to APM" 
-			printf "\n" 
-			
-			#(PPC Mac)
-				/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME APMformat $CURRENT_IMAGE_MOUNT_DEV 
-				printf "\n" 
-				CURRENT_IMAGE_MOUNT=/Volumes/$DMG_BASE_NAME
-		else 
-			log "I'm Running on Intel Platform" 
-			log "Setting format to GPT" 
-			printf "\n" 
-			#(Intel Mac)
-				/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME GPTFormat $CURRENT_IMAGE_MOUNT_DEV 
-				printf "\n" 
-				CURRENT_IMAGE_MOUNT=/Volumes/$DMG_BASE_NAME
-		fi
-		log "Intimediary image creation complete" 
-		log 
-		printf "\n" 
-		printf "\n" 
-}
-
 # Mount the OS source image.
 # If you have some wacky disk name then change this as needed.
 
 mount_os_install() {
-	log "#####Mounting Mac OS X installer image#####" 
-	log 
-	printf "\n" 
+	log "Mounting Mac OS X installer image" section
 	
-	TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX` # to get around bash variable scope difficulties
+	# to get around bash variable scope difficulties we will be stashing things in tempfiles
+	OS_INSTALL_LOCATION_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
+	BASE_IMAGE_CACHING_ALLOWED_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
+	BASE_IMAGE_CHECKSUM_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
+	SCRATCH_FILE_LOCATION_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
+	BASE_IMAGE_CACHE_FOUND_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
 	
 	/usr/bin/find "$INSTALLER_FOLDER" -iname "*.dmg" | while read IMAGE_FILE
 	do
 		# Look to see if this is the first installer disk
 		# TODO: look at the dmg (internally) to see if it looks like the installer rather than relying on the name
+		# TODO: somehow make sure that the base installer disk is first
+		
 		if [ "$IMAGE_FILE" == "$INSTALLER_FOLDER/Mac OS X Install Disc 1.dmg" ] || [ "$IMAGE_FILE" == "$INSTALLER_FOLDER/Mac OS X Install DVD.dmg" ]; then
-			# this is the installer disk, and we can mount it hidden
+			# we have a parimary disk image
+			
+			# check it to see if we already have a built form of this one cached
+			if [ $BASE_IMAGE_CACHING_ALLOWED == true ]; then
+				# first make sure that the folder exists
+				
+				if [ -x "$BASE_IMAGE_CACHE" ]; then
+					if [ -d "$BASE_IMAGE_CACHE" ]; then
+						FOUND_CACHE=true
+					else
+						# there was something other than a folder at the location, so we need to bail out of the cache code
+						log "Caching was enabled, but the item at the cache location was not a folder: $BASE_IMAGE_CACHE" warning
+						FOUND_CACHE=false
+						BASE_IMAGE_CACHING_ALLOWED=false
+					fi
+				else
+					# we didn't find the cache folder, so will attempt to create it
+					if [ "`/bin/mkdir -p "$BASE_IMAGE_CACHE" 2>&1`" == "" ]; then # if there was any output, it was from an error
+						log "Unable to create cache folder at: $BASE_IMAGE_CACHE" warning
+						FOUND_CACHE=false
+						BASE_IMAGE_CACHING_ALLOWED=false
+					fi						
+				fi
+				
+				if [ $FOUND_CACHE == true ]; then
+					BASE_IMAGE_CHECKSUM=`/usr/bin/hdiutil imageinfo "$IMAGE_FILE" | /usr/bin/awk '/^Checksum Value:/ { print $3 }' | /usr/bin/sed 's/\\$//'`
+					# TODO: check this line on 10.4 and beyond
+					
+					if [ ! -z "$BASE_IMAGE_CHECKSUM" ]; then # just in case the image is invalid or somehow does not have a checksum
+						/bin/echo "$BASE_IMAGE_CHECKSUM" > "$BASE_IMAGE_CHECKSUM_TEMPFILE"
+						
+						if [ -e "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" ]; then
+							# here we have found the appropriate image, and need to copy it, then mount it to a temp location
+							# TODO: better error checking if the image is not mountable
+							# TODO: check to see if the disk is already mounted
+							
+							SCRATCH_FILE_LOCATION=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX` # we will replace it right away
+							log "Copying cached image (${BASE_IMAGE_CHECKSUM}.dmg) to $SCRATCH_FILE_LOCATION_TEMPFILE" information
+							/bin/cp "$BASE_IMAGE_CACHE/${BASE_IMAGE_CHECKSUM}.dmg" "$SCRATCH_FILE_LOCATION_TEMPFILE" # TODO: error handling and logging
+							`/bin/echo "$SCRATCH_FILE_LOCATION" > "$SCRATCH_FILE_LOCATION_TEMPFILE"` # to get around bash variable scope difficulties
+							
+							log "Mounting cached image (${BASE_IMAGE_CHECKSUM}.dmg) to $CURRENT_IMAGE_MOUNT" information
+							/usr/bin/hdiutil mount "$SCRATCH_FILE_LOCATION" -readonly -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" # TODO: error handling and logging
+							`/bin/echo "$CURRENT_IMAGE_MOUNT" > "$OS_INSTALL_LOCATION_TEMPFILE"` # to get around bash variable scope difficulties
+							
+							# signal that this is a cached image
+							`/bin/echo "true" > "$BASE_IMAGE_CACHE_FOUND_TEMPFILE"`
+							
+							# we don't need to cycle over any other files, but we do need to close up things, and save our variables
+							break
+						fi
+					
+					else
+						# there was no such beast in the cache directory
+						FOUND_CACHE=false
+						BASE_IMAGE_CACHING_ALLOWED=false
+					fi
+				fi
+			fi
+			
+			# mount the image
 			
 			# but first we have to make sure that it is not already mounted
 			/usr/bin/hdiutil info | while read HDIUTIL_LINE
@@ -354,9 +412,9 @@ mount_os_install() {
 				elif [ "$IMAGE_LOCATION" != "" ] && [ "`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk '/\/dev\/.+[[:space:]]+Apple_HFS[[:space:]]+\//'`" != "" ]; then
 					# find the mount point
 					CURRENT_OS_INSTALL_MOUNT=`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk 'sub("/dev/.+[[:space:]]+Apple_HFS[[:space:]]+", "")'`
-					`/bin/echo "$CURRENT_OS_INSTALL_MOUNT" > "$TEMPFILE"` # to get around bash variable scope difficulties
+					`/bin/echo "$CURRENT_OS_INSTALL_MOUNT" > "$OS_INSTALL_LOCATION_TEMPFILE"` # to get around bash variable scope difficulties
 					# Here we are done!
-					log "	The main OS Installer Disk was already mounted at: $CURRENT_OS_INSTALL_MOUNT" 
+					log "The main OS Installer Disk was already mounted at: $CURRENT_OS_INSTALL_MOUNT" warning
 				fi
 			done
 			
@@ -365,9 +423,10 @@ mount_os_install() {
 				#	we are going to mount it non-browsable, so it does not appear in the finder, and we are going to mount it to a temp folder
 				
 				CURRENT_OS_INSTALL_MOUNT=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX`
-				log "	Mounting the main OS Installer Disk from: $IMAGE_FILE at: $CURRENT_OS_INSTALL_MOUNT" 
-				/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" 
-				`/bin/echo "$CURRENT_OS_INSTALL_MOUNT" > "$TEMPFILE"` # to get arround bash variable scope difficulties
+				log "Mounting the main OS Installer Disk from: $IMAGE_FILE at: $CURRENT_OS_INSTALL_MOUNT" information
+				/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log $INPUT detail; done)
+				`/bin/echo "$CURRENT_OS_INSTALL_MOUNT" > "$OS_INSTALL_LOCATION_TEMPFILE"`
+				# TODO: check to see if there was a problem
 			fi
 	
 		else
@@ -379,18 +438,80 @@ mount_os_install() {
 		fi
 	done
 	
-	CURRENT_OS_INSTALL_MOUNT=`/bin/cat "$TEMPFILE"` # to get arround bash variable scope difficulties
-	/bin/rm "$TEMPFILE"
+	# handle the flags that we got left to handle bash variable scope difficulties
+	if [ -s "$BASE_IMAGE_CACHING_ALLOWED_TEMPFILE" ]; then
+		BASE_IMAGE_CACHING_ALLOWED=false
+	fi
+	if [ -s "$BASE_IMAGE_CACHING_ALLOWED_TEMPFILE" ]; then
+		BASE_IMAGE_CACHE_FOUND=true
+	fi
+	if [ -s "$OS_INSTALL_LOCATION_TEMPFILE" ]; then
+		CURRENT_OS_INSTALL_MOUNT=`/bin/cat "$OS_INSTALL_LOCATION_TEMPFILE"`
+	fi
+	if [ -s "$OS_INSTALL_LOCATION_TEMPFILE" ]; then
+		BASE_IMAGE_CHECKSUM=`/bin/cat "$BASE_IMAGE_CHECKSUM_TEMPFILE"`
+	fi
+	if [ -s "$SCRATCH_FILE_LOCATION_TEMPFILE" ]; then
+		CURRENT_IMAGE_LOCATION=`/bin/cat "$SCRATCH_FILE_LOCATION_TEMPFILE"`
+	fi
+	
+	# and clean up the tempfiles
+	/bin/rm "$OS_INSTALL_LOCATION_TEMPFILE"
+	/bin/rm "$BASE_IMAGE_CACHING_ALLOWED_TEMPFILE"
+	/bin/rm "$BASE_IMAGE_CHECKSUM_TEMPFILE"
+	/bin/rm "$SCRATCH_FILE_LOCATION_TEMPFILE"
+	/bin/rm "$BASE_IMAGE_CACHE_FOUND_TEMPFILE"
 	
 	if [ ! -d "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages" ]; then
 		log "ERROR: the main install disk was not sucessfully mounted!" 
 		exit 1
 	fi
 	
-	log "Mac OS X installer image mounted" 
-	log 
-	printf "\n" 
-	printf "\n" 
+	log "Mac OS X installer image mounted" information
+}
+
+# setup and create the DMG.
+
+create_and_mount_image() {
+	log "InstaDMG build initiated" section
+	log "Creating intermediary disk image" information
+	
+	# first we need to check if we are running off a cached build
+	if [ ! -z "$CURRENT_IMAGE_MOUNT" ] && [ -d "$CURRENT_IMAGE_MOUNT/System" ]; then
+		log "Running from cached image, skipping image creation" information
+		return
+	fi
+	
+	SCRATCH_FILE_LOCATION=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
+	/bin/mv "$SCRATCH_FILE_LOCATION" "$SCRATCH_FILE_LOCATION.sparseimage" # since 
+	SCRATCH_FILE_LOCATION="$SCRATCH_FILE_LOCATION.sparseimage"
+	
+	/usr/bin/hdiutil create -ov -size $DMG_SIZE -type SPARSE -fs HFS+ "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+	CURRENT_IMAGE_MOUNT_DEV=`/usr/bin/hdiutil attach "$SCRATCH_FILE_LOCATION" | /usr/bin/head -n 1 |  /usr/bin/awk '{ print $1 }'`
+	log "Image mounted at $CURRENT_IMAGE_MOUNT_DEV" 
+	
+	# Format the DMG so that the Installer will like it 
+
+	# Determine the platform
+	if [ $CPU_TYPE -eq 0 ]; then 
+		log 'Running on PPC Platform: Setting format to APM' information
+		
+		#(PPC Mac)
+		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME APMformat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
+		CURRENT_IMAGE_MOUNT_TEMP=/Volumes/$DMG_BASE_NAME
+	else 
+		log 'Running on Intel Platform: Setting format to GPT' information
+
+		#(Intel Mac)
+		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME GPTFormat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
+		CURRENT_IMAGE_MOUNT_TEMP=/Volumes/$DMG_BASE_NAME
+	fi
+	# since this unmounts the disk, and then auto-mounts it at the end, we have to re-mount it to get it hidden again
+	/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT_DEV" | (while read INPUT; do log $INPUT detail; done)
+
+	/usr/bin/hdiutil mount "$SCRATCH_FILE_LOCATION" -noverify -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+	
+	log "Intimediary image creation complete" information
 }
 
 # Install from installation media to the DMG
@@ -401,51 +522,52 @@ mount_os_install() {
 # Just place the file in the same directory as the instadmg script.
 
 install_system() {
-	log "#####Beginning Installation from $CURRENT_OS_INSTALL_MOUNT#####" 
-	log "#####Beginning Installation from $CURRENT_OS_INSTALL_MOUNT#####" >&4
-	log 
-	log >&4
-	printf "\n" 
-	printf "\n" >&4
+	log "Beginning Installation from $CURRENT_OS_INSTALL_MOUNT" section
+	
+	if [ $BASE_IMAGE_CACHING_ALLOWED == true ] && [ $BASE_IMAGE_CACHE_FOUND == true ]; then
+		log "Using Cached image, so skipping OS installation" information
+		return
+	fi
+	
 	if [ $OS_REV -eq 0 ]; then
-		log "I'm running on Tiger. Not checking for InstallerChoices.xml file" 
-		printf "\n" 
-		/usr/sbin/installer -verbose -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target $CURRENT_IMAGE_MOUNT -lang $ISO_CODE 
+		log "Running on Tiger. Not checking for InstallerChoices.xml file" information
+		/usr/sbin/installer -verbose -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target $CURRENT_IMAGE_MOUNT -lang $ISO_CODE | (while read INPUT; do log "$INPUT " detail; done)
 	else 
 		log "I'm running on Leopard. Checking for InstallerChoices.xml file" 
-			if [ -e ./BaseOS/InstallerChoices.xml ]
-				then
-				log "InstallerChoices.xml file found. Applying Choices" 
-				printf "\n" 
-				/usr/sbin/installer -verbose -applyChoiceChangesXML ./BaseOS/InstallerChoices.xml -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target $CURRENT_IMAGE_MOUNT -lang $ISO_CODE 
-				else
-				log "No InstallerChoices.xml file found. Installing full mpkg" 
-				printf "\n" 
-				/usr/sbin/installer -verbose -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target $CURRENT_IMAGE_MOUNT -lang $ISO_CODE 
-			fi
+		if [ -e ./BaseOS/InstallerChoices.xml ]; then
+			log "InstallerChoices.xml file found. Applying Choices" information
+			/usr/sbin/installer -verbose -applyChoiceChangesXML ./BaseOS/InstallerChoices.xml -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target $CURRENT_IMAGE_MOUNT -lang $ISO_CODE | (while read INPUT; do log "$INPUT " detail; done)
+		else
+			log "No InstallerChoices.xml file found. Installing full mpkg" information
+			/usr/sbin/installer -verbose -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target $CURRENT_IMAGE_MOUNT -lang $ISO_CODE | (while read INPUT; do log "$INPUT " detail; done)
 		fi
-		printf "\n" 
-		printf "\n" >&4
-		log "Base OS installed" 
-		log "Base OS installed" >&4
-		log 
-		log >&4
-		printf "\n" 
-		printf "\n" 
-		printf "\n" >&4
-		printf "\n" >&4
+	fi
+	log "Base OS installed" information
+	
+	if [ $BASE_IMAGE_CACHING_ALLOWED == true ]; then 
+		# if we are at this point we need to close the image, copy it to the cached folder, and then re-open
+		log "Saving cached image to: $BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" information
+		
+		# unmount the image
+		/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+		
+		# copy the image to the cached folder with the appropriate name
+		/bin/cp "$SCRATCH_FILE_LOCATION" "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg"
+		
+		# remount the image
+		/usr/bin/hdiutil mount "$SCRATCH_FILE_LOCATION" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+		# TODO: error handling
+	fi
 }
 
 # install packages from a folder of folders (01, 02, 03...etc)
 install_packages_from_folder() {
 	SELECTED_FOLDER="$1"
 	
-	log "+#####Beginning Update Installs from $SELECTED_FOLDER#####\n%H:%M:%S\n"
-	log "+#####Beginning Update Installs from $SELECTED_FOLDER#####\n%H:%M:%S\n" >&4
-	
+	log "Beginning Update Installs from $SELECTED_FOLDER" section
 
 	if [ "$SELECTED_FOLDER" == "" ]; then
-		log "Error: install_packages_from_folder called without folder"
+		log "install_packages_from_folder called without folder" error
 		exit 1;
 	fi
 	
@@ -463,14 +585,12 @@ install_packages_from_folder() {
 			fi			
 			
 			if [ "$CHOICES_FILE" != "" ]; then
-				/usr/sbin/installer -verbose -applyChoiceChangesXML "$SELECTED_FOLDER/$ORDERED_FOLDER/$CHOICES_FILE" -pkg "$SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT"
-				log "	Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG with XML Choices file: $CHOICES_FILE"
-				log "	Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG with XML Choices file: $CHOICES_FILE" >&4
+				/usr/sbin/installer -verbose -applyChoiceChangesXML "$SELECTED_FOLDER/$ORDERED_FOLDER/$CHOICES_FILE" -pkg "$SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+				log "Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG with XML Choices file: $CHOICES_FILE" information
 				
 			else
-				/usr/sbin/installer -verbose -pkg "$SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT"
-				log "	Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG"
-				log "	Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" >&4
+				/usr/sbin/installer -verbose -pkg "$SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+				log "Installed $SELECTED_FOLDER/$ORDERED_FOLDER/$UPDATE_PKG" information
 			fi
 		done
 	done
@@ -478,113 +598,92 @@ install_packages_from_folder() {
 
 # clean up some generic installer mistakes
 clean_up_image() {
-	log "+$CREATE_DATE %H:%M:%S: Correcting some generic installer errors"
-	log "+$CREATE_DATE %H:%M:%S: Correcting some generic installer errors" >&4
+	log "Correcting some generic installer errors" section
 	
 	# find all the symlinks that are pointing to $CURRENT_IMAGE_MOUNT, and make them point at the "root"
 	/usr/bin/find -x "$CURRENT_IMAGE_MOUNT" -type l | while read THIS_LINK
 	do
 		if [ `/usr/bin/readlink "$THIS_LINK" | /usr/bin/grep -c "$CURRENT_IMAGE_MOUNT"` -gt 0 ]; then
 		
-			log "	Correcting soft-link: $THIS_LINK"
+			log "Correcting soft-link: $THIS_LINK" detail
 			CORRECTED_LINK=`/usr/bin/readlink "$THIS_LINK" | /usr/bin/awk "sub(\"$CURRENT_IMAGE_MOUNT\", \"\") { print }"`
 			
 			/bin/rm "$THIS_LINK"
-			/bin/ln -fs "$CORRECTED_LINK" "$THIS_LINK"
+			/bin/ln -fs "$CORRECTED_LINK" "$THIS_LINK" | (while read INPUT; do log "$INPUT " detail; done)
 		
 		fi
 	done
 	
 	# make sure that we have not left any open files behind
-	/usr/sbin/lsof | /usr/bin/grep "$CURRENT_IMAGE_MOUNT/" | /usr/bin/awk '{ print $2 }' | /usr/bin/sort -u | /usr/bin/xargs /bin/kill 2>&1
+	/usr/sbin/lsof | /usr/bin/grep "$CURRENT_IMAGE_MOUNT/" | /usr/bin/awk '{ print $2 }' | /usr/bin/sort -u | /usr/bin/xargs /bin/kill 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 }
 
 # close up the DMG, compress and scan for restore
 close_up_and_compress() {
-	log "#####Creating the deployment DMG and scanning for ASR#####" 
-	log 
-	printf "\n" 
+	log "Creating the deployment DMG and scanning for ASR" section
 	
 	# We'll rename the newly installed system to make it easier to work with later
-	log "Rename the deployment volume" 
+	log "Rename the deployment volume" information
 	#/usr/sbin/diskutil "rename $CURRENT_IMAGE_MOUNT $ASR_FS_NAME" 
 	#CURRENT_IMAGE_MOUNT=/Volumes/$ASR_FS_NAME
 
 	/usr/sbin/diskutil rename $CURRENT_IMAGE_MOUNT OS-Build-${CREATE_DATE} 
-	CURRENT_IMAGE_MOUNT=/Volumes/OS-Build-${CREATE_DATE}
-	log "New ASR source volume name is " $CURRENT_IMAGE_MOUNT 
-	printf "\n" 
+	#CURRENT_IMAGE_MOUNT=/Volumes/OS-Build-${CREATE_DATE}
+	log "New ASR source volume name is $CURRENT_IMAGE_MOUNT" information
 
 	# Create a new, compessed, image from the intermediary one and scan for ASR.
 	log "Build a new image from folder..." 
-	log 
-	/usr/bin/hdiutil create -format UDZO -imagekey zlib-level=6 -srcfolder $CURRENT_IMAGE_MOUNT  ${ASR_FOLDER}/${CREATE_DATE} 
-	log "New image created..." 
-	log 
-	printf "\n" 
-	log "Scanning image for ASR" 
-	log "Image to scan is ${ASR_FOLDER}/${CREATE_DATE}.dmg" 
+	/usr/bin/hdiutil create -format UDZO -imagekey zlib-level=6 -srcfolder $CURRENT_IMAGE_MOUNT  ${ASR_FOLDER}/${CREATE_DATE}  | (while read INPUT; do log "$INPUT " detail; done)
+	log "New image created..." information
+
+	log "Scanning image for ASR: ${ASR_FOLDER}/${CREATE_DATE}.dmg" information
 	/usr/sbin/asr imagescan --verbose --source ${ASR_FOLDER}/${CREATE_DATE}.dmg 2>&1 
-	
-	printf "\n" 
-	log 
-	log "ASR image scan complete" 
-	printf "\n" 
-	printf "\n" 
+	log "ASR image scan complete" information
+
 }
 
 # restore DMG to test partition
 restore_image() {
-	log "#####Restoring ASR image to test partition#####" 
-	log 
-	/usr/sbin/asr "--verbose --source ${ASR_FOLDER}/${CREATE_DATE}.dmg --target $ASR_TARGET_VOLUME --erase --nocheck --noprompt" 
-	log "ASR image restored..." 
-	log 
-	printf "\n" 
-	printf "\n" 
+	log "Restoring ASR image to test partition" section
+	/usr/sbin/asr "--verbose --source ${ASR_FOLDER}/${CREATE_DATE}.dmg --target $ASR_TARGET_VOLUME --erase --nocheck --noprompt"  | (while read INPUT; do log "$INPUT " detail; done)
+	log "ASR image restored..." information
 }
 
 # set test partition to be the boot partition
 set_boot_test() {
-	log "#####Blessing test partition#####" 
-	log 
+	log "Blessing test partition" section
 	/usr/sbin/bless "--mount $CURRENT_IMAGE_MOUNT --setBoot" 
-	log "Test partition blessed" 
-	printf "\n" 
-	printf "\n" 
+	log "Test partition blessed" information
 }
 
 # clean up
 clean_up() {
-	log "#####Cleaning up#####" 
-	log 
-	log "Ejecting images" 
-	/usr/sbin/diskutil eject $CURRENT_IMAGE_MOUNT_DEV 
-	/usr/sbin/diskutil eject $CURRENT_OS_INSTALL_MOUNT 
+	log "Cleaning up" section
+	log "Ejecting images" information
+	
+	/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT"
+	
+	if [ -z "$CURRENT_OS_INSTALL_MOUNT" ]; then
+		/usr/bin/hdiutil eject "$CURRENT_OS_INSTALL_MOUNT"
+	fi
+	
 	log "Removing scratch DMG" 
-	printf "\n" 
-	/bin/rm ./DMG_Scratch/* 2>&1 
-	printf "\n" 
+	
+	if [ ! -z "$SCRATCH_FILE_LOCATION" ]; then
+		/bin/rm "$SCRATCH_FILE_LOCATION"
+	fi
 	
 }
 
 # reboot the Mac
 reboot() {
-	log "#####Restarting#####" 
-	log 
+	log "Restarting" section
 	/sbin/shutdown -r +1
 }
 
 # Timestamp the end of the build train.
 timestamp() {
-	log $CREATE_DATE 
-	log 
-	log $CREATE_DATE >&4
-	log >&4
-	log "InstaDMG Complete" 
-	log "#############################################################" 
-	log "InstaDMG Complete" >&4
-	log "#############################################################" >&4
+	log "InstaDMG Complete" section
 }
 
 # Call the handlers as needed to make it all happen.
@@ -653,8 +752,8 @@ then
 fi
 
 #check_root
-create_and_mount_image
 mount_os_install
+create_and_mount_image
 install_system
 install_packages_from_folder "$UPDATE_FOLDER"
 install_packages_from_folder "$CUSTOM_FOLDER"
