@@ -64,9 +64,6 @@ CUSTOM_FOLDER=./CustomPKG
 # This is the final ASR destination for the image.
 ASR_FOLDER=./ASR_Output
 
-# This is where DMG scratch is done. Set this to whatever you want.
-DMG_SCRATCH=./DMG_Scratch
-
 # This is where cached copies of an installed version of the base image are stored
 #	They are stored using a naming convention involving the checksum of the image
 BASE_IMAGE_CACHE="./Caches/BaseImageCache"
@@ -80,7 +77,9 @@ DMG_BASE_NAME=`uuidgen`
 # DMG_FS_NAME="InstaDMG_Temp"
 
 # This string is the root filesystem name for the ASR image.
-ASR_FS_NAME="InstaDMG"
+ASR_FILESYSTEM_NAME="InstaDMG"
+
+ASR_FILE_NAME="${CREATE_DATE}.dmg" # The file name of the dmg that gets created
 
 # Default log location.
 LOG_FOLDER=./Logs
@@ -113,9 +112,9 @@ export CM_BUILD=CM_BUILD
 #
 
 CURRENT_IMAGE_MOUNT=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX` # the location where the target is mounted, we will choose this initially
+SCRATCH_FILE_LOCATION="/tmp/`/usr/bin/uuidgen`.dmg" # the location of the shadow file that will be scanned for the ASR output
 
 BASE_IMAGE_CHECKSUM="" # the checksum reported by diskutil for the OS Instal disk image
-SCRATCH_FILE_LOCATION="" # the location of the intermediate file that will be scanned for the ASR output
 CURRENT_OS_INSTALL_MOUNT="" # the location where the primary installer disk is mounted
 BASE_IMAGE_CACHE_FOUND=false
 
@@ -184,7 +183,7 @@ EOF
 # Detail 2 is lines that begin with "installer:"
 
 # commands should all have the following appended to them:
-#	| (while read INPUT; do log $INPUT "information"; done)
+#	| (while read INPUT; do log "$INPUT " information; done)
 
 ERROR_LOG_FORMAT="ERROR: %s\n"
 SECTION_LOG_FORMAT="######%s######\n"
@@ -319,7 +318,6 @@ mount_os_install() {
 	OS_INSTALL_LOCATION_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
 	BASE_IMAGE_CACHING_ALLOWED_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
 	BASE_IMAGE_CHECKSUM_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
-	SCRATCH_FILE_LOCATION_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
 	BASE_IMAGE_CACHE_FOUND_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
 	
 	/usr/bin/find "$INSTALLER_FOLDER" -iname "*.dmg" | while read IMAGE_FILE
@@ -361,18 +359,15 @@ mount_os_install() {
 						/bin/echo "$BASE_IMAGE_CHECKSUM" > "$BASE_IMAGE_CHECKSUM_TEMPFILE"
 						
 						if [ -e "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" ]; then
-							# here we have found the appropriate image, and need to copy it, then mount it to a temp location
+							# here we have found the appropriate image, we will mount it with a "shadow" file, and make changes into that.
 							# TODO: better error checking if the image is not mountable
 							# TODO: check to see if the disk is already mounted
 							
-							SCRATCH_FILE_LOCATION=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX` # we will replace it right away
-							log "Copying cached image (${BASE_IMAGE_CHECKSUM}.dmg) to $SCRATCH_FILE_LOCATION_TEMPFILE" information
-							/bin/cp "$BASE_IMAGE_CACHE/${BASE_IMAGE_CHECKSUM}.dmg" "$SCRATCH_FILE_LOCATION_TEMPFILE" # TODO: error handling and logging
-							`/bin/echo "$SCRATCH_FILE_LOCATION" > "$SCRATCH_FILE_LOCATION_TEMPFILE"` # to get around bash variable scope difficulties
+							# in this case our scratch file will be a shadow mounted dmg
 							
-							log "Mounting cached image (${BASE_IMAGE_CHECKSUM}.dmg) to $CURRENT_IMAGE_MOUNT" information
-							/usr/bin/hdiutil mount "$SCRATCH_FILE_LOCATION" -readonly -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" # TODO: error handling and logging
-							`/bin/echo "$CURRENT_IMAGE_MOUNT" > "$OS_INSTALL_LOCATION_TEMPFILE"` # to get around bash variable scope difficulties
+							# both the SCRATCH_FILE_LOCATION and the CURRENT_IMAGE_MOUNT are pre-determined
+							log "Mounting the shadow file ($SCRATCH_FILE_LOCATION) onto the image." information
+							/usr/bin/hdiutil mount "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" -shadow "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 							
 							# signal that this is a cached image
 							`/bin/echo "true" > "$BASE_IMAGE_CACHE_FOUND_TEMPFILE"`
@@ -442,24 +437,20 @@ mount_os_install() {
 	if [ -s "$BASE_IMAGE_CACHING_ALLOWED_TEMPFILE" ]; then
 		BASE_IMAGE_CACHING_ALLOWED=false
 	fi
-	if [ -s "$BASE_IMAGE_CACHING_ALLOWED_TEMPFILE" ]; then
+	if [ -s "$BASE_IMAGE_CACHING_FOUND_TEMPFILE" ]; then
 		BASE_IMAGE_CACHE_FOUND=true
+	fi
+	if [ -s "$BASE_IMAGE_CHECKSUM_TEMPFILE" ]; then
+		BASE_IMAGE_CHECKSUM=`/bin/cat "$BASE_IMAGE_CHECKSUM_TEMPFILE"`
 	fi
 	if [ -s "$OS_INSTALL_LOCATION_TEMPFILE" ]; then
 		CURRENT_OS_INSTALL_MOUNT=`/bin/cat "$OS_INSTALL_LOCATION_TEMPFILE"`
-	fi
-	if [ -s "$OS_INSTALL_LOCATION_TEMPFILE" ]; then
-		BASE_IMAGE_CHECKSUM=`/bin/cat "$BASE_IMAGE_CHECKSUM_TEMPFILE"`
-	fi
-	if [ -s "$SCRATCH_FILE_LOCATION_TEMPFILE" ]; then
-		CURRENT_IMAGE_LOCATION=`/bin/cat "$SCRATCH_FILE_LOCATION_TEMPFILE"`
 	fi
 	
 	# and clean up the tempfiles
 	/bin/rm "$OS_INSTALL_LOCATION_TEMPFILE"
 	/bin/rm "$BASE_IMAGE_CACHING_ALLOWED_TEMPFILE"
 	/bin/rm "$BASE_IMAGE_CHECKSUM_TEMPFILE"
-	/bin/rm "$SCRATCH_FILE_LOCATION_TEMPFILE"
 	/bin/rm "$BASE_IMAGE_CACHE_FOUND_TEMPFILE"
 	
 	if [ ! -d "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages" ]; then
@@ -543,19 +534,19 @@ install_system() {
 		fi
 	fi
 	log "Base OS installed" information
-	
+		
 	if [ $BASE_IMAGE_CACHING_ALLOWED == true ]; then 
-		# if we are at this point we need to close the image, copy it to the cached folder, and then re-open
+		# if we are at this point we need to close the image, move it to the cached folder, and then re-open with a shadow-file
 		log "Saving cached image to: $BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" information
 		
 		# unmount the image
 		/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 		
-		# copy the image to the cached folder with the appropriate name
-		/bin/cp "$SCRATCH_FILE_LOCATION" "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg"
+		# move the image to the cached folder with the appropriate name
+		/bin/mv "$SCRATCH_FILE_LOCATION" "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg"
 		
-		# remount the image
-		/usr/bin/hdiutil mount "$SCRATCH_FILE_LOCATION" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+		# remount the image with the shadow file (will be created automatically)
+		/usr/bin/hdiutil mount "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" -shadow "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 		# TODO: error handling
 	fi
 }
@@ -622,22 +613,16 @@ clean_up_image() {
 close_up_and_compress() {
 	log "Creating the deployment DMG and scanning for ASR" section
 	
-	# We'll rename the newly installed system to make it easier to work with later
-	log "Rename the deployment volume" information
-	#/usr/sbin/diskutil "rename $CURRENT_IMAGE_MOUNT $ASR_FS_NAME" 
-	#CURRENT_IMAGE_MOUNT=/Volumes/$ASR_FS_NAME
-
-	/usr/sbin/diskutil rename $CURRENT_IMAGE_MOUNT OS-Build-${CREATE_DATE} 
-	#CURRENT_IMAGE_MOUNT=/Volumes/OS-Build-${CREATE_DATE}
-	log "New ASR source volume name is $CURRENT_IMAGE_MOUNT" information
+	# We'll rename the newly installed system so that computers imaged with this will get the name
+	log "Rename the deployment volume: $ASR_FILESYSTEM_NAME" information
+	/usr/sbin/diskutil rename "$CURRENT_IMAGE_MOUNT" "$ASR_FILESYSTEM_NAME" | (while read INPUT; do log "$INPUT " detail; done)
 
 	# Create a new, compessed, image from the intermediary one and scan for ASR.
 	log "Build a new image from folder..." 
-	/usr/bin/hdiutil create -format UDZO -imagekey zlib-level=6 -srcfolder $CURRENT_IMAGE_MOUNT  ${ASR_FOLDER}/${CREATE_DATE}  | (while read INPUT; do log "$INPUT " detail; done)
-	log "New image created..." information
+	/usr/bin/hdiutil create -format UDZO -imagekey zlib-level=6 -srcfolder "$CURRENT_IMAGE_MOUNT"  "${ASR_FOLDER}/$ASR_FILE_NAME" | (while read INPUT; do log "$INPUT " detail; done)
 
-	log "Scanning image for ASR: ${ASR_FOLDER}/${CREATE_DATE}.dmg" information
-	/usr/sbin/asr imagescan --verbose --source ${ASR_FOLDER}/${CREATE_DATE}.dmg 2>&1 
+	log "Scanning image for ASR: ${ASR_FOLDER}/$ASR_FILE_NAME" information
+	/usr/sbin/asr imagescan --verbose --source "${ASR_FOLDER}/$ASR_FILE_NAME" 2>&1  | (while read INPUT; do log "$INPUT " detail; done)
 	log "ASR image scan complete" information
 
 }
@@ -645,7 +630,7 @@ close_up_and_compress() {
 # restore DMG to test partition
 restore_image() {
 	log "Restoring ASR image to test partition" section
-	/usr/sbin/asr "--verbose --source ${ASR_FOLDER}/${CREATE_DATE}.dmg --target $ASR_TARGET_VOLUME --erase --nocheck --noprompt"  | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/sbin/asr --verbose --source "${ASR_FOLDER}/$ASR_FILE_NAME" --target "$ASR_TARGET_VOLUME" --erase --nocheck --noprompt  | (while read INPUT; do log "$INPUT " detail; done)
 	log "ASR image restored..." information
 }
 
@@ -714,9 +699,6 @@ do
 		;;
 	a )
 		ASR_FOLDER="$OPTARG $ASR_FOLDER"
-		;;
-	d )
-		DMG_SCRATCH="$OPTARG $DMG_SCRATCH"
 		;;
 	l )
 		LOG_FOLDER="$OPTARG $LOG_FOLDER"
