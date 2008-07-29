@@ -111,38 +111,32 @@ export CM_BUILD=CM_BUILD
 # Variables that will be filled in durring the process
 #
 
+CURRENT_OS_INSTALL_MOUNT="" # the location where the primary installer disk is mounted
+
 CURRENT_IMAGE_MOUNT=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX` # the location where the target is mounted, we will choose this initially
 SCRATCH_FILE_LOCATION="/tmp/`/usr/bin/uuidgen`.dmg" # the location of the shadow file that will be scanned for the ASR output
 
 BASE_IMAGE_CHECKSUM="" # the checksum reported by diskutil for the OS Instal disk image
-CURRENT_OS_INSTALL_MOUNT="" # the location where the primary installer disk is mounted
 BASE_IMAGE_CACHE_FOUND=false
 
 #
 # Now for the meat
 #
 
-bail()
-{	
+bail() {	
 	#If we get here theres a problem, print the usage message and then exit with a non-zero status
 	
 	usage
 	exit $1
 }
 
-version()
-{
-
-# Show the version number
-
+version() {
+	# Show the version number
 	echo "$PROGRAM version $VERSION"
 }
 
-usage()
-{
-
-# Usage format
-
+usage() {
+	# Usage format
 cat <<EOF
 Usage:  $PROGRAM
 	[ -h "Help about this utility"]
@@ -278,35 +272,14 @@ log () {
 	fi
 }
 
-log_old()
-{
-if [ "$1" = "" ]
-	then
-	printf "$(date +%H:%M:%S )\n"
-	else
-	printf "$1\n"
-fi
+# check to make sure we are root, installers will complain otherwise
+rootcheck() {
+	# Root is required to run instadmg
+	if [ $EUID != 0 ]; then
+		log "You must run this utility using sudo or as root!" error
+		exit 64
+	fi
 }
-
-rootcheck()
-{
-
-# Root is required to run instadmg
-
-echo "Warning:  You must run this utility using sudo or as root!"
-exit 64
-
-}
-
-# check to make sure we are root, can't do these things otherwise
-
-#check_root() {
-#    if [ `whoami` != "root" ]
-#    then
-#        log "you need to be root to do this so use sudo"
-#        exit 0;
-#    fi
-#}
 
 # Mount the OS source image.
 # If you have some wacky disk name then change this as needed.
@@ -630,14 +603,14 @@ close_up_and_compress() {
 # restore DMG to test partition
 restore_image() {
 	log "Restoring ASR image to test partition" section
-	/usr/sbin/asr --verbose --source "${ASR_FOLDER}/$ASR_FILE_NAME" --target "$ASR_TARGET_VOLUME" --erase --nocheck --noprompt  | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/sbin/asr --verbose --source "${ASR_FOLDER}/$ASR_FILE_NAME" --target "$ASR_TARGET_VOLUME" --erase --nocheck --noprompt | (while read INPUT; do log "$INPUT " detail; done)
 	log "ASR image restored..." information
 }
 
 # set test partition to be the boot partition
 set_boot_test() {
 	log "Blessing test partition" section
-	/usr/sbin/bless "--mount $CURRENT_IMAGE_MOUNT --setBoot" 
+	/usr/sbin/bless "--mount $CURRENT_IMAGE_MOUNT --setBoot" | (while read INPUT; do log "$INPUT " detail; done)
 	log "Test partition blessed" information
 }
 
@@ -646,16 +619,16 @@ clean_up() {
 	log "Cleaning up" section
 	log "Ejecting images" information
 	
-	/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT"
+	/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 	
 	if [ -z "$CURRENT_OS_INSTALL_MOUNT" ]; then
-		/usr/bin/hdiutil eject "$CURRENT_OS_INSTALL_MOUNT"
+		/usr/bin/hdiutil eject "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
 	log "Removing scratch DMG" 
 	
 	if [ ! -z "$SCRATCH_FILE_LOCATION" ]; then
-		/bin/rm "$SCRATCH_FILE_LOCATION"
+		/bin/rm "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
 }
@@ -673,10 +646,7 @@ timestamp() {
 
 # Call the handlers as needed to make it all happen.
 
-if [ $EUID != 0 ]
-then
-	rootcheck
-fi
+rootcheck
 
 lang=""
 SERVER_INSTALL="0"
