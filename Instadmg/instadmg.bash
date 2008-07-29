@@ -69,7 +69,7 @@ DMG_SCRATCH=./DMG_Scratch
 
 # This is where cached copies of an installed version of the base image are stored
 #	They are stored using a naming convention involving the checksum of the image
-BASE_IMAGE_CACHE="BaseImageCache"
+BASE_IMAGE_CACHE="./Caches/BaseImageCache"
 BASE_IMAGE_CACHING_ALLOWED=true # setting this to false turns off caching
 # TODO: make sure that the cached images are not indexed
 
