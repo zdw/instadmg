@@ -70,7 +70,7 @@ DMG_BASE_NAME=`uuidgen`
 ASR_FILESYSTEM_NAME="InstaDMG"
 
 # The file name of the dmg that gets created
-ASR_FILE_NAME="${CREATE_DATE}.dmg"
+ASR_OUPUT_FILE_NAME="${CREATE_DATE}.dmg"
 
 # Default log location.
 LOG_FOLDER=./Logs
@@ -300,40 +300,8 @@ rootcheck() {
 	fi
 }
 
-setup() {
-	while getopts "a:b:c:hi:l:n:qsu:vz" opt
-	do
-		case $opt in
-			a )	ASR_FOLDER="$OPTARG";;
-			
-			b ) INSTALLER_FOLDER="$OPTARG";;
-			
-			c ) CUSTOM_FOLDER="$OPTARG";;	
-				
-			h ) usage;;
-			
-			i ) ISO_CODE="$OPTARG";;
-		
-			l ) LOG_FOLDER="$OPTARG";;
-			
-			n ) ASR_FILESYSTEM_NAME="$OPTARG";;
-			
-			q ) CONSOLE_LOG_LEVEL=0;;
-			
-			s ) SERVER_INSTALL="1";;
-		
-			u ) UPDATE_FOLDER="$OPTARG";;
-			
-			v ) version;;
-			
-			z ) BASE_IMAGE_CACHING_ALLOWED=false;;
-			
-			\? ) usage;;
-		esac
-	done
-}
-
 check_setup () {
+	# Check the language
 	LANGUAGE_CODE_IS_VALID_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
 	/usr/sbin/installer -listiso | /usr/bin/tr "\t" "\n" | while read LANGUAGE_CODE
 	do
@@ -344,6 +312,11 @@ check_setup () {
 	if [ ! -s "$LANGUAGE_CODE_IS_VALID_TEMPFILE" ]; then
 		log "The ISO language code $ISO_CODE is not recognized by the Apple installer" error
 		exit 1
+	fi
+	
+	# if the ASR_OUPUT_FILE_NAME does not end in .dmg, add it
+	if [ `/bin/echo "$ASR_OUPUT_FILE_NAME" | /usr/bin/awk 'tolower($1) ~ /.*\.dmg$/ { print "true" }'` != "true" ]; then
+		ASR_OUPUT_FILE_NAME="$ASR_OUPUT_FILE_NAME.dmg"
 	fi
 }
 
@@ -615,7 +588,7 @@ install_packages_from_folder() {
 	
 	/bin/ls -A1 "$SELECTED_FOLDER" | /usr/bin/awk "/^[[:digit:]]+$/" | while read ORDERED_FOLDER
 	do
-		/usr/bin/find -L "$SELECTED_FOLDER/$ORDERED_FOLDER" -depth 1 -iname "*pkg" | /usr/bin/awk '/\.(m)?pkg/i && !/\/\._/' | while read UPDATE_PKG
+		/usr/bin/find -L "$SELECTED_FOLDER/$ORDERED_FOLDER" -depth 1 -iname "*pkg" | /usr/bin/awk -F "\n" '/tolower($1) ~ \.(m)?pkg/ && !/\/\._/' | while read UPDATE_PKG
 		do
 			if [ -e "$SELECTED_FOLDER/$ORDERED_FOLDER/InstallerChoices.xml" ]; then
 				CHOICES_FILE="InstallerChoices.xml"
@@ -676,14 +649,14 @@ close_up_and_compress() {
 	/usr/bin/hdiutil eject -force "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 	if [ $BASE_IMAGE_CACHING_ALLOWED == true ]; then
 		# use the shadow file
-		/usr/bin/hdiutil convert -puppetstrings -format UDZO -imagekey zlib-level=6 -shadow "$SCRATCH_FILE_LOCATION" -o "${ASR_FOLDER}/$ASR_FILE_NAME" "$BASE_IMAGE_FILE" | (while read INPUT; do log "$INPUT " detail; done)
+		/usr/bin/hdiutil convert -puppetstrings -format UDZO -imagekey zlib-level=6 -shadow "$SCRATCH_FILE_LOCATION" -o "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" "$BASE_IMAGE_FILE" | (while read INPUT; do log "$INPUT " detail; done)
 	else
 		# there is no shadow file to use, so the scratch file should be the one
-		/usr/bin/hdiutil convert -puppetstrings -format UDZO -imagekey zlib-level=6 -o "${ASR_FOLDER}/$ASR_FILE_NAME" "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done) 
+		/usr/bin/hdiutil convert -puppetstrings -format UDZO -imagekey zlib-level=6 -o "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done) 
 	fi
 	
-	log "Scanning image for ASR: ${ASR_FOLDER}/$ASR_FILE_NAME" information
-	/usr/sbin/asr imagescan --verbose --source "${ASR_FOLDER}/$ASR_FILE_NAME" 2>&1  | (while read INPUT; do log "$INPUT " detail; done)
+	log "Scanning image for ASR: ${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" information
+	/usr/sbin/asr imagescan --verbose --source "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" 2>&1  | (while read INPUT; do log "$INPUT " detail; done)
 	log "ASR image scan complete" information
 
 }
@@ -691,7 +664,7 @@ close_up_and_compress() {
 # restore DMG to test partition
 restore_image() {
 	log "Restoring ASR image to test partition" section
-	/usr/sbin/asr --verbose --source "${ASR_FOLDER}/$ASR_FILE_NAME" --target "$ASR_TARGET_VOLUME" --erase --nocheck --noprompt | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/sbin/asr --verbose --source "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" --target "$ASR_TARGET_VOLUME" --erase --nocheck --noprompt | (while read INPUT; do log "$INPUT " detail; done)
 	log "ASR image restored..." information
 }
 
@@ -731,7 +704,25 @@ reboot() {
 # Call the handlers as needed to make it all happen.
 
 rootcheck
-setup
+while getopts "a:b:c:hi:l:n:m:qsu:vz" opt
+do
+	case $opt in
+		a )	ASR_FOLDER="$OPTARG";;
+		b ) INSTALLER_FOLDER="$OPTARG";;
+		c ) CUSTOM_FOLDER="$OPTARG";;	
+		h ) usage;;
+		i ) ISO_CODE="$OPTARG";;
+		l ) LOG_FOLDER="$OPTARG";;
+		n ) ASR_FILESYSTEM_NAME="$OPTARG";;
+		m ) ASR_OUPUT_FILE_NAME="$OPTARG";;
+		q ) CONSOLE_LOG_LEVEL=0;;
+		s ) SERVER_INSTALL="1";;
+		u ) UPDATE_FOLDER="$OPTARG";;
+		v ) version;;
+		z ) BASE_IMAGE_CACHING_ALLOWED=false;;
+		\? ) usage;;
+	esac
+done
 check_setup
 
 log "InstaDMG build initiated" section
