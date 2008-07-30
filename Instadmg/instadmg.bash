@@ -357,7 +357,7 @@ mount_os_install() {
 					fi
 				else
 					# we didn't find the cache folder, so will attempt to create it
-					if [ "`/bin/mkdir -p "$BASE_IMAGE_CACHE" 2>&1`" == "" ]; then # if there was any output, it was from an error
+					if [ "`/bin/mkdir -p "$BASE_IMAGE_CACHE" 2>&1`" != "" ]; then # if there was any output, it was from an error
 						log "Unable to create cache folder at: $BASE_IMAGE_CACHE" warning
 						FOUND_CACHE=false
 						BASE_IMAGE_CACHING_ALLOWED=false
