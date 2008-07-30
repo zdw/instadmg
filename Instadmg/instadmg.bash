@@ -123,12 +123,7 @@ BASE_IMAGE_CACHE_FOUND=false
 bail() {	
 	#If we get here theres a problem, print the usage message and then exit with a non-zero status
 	
-	usage
-	if [ -z $1 ]; then
-		exit 1;
-	else
-		exit $1
-	fi
+	usage $1
 }
 
 version() {
@@ -155,7 +150,11 @@ Options:
 	-u <folder path>	Use this folder as the BaseUpdates folder
 	-v					Print the version number and exit
 EOF
-	exit 0;
+	if [ -z $1 ]; then
+		exit 1;
+	else
+		exit $1
+	fi
 }
 
 # Log a message - takes up to two arguments
