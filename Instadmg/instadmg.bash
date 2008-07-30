@@ -512,7 +512,7 @@ mount_os_install() {
 create_and_mount_image() {
 	# first we need to check if we are running off a cached build
 	if [ ! -z "$CURRENT_IMAGE_MOUNT" ] && [ -d "$CURRENT_IMAGE_MOUNT/System" ]; then
-		log "Running from cached image ($CURRENT_IMAGE_MOUNT)" information
+		log "Running from cached image ($BASE_IMAGE_FILE)" information
 		return
 	fi
 	
