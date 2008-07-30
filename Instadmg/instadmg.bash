@@ -149,6 +149,7 @@ Options:
 	-s			Enable MacOS X Server installs (not implimented)
 	-u <folder path>	Use this folder as the BaseUpdates folder
 	-v			Print the version number and exit
+	-z			Disable caching of the base image
 EOF
 	if [ -z $1 ]; then
 		exit 1;
@@ -300,7 +301,7 @@ rootcheck() {
 }
 
 setup() {
-	while getopts "a:b:c:hi:l:n:qsu:v" opt
+	while getopts "a:b:c:hi:l:n:qsu:vz" opt
 	do
 		case $opt in
 			a )	ASR_FOLDER="$OPTARG";;
@@ -324,6 +325,8 @@ setup() {
 			u ) UPDATE_FOLDER="$OPTARG";;
 			
 			v ) version;;
+			
+			z ) BASE_IMAGE_CACHING_ALLOWED=false;;
 			
 			\? ) usage;;
 		esac
