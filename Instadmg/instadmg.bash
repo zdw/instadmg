@@ -528,16 +528,10 @@ create_and_mount_image() {
 	# Determine the platform
 	if [ $CPU_TYPE -eq 0 ]; then 
 		log 'Running on PPC Platform: Setting format to APM' information
-		
-		#(PPC Mac)
 		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME APMformat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
-		CURRENT_IMAGE_MOUNT_TEMP=/Volumes/$DMG_BASE_NAME
 	else 
 		log 'Running on Intel Platform: Setting format to GPT' information
-
-		#(Intel Mac)
 		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME GPTFormat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
-		CURRENT_IMAGE_MOUNT_TEMP=/Volumes/$DMG_BASE_NAME
 	fi
 	# since this unmounts the disk, and then auto-mounts it at the end, we have to re-mount it to get it hidden again
 	/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT_DEV" | (while read INPUT; do log $INPUT detail; done)
@@ -671,7 +665,13 @@ close_up_and_compress() {
 	
 	# unmount the image, then use convert to push it out to the desired place
 	/usr/bin/hdiutil eject -force "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
-	/usr/bin/hdiutil convert -puppetstrings -format UDZO -imagekey zlib-level=6 -shadow "$SCRATCH_FILE_LOCATION" -o "${ASR_FOLDER}/$ASR_FILE_NAME" "$BASE_IMAGE_FILE" | (while read INPUT; do log "$INPUT " detail; done)
+	if [ $BASE_IMAGE_CACHING_ALLOWED == true ]; then
+		# use the shadow file
+		/usr/bin/hdiutil convert -puppetstrings -format UDZO -imagekey zlib-level=6 -shadow "$SCRATCH_FILE_LOCATION" -o "${ASR_FOLDER}/$ASR_FILE_NAME" "$BASE_IMAGE_FILE" | (while read INPUT; do log "$INPUT " detail; done)
+	else
+		# there is no shadow file to use, so the scratch file should be the one
+		/usr/bin/hdiutil convert -puppetstrings -format UDZO -imagekey zlib-level=6 -o "${ASR_FOLDER}/$ASR_FILE_NAME" "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done) 
+	fi
 	
 	log "Scanning image for ASR: ${ASR_FOLDER}/$ASR_FILE_NAME" information
 	/usr/sbin/asr imagescan --verbose --source "${ASR_FOLDER}/$ASR_FILE_NAME" 2>&1  | (while read INPUT; do log "$INPUT " detail; done)
