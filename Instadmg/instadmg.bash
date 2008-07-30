@@ -46,10 +46,10 @@ OS_REV=`/usr/bin/sw_vers | /usr/bin/grep -c 10.5`
 CPU_TYPE=`arch | /usr/bin/grep -c i386`
 
 # Default ISO code for default install language. Script default is English.
-#ISO_CODE="en"
+ISO_CODE="en"
 
 # Are we installing Mac OS X . This defaults to 0 for no.
-#SERVER_INSTALL="0"
+SERVER_INSTALL="0"
 
 # Put images of your install DVDs in here
 INSTALLER_FOLDER=./BaseOS
@@ -72,13 +72,11 @@ BASE_IMAGE_CACHING_ALLOWED=true # setting this to false turns off caching
 # This string is the intermediary image name.
 DMG_BASE_NAME=`uuidgen`
 
-# This string is the root filesystem name for the intermediary image. Deprecated in favor of DMG_BASE_NAME
-# DMG_FS_NAME="InstaDMG_Temp"
-
 # This string is the root filesystem name for the ASR image.
 ASR_FILESYSTEM_NAME="InstaDMG"
 
-ASR_FILE_NAME="${CREATE_DATE}.dmg" # The file name of the dmg that gets created
+# The file name of the dmg that gets created
+ASR_FILE_NAME="${CREATE_DATE}.dmg"
 
 # Default log location.
 LOG_FOLDER=./Logs
@@ -126,30 +124,38 @@ bail() {
 	#If we get here theres a problem, print the usage message and then exit with a non-zero status
 	
 	usage
-	exit $1
+	if [ -z $1 ]; then
+		exit 1;
+	else
+		exit $1
+	fi
 }
 
 version() {
 	# Show the version number
 	echo "$PROGRAM version $VERSION"
+	exit 0
 }
 
 usage() {
 	# Usage format
 cat <<EOF
-Usage:  $PROGRAM
-	[ -h "Help about this utility"]
-	[ -v "Version number"]
-	[ -s "Server install"]
- 	[ -l "Language"]
-	[ -i "Install folder"]
-	[ -u "Update folder"]
-	[ -c "Custom folder"]
-	[ -a "ASR output folder"]
-	[ -d "DMG Scratch folder"]
-	[ -l "Log Folder"]
-	[ -q "Quiet mode"]
+Usage:  $PROGRAM [options]
+
+Options:
+	-a <folder path>	Put the final output in this folder
+	-b <folder path>	Look for the base image in this folder
+	-c <folder path>	Look for custom pkgs in this folder
+	-h					Print the useage information (this) and exit
+	-i <iso code>		Use <iso code> for the installer language (default en)
+	-l <folder path>	Use this folder as the log folder
+	-n <name>			The name to use for the final output
+	-q					Quiet: print only errors to the console
+	-s					Enable MacOS X Server installs (not implimented)
+	-u <folder path>	Use this folder as the BaseUpdates folder
+	-v					Print the version number and exit
 EOF
+	exit 0;
 }
 
 # Log a message - takes up to two arguments
@@ -203,7 +209,7 @@ log () {
 	fi	
 
 	if [ "$LEVEL" == "error" ]; then
-		/usr/bin/printf "$SECTION_LOG_FORMAT" "$MESSAGE" | /usr/bin/tee "$LOG_FILE" "$PKG_LOG"
+		/usr/bin/printf "$SECTION_LOG_FORMAT" "$MESSAGE" | /usr/bin/tee "$LOG_FILE" "$PKG_LOG" 1>&2
 	fi
 
 	if [ "$LEVEL" == "section" ]; then
@@ -291,6 +297,51 @@ rootcheck() {
 	if [ $EUID != 0 ]; then
 		log "You must run this utility using sudo or as root!" error
 		exit 64
+	fi
+}
+
+setup() {
+	while getopts "a:b:c:hi:l:n:qsu:v" opt
+	do
+		case $opt in
+			a )	ASR_FOLDER="$OPTARG";;
+			
+			b ) INSTALLER_FOLDER="$OPTARG";;
+			
+			c ) CUSTOM_FOLDER="$OPTARG";;	
+				
+			h ) usage;;
+			
+			i ) ISO_CODE="$OPTARG";;
+		
+			l ) LOG_FOLDER="$OPTARG";;
+			
+			n ) ASR_FILESYSTEM_NAME="$OPTARG";;
+			
+			q ) CONSOLE_LOG_LEVEL=0;;
+			
+			s ) SERVER_INSTALL="1";;
+		
+			u ) UPDATE_FOLDER="$OPTARG";;
+			
+			v ) version;;
+			
+			\? ) usage;;
+		esac
+	done
+}
+
+check_setup ()
+	LANGUAGE_CODE_IS_VALID_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
+	/usr/sbin/installer -listiso | while read LANGUAGE_CODE
+	do
+		if [ "$ISO_CODE" == "$LANGUAGE_CODE" ]; then
+			/bin/echo "true" > "$LANGUAGE_CODE_IS_VALID_TEMPFILE"
+		fi
+	done
+	if [ ! -s "$LANGUAGE_CODE_IS_VALID_TEMPFILE" ]; then
+		log "The ISO language code $ISO_CODE is not recognized by the Apple installer" error
+		exit 1
 	fi
 }
 
@@ -417,8 +468,8 @@ mount_os_install() {
 			# this is probably a supporting disk, so we have to mount it browseable
 			# TODO: add this mount to the list of things we are going to unmount
 			# TODO: use union mounting to see if we can't co-mount this
-			log "	Mounting a support disk from $INSTALLER_FOLDER/$IMAGE_FILE" 
-			/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly  >&4
+			log "Mounting a support disk from $INSTALLER_FOLDER/$IMAGE_FILE" information
+			/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly | (while read INPUT; do log $INPUT detail; done)
 		fi
 	done
 	
@@ -646,10 +697,9 @@ set_boot_test() {
 # clean up
 clean_up() {
 	log "Cleaning up" section
+	
 	log "Ejecting images" information
-	
 	#/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
-	
 	# TODO: close this image earlier
 	if [ -z "$CURRENT_OS_INSTALL_MOUNT" ]; then
 		/usr/bin/hdiutil eject "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
@@ -669,85 +719,30 @@ reboot() {
 	/sbin/shutdown -r +1
 }
 
-# Timestamp the end of the build train.
-timestamp() {
-	log "InstaDMG Complete" section
-}
-
 # Call the handlers as needed to make it all happen.
 
 rootcheck
+setup
+check_setup
 
-lang=""
-SERVER_INSTALL="0"
-exec 4>/dev/null
-while getopts "l:svb:u:c:a:l:qh" opt
-do
-	echo "$opt" $OPTIND $OPTARG
-	case $opt in
-	l )
-		lang="$OPTARG"
-		;;
-	b )
-		INSTALLER_FOLDER="$OPTARG $INSTALLER_FOLDER"
-		;;
-	u )
-		UPDATE_FOLDER="$OPTARG $UPDATE_FOLDER"
-		;;
-	c )
-		CUSTOM_FOLDER="$OPTARG $CUSTOM_FOLDER"
-		;;
-	a )
-		ASR_FOLDER="$OPTARG $ASR_FOLDER"
-		;;
-	l )
-		LOG_FOLDER="$OPTARG $LOG_FOLDER"
-		;;
-	s )
-		SERVER_INSTALL="1"
-		;;
-	v )
-		version
-		exit 0
-		;;
-	q )
-		exec 6>&1
-		exec >>$LOG_FILE
-		exec 4>>$PKG_LOG
-		;;
-	h )
-		usage 
-		exit 0
-		;;
-	"?" )
-		printf "\n$0: invalid option -$OPTARG\n\n" >&2
-		;;
-	esac
-done
-
-shift $((OPTIND -1 ))
-
-if [ "${lang%"${lang#?}"}" = "-" ] || [ "$lang" = "" ]
-then
-	printf "\n\tA language was not specified!!\n\n"
-	bail
-fi
-
-#check_root
 log "InstaDMG build initiated" section
+
 mount_os_install
 create_and_mount_image
 install_system
+
 install_packages_from_folder "$UPDATE_FOLDER"
 install_packages_from_folder "$CUSTOM_FOLDER"
+
 clean_up_image
 close_up_and_compress
 clean_up
-timestamp
 
 # Automated restore options. Be careful as these can destroy data.
 # restore_image
 # set_boot_test
 # reboot
+
+log "InstaDMG Complete" section
 
 exit 0
