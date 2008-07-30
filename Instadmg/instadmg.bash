@@ -39,12 +39,6 @@ PATH="$SYSPATH"; export PATH
 # Set the creation date in a variable so it's consistant during execution.
 CREATE_DATE=`date +%y-%m-%d`
 
-# Am I running on Leopard? This will equal 1 on 10.5 and 0 on everything else.
-OS_REV=`/usr/bin/sw_vers | /usr/bin/grep -c 10.5`
-
-# CPU type of the Mac running InstaDMG. If we are on Intel this will equal 1. Otherwise it equals 0.
-CPU_TYPE=`arch | /usr/bin/grep -c i386`
-
 # Default ISO code for default install language. Script default is English.
 ISO_CODE="en"
 
@@ -115,6 +109,12 @@ SCRATCH_FILE_LOCATION="/tmp/`/usr/bin/uuidgen`.dmg" # the location of the shadow
 
 BASE_IMAGE_CHECKSUM="" # the checksum reported by diskutil for the OS Instal disk image
 BASE_IMAGE_CACHE_FOUND=false
+
+# Get the MacOS X version information.
+OS_REV_MAJOR=`/usr/bin/sw_vers -productVersion | awk -F "." '{ print $2 }'`
+OS_REV_MINOR=`/usr/bin/sw_vers -productVersion | awk -F "." '{ print $3 }'`
+
+CPU_TYPE=`/usr/bin/arch` # CPU type of the Mac running InstaDMG
 
 #
 # Now for the meat
@@ -529,12 +529,15 @@ create_and_mount_image() {
 	# Format the DMG so that the Installer will like it 
 
 	# Determine the platform
-	if [ $CPU_TYPE -eq 0 ]; then 
+	if [ "$CPU_TYPE" -eq "ppc" ]; then 
 		log 'Running on PPC Platform: Setting format to APM' information
 		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME APMformat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
-	else 
+	elif  [ "$CPU_TYPE" -eq "i386" ]; then
 		log 'Running on Intel Platform: Setting format to GPT' information
 		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME GPTFormat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
+	else
+		log "Unknown CPU type: $CPU_TYPE. Unabel to continue" error
+		exit 1
 	fi
 	# since this unmounts the disk, and then auto-mounts it at the end, we have to re-mount it to get it hidden again
 	/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT_DEV" | (while read INPUT; do log $INPUT detail; done)
@@ -559,18 +562,21 @@ install_system() {
 		return
 	fi
 	
-	if [ $OS_REV -eq 0 ]; then
+	if [ $OS_REV_MAJOR -eq 4 ]; then
 		log "Running on Tiger. Not checking for InstallerChoices.xml file" information
 		/usr/sbin/installer -verbose -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target $CURRENT_IMAGE_MOUNT -lang $ISO_CODE | (while read INPUT; do log "$INPUT " detail; done)
-	else 
-		log "I'm running on Leopard. Checking for InstallerChoices.xml file" 
+	elif [ $OS_REV_MAJOR -gt 4 ]; then
+		log "I'm running on Leopard or later. Checking for InstallerChoices.xml file" 
 		if [ -e ./BaseOS/InstallerChoices.xml ]; then
 			log "InstallerChoices.xml file found. Applying Choices" information
-			/usr/sbin/installer -verbose -applyChoiceChangesXML ./BaseOS/InstallerChoices.xml -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target $CURRENT_IMAGE_MOUNT -lang $ISO_CODE | (while read INPUT; do log "$INPUT " detail; done)
+			/usr/sbin/installer -verbose -applyChoiceChangesXML ./BaseOS/InstallerChoices.xml -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target "$CURRENT_IMAGE_MOUNT" -lang "$ISO_CODE" | (while read INPUT; do log "$INPUT " detail; done)
 		else
 			log "No InstallerChoices.xml file found. Installing full mpkg" information
-			/usr/sbin/installer -verbose -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target $CURRENT_IMAGE_MOUNT -lang $ISO_CODE | (while read INPUT; do log "$INPUT " detail; done)
+			/usr/sbin/installer -verbose -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target "$CURRENT_IMAGE_MOUNT" -lang "$ISO_CODE" | (while read INPUT; do log "$INPUT " detail; done)
 		fi
+	else
+		log "Unknow operating system. Unable to procede" error
+		exit 1
 	fi
 	log "Base OS installed" information
 		
@@ -616,7 +622,7 @@ install_packages_from_folder() {
 				# TODO: better handle multiple pkg's and InstallerChoice files named for the file they should handle
 			fi
 			
-			if [ "$OS_REV" -eq 0 ]; then
+			if [ $OS_REV_MAJOR -le 4 ]; then
 				CHOICES_FILE="" # 10.4 can not use them
 			fi			
 			
@@ -701,15 +707,16 @@ clean_up() {
 	log "Cleaning up" section
 	
 	log "Ejecting images" information
-	#/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+	if [ -f "$CURRENT_IMAGE_MOUNT/System" ]; then
+		/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+	fi
 	# TODO: close this image earlier
-	if [ -z "$CURRENT_OS_INSTALL_MOUNT" ]; then
+	if [ ! -z "$CURRENT_OS_INSTALL_MOUNT" ]; then
 		/usr/bin/hdiutil eject "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
 	log "Removing scratch DMG" 
-	
-	if [ ! -z "$SCRATCH_FILE_LOCATION" ]; then
+	if [ ! -z "$SCRATCH_FILE_LOCATION" ] && [ -e "$SCRATCH_FILE_LOCATION" ]; then
 		/bin/rm "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
