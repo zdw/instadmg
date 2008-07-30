@@ -333,9 +333,9 @@ setup() {
 	done
 }
 
-check_setup ()
+check_setup () {
 	LANGUAGE_CODE_IS_VALID_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
-	/usr/sbin/installer -listiso | while read LANGUAGE_CODE
+	/usr/sbin/installer -listiso | /usr/bin/tr "\t" "\n" | while read LANGUAGE_CODE
 	do
 		if [ "$ISO_CODE" == "$LANGUAGE_CODE" ]; then
 			/bin/echo "true" > "$LANGUAGE_CODE_IS_VALID_TEMPFILE"
