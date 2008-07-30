@@ -141,14 +141,14 @@ Options:
 	-a <folder path>	Put the final output in this folder
 	-b <folder path>	Look for the base image in this folder
 	-c <folder path>	Look for custom pkgs in this folder
-	-h					Print the useage information (this) and exit
+	-h			Print the useage information (this) and exit
 	-i <iso code>		Use <iso code> for the installer language (default en)
 	-l <folder path>	Use this folder as the log folder
-	-n <name>			The name to use for the final output
-	-q					Quiet: print only errors to the console
-	-s					Enable MacOS X Server installs (not implimented)
+	-n <name>		The name to use for the final output
+	-q			Quiet: print only errors to the console
+	-s			Enable MacOS X Server installs (not implimented)
 	-u <folder path>	Use this folder as the BaseUpdates folder
-	-v					Print the version number and exit
+	-v			Print the version number and exit
 EOF
 	if [ -z $1 ]; then
 		exit 1;
