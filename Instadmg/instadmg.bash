@@ -366,7 +366,20 @@ mount_os_install() {
 				
 				if [ $FOUND_CACHE == true ]; then
 					BASE_IMAGE_CHECKSUM=`/usr/bin/hdiutil imageinfo "$IMAGE_FILE" | /usr/bin/awk '/^Checksum Value:/ { print $3 }' | /usr/bin/sed 's/\\$//'`
-					# TODO: check this line on 10.4 and beyond
+					# TODO: check this line on 10.4 and beyond 10.5
+					
+					# in order to make sure we get the right cached image, we have to know what installerChoices.xml file we are using
+					# TODO: get rid of this duplication of effort in finding the installerChoices.xml file
+					INSTALLER_CHOICES_FILE=""
+					if [ $OS_REV_MAJOR -gt 4 ] && [ -e "$INSTALLER_FOLDER/InstallerChoices.xml" ]; then
+						INSTALLER_CHOICES_FILE="$INSTALLER_FOLDER/InstallerChoices.xml"
+					fi
+					
+					# if there is an INSTALLER_CHOICES_FILE, append ":" and the sha1 checksum to the file
+					if [ ! -z "$INSTALLER_CHOICES_FILE" ]; then
+						INSTALLER_CHOICES_CHEKSUM=`/usr/bin/openssl dgst -sha1 "$INSTALLER_CHOICES_FILE" | awk 'sub(".*= ", "")'`
+						BASE_IMAGE_CHECKSUM="$BASE_IMAGE_CHECKSUM:$INSTALLER_CHOICES_CHEKSUM"
+					fi
 					
 					if [ ! -z "$BASE_IMAGE_CHECKSUM" ]; then # just in case the image is invalid or somehow does not have a checksum
 						/bin/echo "$BASE_IMAGE_CHECKSUM" > "$BASE_IMAGE_CHECKSUM_TEMPFILE"
@@ -540,9 +553,9 @@ install_system() {
 		/usr/sbin/installer -verbose -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target $CURRENT_IMAGE_MOUNT -lang $ISO_CODE | (while read INPUT; do log "$INPUT " detail; done)
 	elif [ $OS_REV_MAJOR -gt 4 ]; then
 		log "I'm running on Leopard or later. Checking for InstallerChoices.xml file" 
-		if [ -e ./BaseOS/InstallerChoices.xml ]; then
+		if [ -e "$INSTALLER_FOLDER/InstallerChoices.xml" ]; then
 			log "InstallerChoices.xml file found. Applying Choices" information
-			/usr/sbin/installer -verbose -applyChoiceChangesXML ./BaseOS/InstallerChoices.xml -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target "$CURRENT_IMAGE_MOUNT" -lang "$ISO_CODE" | (while read INPUT; do log "$INPUT " detail; done)
+			/usr/sbin/installer -verbose -applyChoiceChangesXML "$INSTALLER_FOLDER/InstallerChoices.xml" -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target "$CURRENT_IMAGE_MOUNT" -lang "$ISO_CODE" | (while read INPUT; do log "$INPUT " detail; done)
 		else
 			log "No InstallerChoices.xml file found. Installing full mpkg" information
 			/usr/sbin/installer -verbose -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target "$CURRENT_IMAGE_MOUNT" -lang "$ISO_CODE" | (while read INPUT; do log "$INPUT " detail; done)
@@ -588,7 +601,7 @@ install_packages_from_folder() {
 	
 	/bin/ls -A1 "$SELECTED_FOLDER" | /usr/bin/awk "/^[[:digit:]]+$/" | while read ORDERED_FOLDER
 	do
-		/usr/bin/find -L "$SELECTED_FOLDER/$ORDERED_FOLDER" -depth 1 -iname "*pkg" | /usr/bin/awk -F "\n" '/tolower($1) ~ \.(m)?pkg/ && !/\/\._/' | while read UPDATE_PKG
+		/usr/bin/find -L "$SELECTED_FOLDER/$ORDERED_FOLDER" -depth 1 -iname "*pkg" | /usr/bin/awk -F "\n" 'tolower($1) ~ /\.(m)?pkg/ && !/\/\._/' | while read UPDATE_PKG
 		do
 			if [ -e "$SELECTED_FOLDER/$ORDERED_FOLDER/InstallerChoices.xml" ]; then
 				CHOICES_FILE="InstallerChoices.xml"
