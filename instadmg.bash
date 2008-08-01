@@ -515,14 +515,14 @@ create_and_mount_image() {
 	# Format the DMG so that the Installer will like it 
 
 	# Determine the platform
-	if [ "$CPU_TYPE" -eq "ppc" ]; then 
+	if [ "$CPU_TYPE" = "ppc" ]; then 
 		log 'Running on PPC Platform: Setting format to APM' information
 		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME APMformat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
-	elif  [ "$CPU_TYPE" -eq "i386" ]; then
+	elif  [ "$CPU_TYPE" = "i386" ]; then
 		log 'Running on Intel Platform: Setting format to GPT' information
 		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME GPTFormat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
 	else
-		log "Unknown CPU type: $CPU_TYPE. Unabel to continue" error
+		log "Unknown CPU type: $CPU_TYPE. Unable to continue" error
 		exit 1
 	fi
 	# since this unmounts the disk, and then auto-mounts it at the end, we have to re-mount it to get it hidden again
@@ -538,7 +538,7 @@ create_and_mount_image() {
 #
 # If you are running on 10.5 then InstaDMG will check for an InstallerChoices.xml file.
 # This file will let you take control over what gets installed from the OSInstall.mpkg.
-# Just place the file in the same directory as the instadmg script.
+# Just place the file in the same directory as our installer image.
 
 install_system() {
 	log "Beginning Installation from $CURRENT_OS_INSTALL_MOUNT" section
