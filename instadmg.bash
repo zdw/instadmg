@@ -340,7 +340,7 @@ mount_os_install() {
 		# TODO: somehow make sure that the base installer disk is first
 		
 		if [ "$IMAGE_FILE" == "$INSTALLER_FOLDER/Mac OS X Install Disc 1.dmg" ] || [ "$IMAGE_FILE" == "$INSTALLER_FOLDER/Mac OS X Install DVD.dmg" ]; then
-			# we have a parimary disk image
+			# we have a primary disk image
 			
 			# check it to see if we already have a built form of this one cached
 			if [ $BASE_IMAGE_CACHING_ALLOWED == true ]; then
