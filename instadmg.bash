@@ -538,7 +538,7 @@ create_and_mount_image() {
 #
 # If you are running on 10.5 then InstaDMG will check for an InstallerChoices.xml file.
 # This file will let you take control over what gets installed from the OSInstall.mpkg.
-# Just place the file in the same directory as our installer image.
+# Just place the file in the same directory as your installer image.
 
 install_system() {
 	log "Beginning Installation from $CURRENT_OS_INSTALL_MOUNT" section
@@ -561,7 +561,7 @@ install_system() {
 			/usr/sbin/installer -verbose -pkg "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" -target "$CURRENT_IMAGE_MOUNT" -lang "$ISO_CODE" | (while read INPUT; do log "$INPUT " detail; done)
 		fi
 	else
-		log "Unknow operating system. Unable to procede" error
+		log "Unknown operating system. Unable to procede" error
 		exit 1
 	fi
 	log "Base OS installed" information
