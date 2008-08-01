@@ -46,16 +46,16 @@ ISO_CODE="en"
 SERVER_INSTALL="0"
 
 # Put images of your install DVDs in here
-INSTALLER_FOLDER=./BaseOS
+INSTALLER_FOLDER=./InstallerFiles/BaseOS
 
 # Put naked pkg updates for the base install in here. Nested folders provide the ordering.
-UPDATE_FOLDER=./BaseUpdates
+UPDATE_FOLDER=./InstallerFiles/BaseUpdates
 
 # Put naked custom pkg installers here. Nested folders provide the ordering.
-CUSTOM_FOLDER=./CustomPKG
+CUSTOM_FOLDER=./InstallerFiles/CustomPKG
 
 # This is the final ASR destination for the image.
-ASR_FOLDER=./ASR_Output
+ASR_FOLDER=./OutputFiles
 
 # This is where cached copies of an installed version of the base image are stored
 #	They are stored using a naming convention involving the checksum of the image
