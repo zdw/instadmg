@@ -1,0 +1,14 @@
+INTRO
+instauser creates a local admin account (instadmg) and password (password).
+
+This 10.5 package does everything with file copies. The dslocal system of Leopard makes this possible.
+
+******************************WARNING!***********************************
+As this is an exercise in totally file based user creation you should not run this pkg on an existing system! If you do so it WILL replace your admin group.
+
+If this happens to you then simply re-enable admin rights for the users that lost them.
+******************************WARNING!***********************************
+
+There is still a startup item in place to populate the home folder. More than anything this is here as an example of a startup item. On 10.5 we should probably do this with a launchd job though.
+
+Included in this distribution are the instauser script, pkg, and PackageMaker project file.
