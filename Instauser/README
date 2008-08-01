@@ -1,6 +1,0 @@
-INTRO
-instauser creates a local admin account (instadmg) and password (password).
-
-For real deployment I would force a GUID for the user and copy the hash to prevent the password from being stored in clear text.
-
-Included in this distribution are the instauser script, pkg, and PackageMaker project file.

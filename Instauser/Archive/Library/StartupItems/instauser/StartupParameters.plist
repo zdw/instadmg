@@ -1,6 +1,0 @@
-{
-  Description     = "Auto User Creation";
-  Provides        = ("instauser");
-  Requires        = ("Network", "DirectoryServices");
-  OrderPreference = "Last";
-}
