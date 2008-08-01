@@ -568,18 +568,18 @@ install_system() {
 		
 	if [ $BASE_IMAGE_CACHING_ALLOWED == true ]; then 
 		# if we are at this point we need to close the image, move it to the cached folder, and then re-open with a shadow-file
-		log "Saving cached image to: $BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" information
+		log "Compacting and saving cached image to: $BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" information
 		
 		BASE_IMAGE_FILE="$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg"
 		
 		# unmount the image
 		/usr/bin/hdiutil eject -force "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 		
-		# move the image to the cached folder with the appropriate name
-		/bin/mv "$SCRATCH_FILE_LOCATION" "$BASE_IMAGE_FILE"
+		# compress the image and store it in the new location
+		/usr/bin/hdiutil convert -format UDZO -imagekey zlib-level=6 -o "$BASE_IMAGE_FILE" "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 		
 		# set the appropriate metadata on the file so that time-machine does not back it up
-		/usr/bin/xattr -w com.apple.metadata:com_apple_backup_excludeItem com.apple.backupd 
+		/usr/bin/xattr -w com.apple.metadata:com_apple_backup_excludeItem com.apple.backupd
 		
 		# remount the image with the shadow file (will be created automatically)
 		log "Remounting the image with a shadow file ($SCRATCH_FILE_LOCATION)" information
