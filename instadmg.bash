@@ -515,10 +515,18 @@ create_and_mount_image() {
 	# Format the DMG so that the Installer will like it 
 
 	# Determine the platform
+<<<<<<< .mine
+	if [ "$CPU_TYPE" == "ppc" ]; then 
+=======
 	if [ "$CPU_TYPE" = "ppc" ]; then 
+>>>>>>> .r71
 		log 'Running on PPC Platform: Setting format to APM' information
 		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME APMformat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
+<<<<<<< .mine
+	elif  [ "$CPU_TYPE" == "i386" ]; then
+=======
 	elif  [ "$CPU_TYPE" = "i386" ]; then
+>>>>>>> .r71
 		log 'Running on Intel Platform: Setting format to GPT' information
 		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME GPTFormat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
 	else
@@ -575,8 +583,12 @@ install_system() {
 		# unmount the image
 		/usr/bin/hdiutil eject -force "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 		
+		# move the image to the cached folder with the appropriate name
+		/bin/mv "$SCRATCH_FILE_LOCATION" "$BASE_IMAGE_FILE"
+		
+		# NOTE: backing off this code for the moment... does not seem happy
 		# compress the image and store it in the new location
-		/usr/bin/hdiutil convert -format UDZO -imagekey zlib-level=6 -o "$BASE_IMAGE_FILE" "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+		#/usr/bin/hdiutil convert -format UDZO -imagekey zlib-level=6 -o "$BASE_IMAGE_FILE" "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 		
 		# set the appropriate metadata on the file so that time-machine does not back it up
 		/usr/bin/xattr -w com.apple.metadata:com_apple_backup_excludeItem com.apple.backupd

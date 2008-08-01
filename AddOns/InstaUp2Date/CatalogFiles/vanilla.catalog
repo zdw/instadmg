@@ -1,0 +1,51 @@
+# The lines should be in one of these three formats:
+#
+# <tab> Name <tab> Archive Source Location <tab> Archive Checksum <tab> Package Name </tab> Package Checksum
+#
+# <tab> Name <tab> Package Name </tab> Package Checksum
+#
+# include-file: <tab> Catalog File
+#
+# The <<Name>> is a user-facing string, and is not used internally, it can be empty
+#
+# The <<Archive Source Location>> can be one of the following:
+#		name of a .pkg file in the autoUpdateCache folder or one of the InstaDMG numbered folders
+#			in this case no <<Package Name>> or <<Package Checksum>> is necessary
+#		http: reference to be downloaded (a flat-file .pkg, a .dmg or a .zip of a folder)
+#
+# Downloaded Files that are .dmg or .zip files are automatically opened, and the specified .pkg is extraced from them
+#	Zip file download not yet implimented
+#
+# The <<Archive Checksum>> field is a a checksum for the file in the format:
+#		sha1:524e0a707afbdeff798cdd9464d62f672136ab5a
+#	Any checksum type supported by OpenSSL should be uesable.
+#	If you do not want to use a checksum then put a "?" character in its place
+#
+# The sections below this are not required (or helpful) if the Archive copy is a local .pkg, or a remote flat-file .pkg not in a .dmg.
+#
+# The <<Package Name>> is the name of the .pkg or .mpkg file that is inside the archive file or it can be the name of a folder in the cache folder.
+#	If it is a folder the <<Package Name>> MUST end in a "/" and it MUST be in the shorter form of the line
+#
+# The <<Package Checksum>> is the checksum of the package file. The format is the same as that for <<Archive Checksum>>
+#
+# The <<Catalog File>> is a path to another .catalog file that will be parsed at the point it is in this file
+
+Base OS Disk:
+	# the first one should be disk 1 of an installer disk
+	# this is not yet implimented
+
+OS Updates:
+	Mac OS X 10.5.4 Combo Update	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4758.20080626.vfgp9/MacOSXUpdCombo10.5.4.dmg	sha1:490962bf712b2d801d08f42ca66b8a4541e9da16	MacOSXUpdCombo10.5.4.pkg	sha1:609d88d11a5330c7aee39d1e2a743a24dac96c82
+	QuickTime 7.5 for Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-4458.20080609.Qqp4r/QuickTime75_Leopard.dmg	sha1:207c4dcc6a6adc8e600598db3ce036c40a3926f6	QuickTime75_Leopard.pkg	sha1:0a68ba5e84fee49e5cef07c7518b65036e59f6b7
+	AirPort Utility 5.3.2 for Leopard	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4614.20080611.vbh98/AirPortUtility_Leopard.dmg	sha1:f5105d0c5353a2838d191e04454e77280c0a8c81	AirPortUtility_Leopard.pkg	sha1:efd67e83075fd1fb7909081afa9c57964df85364
+
+Apple Updates:
+	iTunes	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes7/Mac/061-4474.20080402.1Swef/iTunes.dmg	sha1:d01c28611f6e23b277b338ee8a594b1d8955aa25	iTunes.mpkg	sha1:61c937de2dce762e78cb4f8abfe959b44f77330a
+	iLife Support 8.2	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=17384&cat=59&platform=osx&method=sa/iLifeSupport_8.2.dmg	sha1:2c17e62a5b63f47057348b63f23891d86f32cccb	iLifeSupport.mpkg	sha1:e3df8467cb33db0722e6021b417affab974abb84
+	Front Row 2.1.3	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=18431&cat=59&platform=osx&method=sa/FrontRowUpdate2.1.3.dmg	sha1:b068d714d64814a3a7cf67be7f2c9749ad24e88f	FrontRowUpdate2.1.3.pkg	sha1:3e78561f521467324e282980cfcd9848fafc434a
+
+System Settings:
+
+Third Party Software:
+
+Software Settings:

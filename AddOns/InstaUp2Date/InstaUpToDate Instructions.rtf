@@ -1,0 +1,68 @@
+{\rtf1\ansi\ansicpg1252\cocoartf949\cocoasubrtf330
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww13180\viewh12640\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+
+\f0\b\fs42 \cf0 InstaUpToDate
+\fs24 \
+\
+Note: These instructions are slightly out of date as active development is going on. Once things settle down this document will be updated.\
+\
+
+\b0 This write-up is based on the InstaUpToDate version 0.2 being used with InstaDMG 1.3b
+\b \
+\
+	
+\b0 This script can be used to help automate the creation of the folder structure that InstaDMG needs to create its images. With InstaUpToDate you can create multiple images, each one serving a different need, that can be updated in an orderly fashion.\
+\
+	As an example: If you need to create a single base image, but need 3 versions of that base image that have different packages applied to them you would need to do a lot of moving files back-and-forth with InstaDMG. And when the next point upgrade or Security Update  for MacOS X arrived you would need to do all of that moving as many as 4 times.\
+\
+	But with InstaUpToDate you can create a catalog file of the elements that go into the base image. Then create a catalog file with the additions you need in your final images for each version. When you need to create a version of the image you want you can let InstaUpToDate take care of managing the folders of packages for you.
+\b \
+\
+
+\fs26 Instillation:
+\fs24 \
+\
+	
+\b0 There is not really any instillation required, but InstaUpToDate does want to run from within the same folder as InstaDMG. This should be the same directory as your "AppleUpdates", "CustomPKG", and "ASR_Output" folders are in.\
+\
+	Additionally it is probably a good idea to create a "upToDateCache" folder in the same directory. If it does not exist, then it will be created when you run the script. But if you need to add any of your own packages (and you probably should), it is a good idea to create this folder ahead of time and populate it with your packages.
+\b \
+\
+
+\fs26 Instructions:
+\fs24 \
+\
+	
+\b0 The first thing you need is at least one .catalog file. A couple of examples should be provided with this script, and the current documentation for that is in the vanilla.catalog file. Examine both of the sample .catalog files to help you create your own. For the moment it is probably best to put all catalog files in the same folder as the instadmg.bash file.\
+\
+	When you are creating your own lines for a catalog file the checksum.py command-line program can come in handy to create the checksums you need.\
+\
+	You will also need to provide InstaDMG with a image of a 10.5 installer disk. InstaUpToDate does not change this. At some point it will provide the option of managing these for you. But you will still need to provide your own.
+\b \
+\
+	
+\b0 At this point the script is still a command-line only version. So you need to open the terminal and type the following command:\
+\
+python instaUpToDate.py <<catalog file>>\
+\
+	Naturally you need to replace <<catalog file>> with the name of the catalog file you want to use. Once InstaUpToDate runs successfully you will be all setup to run instadmg.bash.
+\b \
+\
+
+\fs26 Notes:\
+\
+
+\b0\fs24 * InstaUpToDate does not add any extra abilities to InstaDMG once it starts running. It only allows the automation of setting things up before you run InstaDMG.\
+\
+* The script is still in a somewhat rough form. I am using it in my workflow, and it is working, but it has not been extensively tested at this point. No warrantee is implied at all.\
+\
+* Additions and bug-fixes are always welcome\
+\
+* At the moment error reporting is very rough. Often you will need to read through the code to figure out what went wrong. Sometime in the future this will be cleaned up some.\
+\
+* A final copyright has not been decided for this, but I am leaning towards a BSD-style license. For the moment fell free to use the code, but please refrain from distributing it.
+\b \
+}

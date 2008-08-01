@@ -1,0 +1,20 @@
+# this catalog file will produce a instaDMG setup to generate a up-to-date 10.5.2 image with XCode 3 included.
+#	Because XCode is not redily avalible you must download it yourself.
+#		Place the Dashcode into the "upToDateCache" folder by iteself
+#		Then create a "XCode 3" folder in the "upToDateCache" folder with the XcodeTools.mpkg and the Pacakges folder in it
+
+include-file:	vanilla.catalog
+
+Base OS Disk:
+	# the first one should be disk 1 of an installer disk
+	# this is not yet implimented
+
+OS Updates:
+	XCode 3	XCode 3/	sha1:384ac6270234fa4f2ef691f33035ef305428e31b
+Apple Updates:
+
+System Settings:
+
+Third Party Software:
+
+Software Settings:
