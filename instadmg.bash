@@ -143,9 +143,10 @@ Options:
 	-c <folder path>	Look for custom pkgs in this folder
 	-h			Print the useage information (this) and exit
 	-i <iso code>		Use <iso code> for the installer language (default en)
-	-l <folder path>	Use this folder as the log folder
-	-n <name>		The volume name to use for the output file
+	-l <folder path>	Set the foler to use as the log folder
 	-m <name>		The file name to use for the ouput file. '.dmg' will be appended as needed.
+	-n <name>		The volume name to use for the output file. Defaults to: $ASR_FILESYSTEM_NAME
+	-o <folder path>	Set the foler to use as the output folder
 	-q			Quiet: print only errors to the console
 	-s			Enable MacOS X Server installs (not implimented)
 	-u <folder path>	Use this folder as the BaseUpdates folder
@@ -730,8 +731,7 @@ reboot() {
 
 # Call the handlers as needed to make it all happen.
 
-rootcheck
-while getopts "a:b:c:hi:l:n:m:qsu:vz" opt
+while getopts "a:b:c:hi:l:m:n:o:qsu:vz" opt
 do
 	case $opt in
 		a )	ASR_FOLDER="$OPTARG";;
@@ -740,8 +740,9 @@ do
 		h ) usage;;
 		i ) ISO_CODE="$OPTARG";;
 		l ) LOG_FOLDER="$OPTARG";;
-		n ) ASR_FILESYSTEM_NAME="$OPTARG";;
 		m ) ASR_OUPUT_FILE_NAME="$OPTARG";;
+		n ) ASR_FILESYSTEM_NAME="$OPTARG";;
+		o ) ASR_FOLDER="$OPTARG";;
 		q ) CONSOLE_LOG_LEVEL=0;;
 		s ) SERVER_INSTALL="1";;
 		u ) UPDATE_FOLDER="$OPTARG";;
@@ -751,6 +752,8 @@ do
 	esac
 done
 check_setup
+
+rootcheck
 
 log "InstaDMG build initiated" section
 
