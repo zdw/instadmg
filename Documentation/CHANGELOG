@@ -11,8 +11,12 @@ Logging:
 Totally new logging system that supports multiple verbosity levels.
 
 General:
+New directory structure that is easier to understand.
+InstaUp2Date is now included with the distribution.
 Removed instadmg-rmlcll-revision.bash as it was out of date.
 Changed contact info in the main script to be accurate of new dev system.
+Caching system will cache the installed BaseOS in Caches. If the checksums of the DVD image and InstallerChoices.xml file match the cached DMG it will be mounted with a shadow file and reused.
+Main PDF updated.
 
 ------------------------
 Changes in instadmg 1.4b2
