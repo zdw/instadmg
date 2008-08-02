@@ -144,7 +144,8 @@ Options:
 	-h			Print the useage information (this) and exit
 	-i <iso code>		Use <iso code> for the installer language (default en)
 	-l <folder path>	Use this folder as the log folder
-	-n <name>		The name to use for the final output
+	-n <name>		The volume name to use for the output file
+	-m <name>		The file name to use for the ouput file. '.dmg' will be appended as needed.
 	-q			Quiet: print only errors to the console
 	-s			Enable MacOS X Server installs (not implimented)
 	-u <folder path>	Use this folder as the BaseUpdates folder
