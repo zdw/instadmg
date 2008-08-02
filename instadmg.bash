@@ -515,18 +515,18 @@ create_and_mount_image() {
 	# Format the DMG so that the Installer will like it 
 
 	# Determine the platform
-<<<<<<< .mine
+
 	if [ "$CPU_TYPE" == "ppc" ]; then 
 =======
 	if [ "$CPU_TYPE" = "ppc" ]; then 
->>>>>>> .r71
+
 		log 'Running on PPC Platform: Setting format to APM' information
 		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME APMformat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
-<<<<<<< .mine
+
 	elif  [ "$CPU_TYPE" == "i386" ]; then
 =======
 	elif  [ "$CPU_TYPE" = "i386" ]; then
->>>>>>> .r71
+
 		log 'Running on Intel Platform: Setting format to GPT' information
 		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME GPTFormat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
 	else
