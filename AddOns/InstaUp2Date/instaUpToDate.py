@@ -205,7 +205,6 @@ class instaUpToDate:
 					raise Exception('Bad line in input file: %s line number: %i\n%s' % (fileLocation, lineNumber, line)) # TODO: improve error handling
 							
 				if not(self.packageGroups.has_key(sectionTitleMatch.group("sectionName"))) and sectionTitleMatch.group("sectionName") != baseOSSectionName:
-					print self.packageGroups
 					raise Exception('Unknown section title: %s on line: %i of file: %s\n%s' % (sectionTitleMatch.group("sectionName"), lineNumber, fileLocation, line) ) # TODO: improve error handling
 				
 				currentSection = sectionTitleMatch.group("sectionName")
@@ -256,7 +255,7 @@ class instaUpToDate:
 						os.symlink( os.path.join("../..", thisPackage.packageCacheLocation), newFolderPath )
 						# TODO: make this less dependent on the path
 	
-					elif thisPackage.archiveType == "dmg" && thisPackage.packageType = None:
+					elif thisPackage.archiveType == "dmg" and ( thisPackage.packageType == None or thisPackage.packageType == "dmg"):
 						os.symlink( os.path.join("../..", thisPackage.packageCacheLocation), newFolderPath )
 						# TODO: make this less dependent on the path
 					
@@ -434,7 +433,7 @@ class installerPackage:
 					self.archiveLocation		= location
 					self.archiveChecksum		= locationChecksum
 					self.archiveChecksumType	= locationChecksumType
-										
+					
 					self.packageFileName = scannerResult.group("fileName")
 					
 				else:
@@ -513,6 +512,13 @@ class installerPackage:
 					# this should all be absolute-path files
 					print "do more here"
 		
+		# we need to guess what the file type is based on the name
+		
+		fileExtension = self.fileLocationParser.search(self.packageFileName).group("extension").lower()
+		if fileExtension == "dmg":
+			self.packageType = "dmg"
+			self.archiveType = "dmg"
+		
 		# see if we already have the package file in our cache
 		#	if so, checksum it
 		#		if correct setup and return
@@ -545,13 +551,28 @@ class installerPackage:
 	def checksum(self, fileLocation = None, checksum = None, checksumType = None, archiveOrPackage = "package"):
 		"This handles checksumming a local file: either a folder version or a single file"
 		
+		if self.packageType == "dmg":
+			archiveOrPackage = "archive"
+		
+		if ( archiveOrPackage == "archive" and self.archiveChecksumType == None ) or ( archiveOrPackage == "package" and self.packageChecksumType == None ):
+			self.setPackageChecksumCorrect(True)
+			return True
+		
 		# if this is called without options, then it defaults to the package values
 		if fileLocation == None:
 			fileLocation = self.cacheFolderName
+		
 		if checksum == None:
-			checksum = self.packageChecksum
+			if archiveOrPackage == "archive":
+				checksum = self.archiveChecksum
+			else:
+				checksum = self.packageChecksum
+			
 		if checksumType == None:
-			checksumType = self.packageChecksumType
+			if archiveOrPackage == "archive":
+				checksumType = self.archiveChecksumType
+			else:
+				checksumType = self.packageChecksumType
 		
 		# we need to have all of these values, and fail without them
 		if fileLocation == None:
@@ -641,14 +662,8 @@ class installerPackage:
 				if thisFileName == self.packageFileName or (thisFileName + "/") == self.packageFileName: # TODO: allow for multiple files to be named the same thing (-1 -2, etc)
 				
 					thisFilePath = os.path.join(selectedFolder, thisFileName)
-				
-					if self.packageChecksum == None:
-						checkSumRight = True
-					else:
-						checkSumRight = self.checksum(thisFilePath)
-									
-					if checkSumRight:
-											
+					
+					if self.checksum(thisFilePath):
 						if os.path.isdir(thisFilePath) and not( re.search("\.(m)?pkg$", thisFileName, re.I) ):
 							# a folder that is not a pkg or mpkg
 							#	the checksum was already correct, so we are probably safe,
@@ -691,7 +706,7 @@ class installerPackage:
 						elif re.search("\.dmg$", thisFileName, re.I):
 							# since the checksum is correct on the file (not referring to the internal one) this is probably ok
 							#	but being paridoid... we will have hdiutil cheksum it at well
-							
+
 							thisProcess = subprocess.Popen(["/usr/bin/hdiutil", "verify", thisFilePath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 							(myResponce, myError) = thisProcess.communicate()
 							
@@ -701,6 +716,8 @@ class installerPackage:
 							self.setPackageType("dmg")
 							self.setStatus("Verified")
 							self.packageCacheLocation = thisFilePath
+							self.setSourceMessage("Found in Cache");
+							return True
 	
 						else:
 							# not something we can deal with
@@ -750,7 +767,7 @@ class installerPackage:
 				
 			if hashGenerator:		
 				if self.archiveChecksum != hashGenerator.hexdigest():
-					raise Exception # TODO: improve error handling
+					raise Exception('The checksum on the file %s (%s) did not match! File was: %s should have been: %s:%s' % (tempFilePath, self.name, hashGenerator.hexdigest(), self.archiveChecksumType, self.archiveChecksum) ) # TODO: improve error handling
 				self.setArchiveChecksumCorrect(True)
 			
 			

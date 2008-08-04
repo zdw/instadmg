@@ -35,10 +35,10 @@ Base OS Disk:
 	# this is not yet implimented
 
 OS Updates:
-	Mac OS X 10.5.4 Combo Update	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4758.20080626.vfgp9/MacOSXUpdCombo10.5.4.dmg	sha1:609d88d11a5330c7aee39d1e2a743a24dac96c82
+	Mac OS X 10.5.4 Combo Update	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4758.20080626.vfgp9/MacOSXUpdCombo10.5.4.dmg	sha1:490962bf712b2d801d08f42ca66b8a4541e9da16
 	Security Update 2008-005 2008-005 (Leopard)	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=20388&cat=57&platform=osx&method=sa/SecUpd2008-005.dmg	sha1:9c4fd4ee59965819427445f6de172c42b223e6e1
 	QuickTime 7.5 for Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-4458.20080609.Qqp4r/QuickTime75_Leopard.dmg	sha1:207c4dcc6a6adc8e600598db3ce036c40a3926f6
-	AirPort Utility 5.3.2 for Leopard	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4614.20080611.vbh98/AirPortUtility_Leopard.dmg
+	AirPort Utility 5.3.2 for Leopard	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4614.20080611.vbh98/AirPortUtility_Leopard.dmg	sha1:f5105d0c5353a2838d191e04454e77280c0a8c81
 
 Apple Updates:
 	iTunes 7.7.1	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes7/Mac/061-5123.20080730.fr4Ym/iTunes.dmg	sha1:3fdaf990a103799255112dccb0e0c01f28d64937
