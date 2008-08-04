@@ -35,14 +35,15 @@ Base OS Disk:
 	# this is not yet implimented
 
 OS Updates:
-	Mac OS X 10.5.4 Combo Update	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4758.20080626.vfgp9/MacOSXUpdCombo10.5.4.dmg	sha1:490962bf712b2d801d08f42ca66b8a4541e9da16	MacOSXUpdCombo10.5.4.pkg	sha1:609d88d11a5330c7aee39d1e2a743a24dac96c82
-	QuickTime 7.5 for Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-4458.20080609.Qqp4r/QuickTime75_Leopard.dmg	sha1:207c4dcc6a6adc8e600598db3ce036c40a3926f6	QuickTime75_Leopard.pkg	sha1:0a68ba5e84fee49e5cef07c7518b65036e59f6b7
-	AirPort Utility 5.3.2 for Leopard	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4614.20080611.vbh98/AirPortUtility_Leopard.dmg	sha1:f5105d0c5353a2838d191e04454e77280c0a8c81	AirPortUtility_Leopard.pkg	sha1:efd67e83075fd1fb7909081afa9c57964df85364
+	Mac OS X 10.5.4 Combo Update	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4758.20080626.vfgp9/MacOSXUpdCombo10.5.4.dmg	sha1:609d88d11a5330c7aee39d1e2a743a24dac96c82
+	Security Update 2008-005 2008-005 (Leopard)	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=20388&cat=57&platform=osx&method=sa/SecUpd2008-005.dmg	sha1:9c4fd4ee59965819427445f6de172c42b223e6e1
+	QuickTime 7.5 for Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-4458.20080609.Qqp4r/QuickTime75_Leopard.dmg	sha1:207c4dcc6a6adc8e600598db3ce036c40a3926f6
+	AirPort Utility 5.3.2 for Leopard	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4614.20080611.vbh98/AirPortUtility_Leopard.dmg
 
 Apple Updates:
-	iTunes	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes7/Mac/061-4474.20080402.1Swef/iTunes.dmg	sha1:d01c28611f6e23b277b338ee8a594b1d8955aa25	iTunes.mpkg	sha1:61c937de2dce762e78cb4f8abfe959b44f77330a
-	iLife Support 8.2	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=17384&cat=59&platform=osx&method=sa/iLifeSupport_8.2.dmg	sha1:2c17e62a5b63f47057348b63f23891d86f32cccb	iLifeSupport.mpkg	sha1:e3df8467cb33db0722e6021b417affab974abb84
-	Front Row 2.1.3	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=18431&cat=59&platform=osx&method=sa/FrontRowUpdate2.1.3.dmg	sha1:b068d714d64814a3a7cf67be7f2c9749ad24e88f	FrontRowUpdate2.1.3.pkg	sha1:3e78561f521467324e282980cfcd9848fafc434a
+	iTunes 7.7.1	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes7/Mac/061-5123.20080730.fr4Ym/iTunes.dmg	sha1:3fdaf990a103799255112dccb0e0c01f28d64937
+	iLife Support 8.3	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=20215&cat=59&platform=osx&method=sa/iLifeSupport.dmg	sha1:f1fd3a28135a0b0a576c5d4e32161e2a537895d4
+	Front Row 2.1.3	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=18431&cat=59&platform=osx&method=sa/FrontRowUpdate2.1.3.dmg	sha1:b068d714d64814a3a7cf67be7f2c9749ad24e88f
 
 System Settings:
 
