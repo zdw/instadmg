@@ -258,6 +258,7 @@ class instaUpToDate:
 	
 					elif thisPackage.archiveType == "dmg" && thisPackage.packageType = None:
 						os.symlink( os.path.join("../..", thisPackage.packageCacheLocation), newFolderPath )
+						# TODO: make this less dependent on the path
 					
 					else:
 						os.mkdir(newFolderPath)
