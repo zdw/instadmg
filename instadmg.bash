@@ -650,7 +650,7 @@ install_packages_from_folder() {
 				DMG_INTERNAL_NAME=`/usr/bin/hdiutil imageinfo "$DMG_PATH" | awk '/^\tName:/ && sub("\tName: ", "")'`
 				TARGET=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX`
 				
-				log "Mounting the package dmg: $DMG_INTERNAL_NAME ($ORIGINAL_TARGET) at: $TARGET" information
+				log "Mounting the package dmg: $DMG_INTERNAL_NAME ($ORIGINAL_TARGET) at: $TARGET" detail
 				/usr/bin/hdiutil mount "$DMG_PATH" -nobrowse -mountpoint "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				if [ ${?} -ne 0 ]; then
 					log "Unable to mount $DMG_INTERNAL_NAME ($DMG_PATH) at: $TARGET" error
@@ -675,7 +675,7 @@ install_packages_from_folder() {
 				log "Installing $UPDATE_PKG with XML Choices file: $CHOICES_FILE" information
 				/usr/sbin/installer -verbose -applyChoiceChangesXML "$TARGET/$CHOICES_FILE" -pkg "$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 			else
-				log "Installing $UPDATE_PKG" detail
+				log "Installing $UPDATE_PKG" information
 				/usr/sbin/installer -verbose -pkg "$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 			fi
 		done
