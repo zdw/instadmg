@@ -20,6 +20,7 @@ from datetime import date
 versionString = "0.4b"
 
 relativePathToInstaDMG		= "../../" # the relative path between InstaUp2date and InstaDMG
+relativePathFromInstaDMG	= "AddOns/InstaUp2Date/"
 instaDMGName				= "instadmg.bash" # name of the InstaDMG executable
 
 # this group needs to be relative to InstaDMG
@@ -64,7 +65,8 @@ if not(os.path.exists(customPKGFolder)) or not(os.path.isdir(customPKGFolder)):
 if not(os.path.exists(userSuppliedPKGFolder)) or not(os.path.isdir(userSuppliedPKGFolder)):
 	raise Exception() # TODO: improve error handling
 
-catalogFolder = os.path.join( os.path.dirname(sys.argv[0]), "CatalogFiles" )
+catalogFolder = os.path.join( relativePathFromInstaDMG, "CatalogFiles" )
+
 if not (os.path.exists(catalogFolder)) or not(os.path.isdir(catalogFolder)):
 	raise Exception() # TODO: improve error handling
 
@@ -233,39 +235,36 @@ class instaUpToDate:
 	
 		global appleUpdatesFolder
 		global customPKGFolder 
-	
-		# the "Apple Updates" section:
-		folderCounter = 1
-		for thisSection in systemSectionTypes:
-			for thisPackage in self.packageGroups[thisSection]:
-				newFolderPath = os.path.join(appleUpdatesFolder, "%02d" % folderCounter) # TODO: redo the folder names to scale with the number of items
-				
-				if thisPackage.packageType == "folder":
-					os.symlink( os.path.join("../..", thisPackage.packageCacheLocation), newFolderPath )
-					# TODO: make this less dependent on the path
-
-					
-				else:
-					os.mkdir(newFolderPath)
-					os.symlink( os.path.join("../../..", thisPackage.packageCacheLocation), os.path.join(newFolderPath, thisPackage.packageFileName) )
-					# TODO: make this less dependent on the path
-					
-				folderCounter = folderCounter + 1
 		
-		# the "CustomPKG" section:
-		folderCounter = 1
-		for thisSection in addedSectionTypes:
-			for thisPackage in self.packageGroups[thisSection]:
-				newFolderPath = os.path.join(customPKGFolder, "%02d" % folderCounter) # TODO: redo the folder names to scale with the number of items
+		# TODO: combine these two into a loop
+		
+		groupings = [ [systemSectionTypes, appleUpdatesFolder], [addedSectionTypes, customPKGFolder] ]
+		for sectionTypes, updateFolder in groupings:
+			folderCounter = 1
+			for thisSection in sectionTypes:
 				
-				if thisPackage.packageType == "folder":
-					os.symlink( os.path.join("../..", thisPackage.packageCacheLocation), newFolderPath )
+				# there has got to be a better way of doing this
+				orderOfMagnitude = 1
+				while len(self.packageGroups[thisSection]) > pow(10, orderOfMagnitude):
+					orderOfMagnitude += 1
+			
+				for thisPackage in self.packageGroups[thisSection]:
+					numberFormatString = '%0' + str(orderOfMagnitude) + 'd'
+					newFolderPath = os.path.join(updateFolder, numberFormatString % folderCounter)
 					
-				else:
-					os.mkdir(newFolderPath)
-					os.symlink( os.path.join("../..", thisPackage.packageCacheLocation), os.path.join(newFolderPath, thisPackage.packageFileName) ) # TODO: make this less dependent on the path
-				
-				folderCounter = folderCounter + 1
+					if thisPackage.packageType == "folder":
+						os.symlink( os.path.join("../..", thisPackage.packageCacheLocation), newFolderPath )
+						# TODO: make this less dependent on the path
+	
+					elif thisPackage.packageType == "dmg":
+						os.symlink( os.path.join("../..", thisPackage.packageCacheLocation), newFolderPath )
+					
+					else:
+						os.mkdir(newFolderPath)
+						os.symlink( os.path.join("../../..", thisPackage.packageCacheLocation), os.path.join(newFolderPath, thisPackage.packageFileName) )
+						# TODO: make this less dependent on the path
+						
+					folderCounter = folderCounter + 1
 				
 		return True
 
@@ -357,7 +356,7 @@ class installerPackage:
 	archiveChecksumType		= None
 	archiveChecksumCorrect	= None		# once it has been checksummed this should be True or False
 	
-	packageType				= None		# this can be "flatfilepkg", "folder", or "folderpkg"
+	packageType				= None		# this can be "flatfilepkg", "folder", "folderpkg", or "dmg"
 	packageLocation			= None		# this should be the path to the .pkg inside a archive or a name that will be searched for in the archive directory
 	packageFileName			= None		# the name of the .pkg file
 	packageCacheLocation	= None		# the path to the package in the cache folder relative to the InstaDMG folder
@@ -399,14 +398,14 @@ class installerPackage:
 		
 		# first we need to sort out the location... and package... information that we already have
 		if packageLocation == None:
-			# we only have a local file (or a remote flat-file pkg), we need to tell those cases apart
+			# a local file, a remote flat-file pkg, a local folder, or a local dmg. We need to tell those cases apart
 			
 			# but first we can set the checksum information
 			self.packageChecksum		= locationChecksum
 			self.packageChecksumType	= locationChecksumType
 			
 			scannerResult = self.fileLocationParser.search(location)
-			
+						
 			if scannerResult.group("protocol") == None or scannerResult.group("protocol").lower() == "file":
 				# this means a local file of some sort
 				
@@ -424,9 +423,19 @@ class installerPackage:
 				# remote or not, is the file is a .pkg, then we have the file name
 				if scannerResult.group("extension") and (scannerResult.group("extension").lower() == "pkg" or scannerResult.group("extension").lower() == "mpkg"):
 					self.packageFileName = scannerResult.group("fileName")
+					
 				elif re.search( "/$", scannerResult.group("fullPath") ):
 					# we have a folder
 					self.packageFileName = scannerResult.group("fullPath")
+					
+				elif re.search( "\.dmg", scannerResult.group("fullPath"), re.I ):
+					# this is a local dmg
+					self.archiveLocation		= location
+					self.archiveChecksum		= locationChecksum
+					self.archiveChecksumType	= locationChecksumType
+										
+					self.packageFileName = scannerResult.group("fileName")
+					
 				else:
 					if self.archiveLocation == None:
 						# we have a non-pkg file as our package
@@ -479,8 +488,22 @@ class installerPackage:
 					# get the filename by starting a download and seeing if it is in the headers
 					#	if not, then we default to the name of file in the url
 					
-					print "do more here"
+					contentDispositionRegex = re.compile('^Content-Disposition:.*filename="?(?P<fileName>[^"]+)"?$', re.M)
 					
+					# this is a silly hack, but it is what I have. TODO: do this in python
+					thisProcess = subprocess.Popen(["/usr/bin/curl", "-I", "-L", self.archiveLocation], stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+					(httpHeaders, myError) = thisProcess.communicate()
+					
+					if thisProcess.returncode != 0:
+						raise Exception(); # TODO: better errors
+
+					contentDisposition = contentDispositionRegex.search(httpHeaders.split("HTTP/1")[-1])
+					if contentDisposition:
+						self.packageFileName = contentDispositionRegex.group('fileName')
+					
+					else:
+						self.packageFileName = scannerResult.group('fileName')
+										
 				elif scannerResult.group("protocol") != None: # remember we have taken care of the "file://" case already
 					# this isn't something we are supporting
 					raise Exception(); # TODO: better errors
@@ -584,7 +607,7 @@ class installerPackage:
 		self.packageChecksumCorrect = newStatus
 		
 	def setPackageType(self, newType):
-		if newType != "flatfilepkg" and newType != "folderpkg" and newType != "folder":
+		if newType != "flatfilepkg" and newType != "folderpkg" and newType != "folder" and newType != "dmg":
 			raise Exception(); # TODO: better errors
 		self.packageType = newType
 		
@@ -663,10 +686,24 @@ class installerPackage:
 							
 							print "Found %s in archive" % self.packageFileName
 							return True
+						
+						elif re.search("\.dmg$", thisFileName, re.I):
+							# since the checksum is correct on the file (not referring to the internal one) this is probably ok
+							#	but being paridoid... we will have hdiutil cheksum it at well
+							
+							thisProcess = subprocess.Popen(["/usr/bin/hdiutil", "verify", thisFilePath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+							(myResponce, myError) = thisProcess.communicate()
+							
+							if thisProcess.returncode != 0:
+								raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to checksum it:\n%s" % ( thisFileName, myError )); # TODO: better errors
+								
+							self.setPackageType("dmg")
+							self.setStatus("Verified")
+							self.packageCacheLocation = thisFilePath
 	
 						else:
 							# not something we can deal with
-							raise Exception("Unable to process pacakge name: %s" % thisFileName); # TODO: better errors
+							raise Exception("Unable to process package named: %s" % thisFileName); # TODO: better errors
 		
 		# otherwise we will just continue on
 		print "Did not find %s in archive" % self.packageFileName
@@ -753,57 +790,26 @@ class installerPackage:
 		
 		if fileExtension == "dmg": # we have already made sure that everything is lower case
 			self.archiveType = "dmg"
+			self.packageType = "dmg"
 			
-			try:
-				tempMountPoint = tempfile.mkdtemp(dir = "/tmp")
-
-				print "attaching .DMG"
-				
-				thisProcess = subprocess.Popen(["/usr/bin/hdiutil", "attach", "-readonly", "-quiet", "-nobrowse", "-mountpoint", tempMountPoint, tempFilePath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
-				(myResponce, myError) = thisProcess.communicate()
-				
-				if thisProcess.returncode == 0:
-					
-					# here we have a dmg mounted at tempMountPoint, and we need to look into it, checksum the pacakge, and go
-					packageLocation = os.path.join(tempMountPoint, self.packageFileName)
-					if os.path.exists(packageLocation):
-						if self.packageChecksum: # otherwise we are not checkumming
-							# TODO: improve error handling
-							if not(self.checksum(packageLocation)):
-								raise Exception # TODO: improve error handling
-								
-						# now to copy the pkg inot the archive directory
-						# first we have to check if there is already something with that name in this place
-
-						targetLocation =  os.path.join(cacheFolder, self.packageFileName)
-						if os.path.exists(targetLocation):
-							raise Exception # TODO: improve error handling
-						
-						if os.path.isfile(packageLocation):
-							shutil.copyfile(packageLocation, targetLocation)
-						elif os.path.isdir(packageLocation):
-							shutil.copytree(packageLocation, targetLocation, symlinks=True) # TODO: improve error handling
-						else:
-							# we have a symlink
-							raise Exception # TODO: improve error handling
-							
-						self.setStatus("Verified")
-						self.setPackageCacheLocation(targetLocation)
-						return True
-						
-					else:
-						# could not find the package
-						raise Exception # TODO: improve error handling
-					
-				else:
+			# checksum the dmg file, and then let hdiutil internally checksum it
+			if self.archiveChecksum: # if there is no checksum, just trust it
+				if not(self.checksum(tempFilePath, archiveOrPackage = "archive")):
 					raise Exception # TODO: improve error handling
-				
-			finally:
-				# we need to clean up things to make sure that the mount-point is properly scrubbed
-				print "detaching .DMG"
-				if tempMountPoint != None:
-					subprocess.call(["/usr/bin/hdiutil", "detach", "-quiet", tempMountPoint]) # TODO: improve error handling
-					os.rmdir(tempMountPoint) # TODO: improve error handling
+					
+			thisProcess = subprocess.Popen(["/usr/bin/hdiutil", "verify", tempFilePath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+			(myResponce, myError) = thisProcess.communicate()
+			
+			if thisProcess.returncode != 0:
+				raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to checksum it:\n%s" % { 'fileName':tempFilePath, 'error':myError }); # TODO: better errors
+			
+			# at this point we are as sure as we can be that this is the driod... er... dmg that we are looking for			
+			targetLocation =  os.path.join(cacheFolder, self.packageFileName)
+			shutil.copyfile(tempFilePath, targetLocation)
+			
+			self.setStatus("Verified")
+			self.setPackageCacheLocation(targetLocation)
+			return True
 			
 		elif fileExtension == "pkg":
 			# since we are here, it should be a flat-file pkg
@@ -811,7 +817,7 @@ class installerPackage:
 			packageInArchiveLocation = tempFilePath
 			
 		elif fileExtension == "zip":
-			# a kg inside a zip file... this is a bit simplistic
+			# a pkg inside a zip file... this is a bit simplistic
 			self.archiveType = "zip"			
 			raise Exception # TODO: the ZIP mechanics
 			
@@ -820,7 +826,6 @@ class installerPackage:
 			raise Exception # TODO: improve error handling
 		
 		if os.path.exists(tempFilePath):
-			print "got here"
 			os.unlink(tempFilePath)
 
 		return False
