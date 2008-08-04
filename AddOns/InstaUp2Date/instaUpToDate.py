@@ -93,18 +93,15 @@ class instaUpToDate:
 	#---------------------Class Variables-----------------------------
 	
 	sectionStartParser	= re.compile('^(?P<sectionName>[^\t]+):\s*(#.*)?$')
-	simpleLineParser	= re.compile('^\t(?P<prettyName>[^\t]*)\t(?P<archiveLocation>[^\t]+)\t(?P<archiveChecksum>\S+)(\t(?P<packageLocation>[^\t]+)\t(?P<packageChecksum>\S+))?\s*(#.*)?$')
+	packageLineParser	= re.compile('^\t(?P<prettyName>[^\t]*)\t(?P<archiveLocation>[^\t]+)\t(?P<archiveChecksum>\S+)(\t(?P<packageLocation>[^\t]+)\t(?P<packageChecksum>\S+))?\s*(#.*)?$')
 	emptyLineParser		= re.compile('^\s*(?P<comment>#.*)?$')
 	settingLineParser	= re.compile('^(?P<variableName>[^=]+) = (?P<variableValue>.*)')
+	includeLineParser = re.compile('^\s*include-file:\s+(?P<location>.*)(\s*#.*)?$')
 	
 	catalogExtensionReplacer = re.compile( catalogFileExension + '$')
 	
-	
 	suportedRemoteProtocols	= { "http":1, "https":1 }
 	fileLocationParser  	= re.compile("^((?P<protocol>[^:]+)://(?P<server>[^/]+)/)?(?P<fullPath>(?P<path>.*?/)?(?P<fileName>[^/]*?(\.(?P<extension>[^\.]+?)?)))(?(1)\?(?P<queryString>.+))?$")
-	
-	includeLineParser = re.compile('^\s*include-file:\s+(?P<location>.*)(\s*#.*)?$')
-	
 	
 	#--------------------Instance Variables---------------------------
 
@@ -131,9 +128,7 @@ class instaUpToDate:
 		if topLevel == True:
 			self.cleanInstaDMGFolders()
 			self.topLevelCatalogFileName = self.catalogExtensionReplacer.sub( '', os.path.basename(fileLocation) )
-			
-		
-		
+					
 		# the file passed could be an absolute path, a relative path, or a catalog file name
 		#	the first two are handled without a special section, but the name needs some work
 		
@@ -214,7 +209,7 @@ class instaUpToDate:
 				currentSection = sectionTitleMatch.group("sectionName")
 				continue
 				
-			simpleLineMatch = self.simpleLineParser.search(line)
+			simpleLineMatch = self.packageLineParser.search(line)
 			if simpleLineMatch:
 				if currentSection == None:
 					# we have to have a place to put this
@@ -333,7 +328,7 @@ class instaUpToDate:
 		
 		print "Running InstaDMG:\n\n"
 		# we should be in the same directory as InstaDMG
-		thisProcess = subprocess.Popen(["instaDMGName", "-i", chosenLanguage, "-n", asrFileSystemName, "-m", asrOutputFileName])
+		thisProcess = subprocess.Popen([instaDMGName, "-i", chosenLanguage, "-n", asrFileSystemName, "-m", asrOutputFileName])
 		thisProcess.communicate()
 		# TODO: a lot of improvementes in handling of InstaDMG
 

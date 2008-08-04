@@ -42,20 +42,20 @@ CREATE_DATE=`date +%y-%m-%d`
 # Default ISO code for default install language. Script default is English.
 ISO_CODE="en"
 
-# Are we installing Mac OS X . This defaults to 0 for no.
-SERVER_INSTALL="0"
+# Are we installing Mac OS X Server. This defaults to 0 for no.
+SERVER_INSTALL=false
 
 # Put images of your install DVDs in here
-INSTALLER_FOLDER=./InstallerFiles/BaseOS
+INSTALLER_FOLDER="./InstallerFiles/BaseOS"
 
 # Put naked pkg updates for the base install in here. Nested folders provide the ordering.
-UPDATE_FOLDER=./InstallerFiles/BaseUpdates
+UPDATE_FOLDER="./InstallerFiles/BaseUpdates"
 
 # Put naked custom pkg installers here. Nested folders provide the ordering.
-CUSTOM_FOLDER=./InstallerFiles/CustomPKG
+CUSTOM_FOLDER="./InstallerFiles/CustomPKG"
 
 # This is the final ASR destination for the image.
-ASR_FOLDER=./OutputFiles
+ASR_FOLDER="./OutputFiles"
 
 # This is where cached copies of an installed version of the base image are stored
 #	They are stored using a naming convention involving the checksum of the image
@@ -73,11 +73,11 @@ ASR_FILESYSTEM_NAME="InstaDMG"
 ASR_OUPUT_FILE_NAME="${CREATE_DATE}.dmg"
 
 # Default log location.
-LOG_FOLDER=./Logs
+LOG_FOLDER="./Logs"
 
 # Default log names. The PKG log is a more consise history of what was installed.
-LOG_FILE=$LOG_FOLDER/`date +%y-%m-%d--%H:%M`.log
-PKG_LOG=$LOG_FOLDER/`date +%y-%m-%d--%H:%M`.pkg.log
+LOG_FILE="$LOG_FOLDER/`date +%y-%m-%d--%H:%M`.log"
+PKG_LOG="$LOG_FOLDER/`date +%y-%m-%d--%H:%M`.pkg.log"
 
 # Default scratch image size. It should not need adjustment.
 DMG_SIZE=300g
@@ -85,8 +85,9 @@ DMG_SIZE=300g
 # ASR target volume. Make sure you set it to the correct thing! In a future release this, and most variables, will be a getopts parameter.
 ASR_TARGET_VOLUME=/Volumes/foo
 
-# Collect path to instadmg working directory
-WORKING_DIR=`pwd`
+# Make sure that we are opterating out of the correct directory
+cd "`/usr/bin/dirname "$0"`" # note we are using the shell builtin
+#WORKING_DIR=`pwd`
 
 # Handler calls are at the end of the script. Other than that you should not need to modify anything below this line.
 
@@ -103,6 +104,7 @@ export CM_BUILD=CM_BUILD
 #
 
 CURRENT_OS_INSTALL_MOUNT="" # the location where the primary installer disk is mounted
+CURRENT_OS_INSTALL_AUTOMOUNTED=false
 
 CURRENT_IMAGE_MOUNT=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX` # the location where the target is mounted, we will choose this initially
 SCRATCH_FILE_LOCATION="/tmp/`/usr/bin/uuidgen`.dmg" # the location of the shadow file that will be scanned for the ASR output
@@ -135,7 +137,9 @@ version() {
 usage() {
 	# Usage format
 cat <<EOF
-Usage:  $PROGRAM [options]
+Usage:	$PROGRAM [options]
+
+Note:	This program must be run as root (sudo is acceptable)
 
 Options:
 	-a <folder path>	Put the final output in this folder
@@ -181,7 +185,7 @@ EOF
 # Detail:		CONSOLE level 3 and higher, PACKAGE level 3 and higher
 # Detail 2:		CONSOLE level 4 and higher, PACKAGE leval 4 and higher 
 
-# Detail 2 is lines that begin with "installer:"
+# Detail 2 is lines that begin with "installer:" that don't match a couple of other criteria
 
 # commands should all have the following appended to them:
 #	| (while read INPUT; do log "$INPUT " information; done)
@@ -209,7 +213,11 @@ log () {
 	else
 		LEVEL="$2"
 	fi	
-
+	
+	if [ "$LEVEL" == "error-nolog" ]; then
+		/usr/bin/printf "$SECTION_LOG_FORMAT" "$MESSAGE" 1>&2
+	fi
+	
 	if [ "$LEVEL" == "error" ]; then
 		/usr/bin/printf "$SECTION_LOG_FORMAT" "$MESSAGE" | /usr/bin/tee "$LOG_FILE" "$PKG_LOG" 1>&2
 	fi
@@ -297,8 +305,8 @@ log () {
 rootcheck() {
 	# Root is required to run instadmg
 	if [ $EUID != 0 ]; then
-		log "You must run this utility using sudo or as root!" error
-		exit 64
+		log "You must run this utility using sudo or as root!" error-nolog
+		exit 1
 	fi
 }
 
@@ -319,6 +327,12 @@ check_setup () {
 	# if the ASR_OUPUT_FILE_NAME does not end in .dmg, add it
 	if [ `/bin/echo "$ASR_OUPUT_FILE_NAME" | /usr/bin/awk 'tolower($1) ~ /.*\.dmg$/ { print "true" }'` != "true" ]; then
 		ASR_OUPUT_FILE_NAME="$ASR_OUPUT_FILE_NAME.dmg"
+	fi
+	
+	
+	# make sure that the CONSOLE_LOG_LEVEL is one of the accepted values
+	if [ "$CONSOLE_LOG_LEVEL" != "0" ] && [ "$CONSOLE_LOG_LEVEL" != "1" ] && [ "$CONSOLE_LOG_LEVEL" != "2" ] && [ "$CONSOLE_LOG_LEVEL" != "3" ] && [ "$CONSOLE_LOG_LEVEL" != "4" ]; then
+		log "The conole log level must be an integer between 0 and 4" error
 	fi
 }
 
@@ -428,7 +442,7 @@ mount_os_install() {
 					IMAGE_LOCATION=`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk 'sub("^image-path[[:space:]]+:[[:space:]]+", "")'`
 					
 					# check the inodes to see if we are pointing at the same file
-					if [ "`/bin/ls -Li "$IMAGE_LOCATION" | awk '{ print $1 }'`" != "`/bin/ls -Li "$IMAGE_FILE" | awk '{ print $1 }'`" ]; then
+					if [ "`/bin/ls -Li "$IMAGE_LOCATION" 2>/dev/null | awk '{ print $1 }'`" != "`/bin/ls -Li "$IMAGE_FILE" | awk '{ print $1 }'`" ]; then
 						# this is not the droid we are looking for
 						IMAGE_LOCATION=""
 						
@@ -478,6 +492,7 @@ mount_os_install() {
 	fi
 	if [ -s "$OS_INSTALL_LOCATION_TEMPFILE" ]; then
 		CURRENT_OS_INSTALL_MOUNT=`/bin/cat "$OS_INSTALL_LOCATION_TEMPFILE"`
+		CURRENT_OS_INSTALL_AUTOMOUNTED=true
 	fi
 	
 	# and clean up the tempfiles
@@ -519,26 +534,19 @@ create_and_mount_image() {
 	# Determine the platform
 
 	if [ "$CPU_TYPE" == "ppc" ]; then 
-#=======
-	# Double evaluations was killing the script.
-	#if [ "$CPU_TYPE" = "ppc" ]; then 
-
 		log 'Running on PPC Platform: Setting format to APM' information
 		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME APMformat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
 
 	elif  [ "$CPU_TYPE" == "i386" ]; then
-#=======
-	#elif  [ "$CPU_TYPE" = "i386" ]; then
-
 		log 'Running on Intel Platform: Setting format to GPT' information
 		/usr/sbin/diskutil eraseDisk "Journaled HFS+" $DMG_BASE_NAME GPTFormat $CURRENT_IMAGE_MOUNT_DEV | (while read INPUT; do log "$INPUT " detail; done)
 	else
 		log "Unknown CPU type: $CPU_TYPE. Unable to continue" error
 		exit 1
 	fi
+	
 	# since this unmounts the disk, and then auto-mounts it at the end, we have to re-mount it to get it hidden again
 	/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT_DEV" | (while read INPUT; do log $INPUT detail; done)
-
 	/usr/bin/hdiutil mount "$SCRATCH_FILE_LOCATION" -noverify -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 	
 	log "Intimediary image creation complete" information
@@ -616,9 +624,45 @@ install_packages_from_folder() {
 	
 	/bin/ls -A1 "$SELECTED_FOLDER" | /usr/bin/awk "/^[[:digit:]]+$/" | while read ORDERED_FOLDER
 	do
-		/usr/bin/find -L "$SELECTED_FOLDER/$ORDERED_FOLDER" -depth 1 -iname "*pkg" | /usr/bin/awk -F "\n" 'tolower($1) ~ /\.(m)?pkg/ && !/\/\._/' | while read UPDATE_PKG
+		TARGET="$SELECTED_FOLDER/$ORDERED_FOLDER"
+		ORIGINAL_TARGET="$TARGET"
+		DMG_PATH=""
+		
+		# first resolve any chain of symlinks
+		while [ -h "$TARGET" ]; do
+			# look into this being a dmg
+			NEW_LINK=`/usr/bin/readlink "$TARGET"`
+			BASE_LINK=`/usr/bin/dirname "$TARGET"`
+			TARGET="$BASE_LINK/$NEW_LINK"
+		done
+		
+		# check for dmgs
+		if [ -f "$TARGET" ]; then
+			# see if it is a dmg. If it does not have a name, we can trust it is not a dmg
+			DMG_INTERNAL_NAME=`/usr/bin/hdiutil imageinfo "$TARGET" 2>/dev/null | awk '/^\tName:/ && sub("\tName: ", "")'`
+				
+			if [ -z "$DMG_INTERNAL_NAME" ]; then
+				# this is an unknown file type, so we need to bail
+				log "Error: $ORIGINAL_TARGET pointed at $TARGET, which is an unknown file type (should be a dmg or a folder)" error
+				exit 1
+			else
+				DMG_PATH="$TARGET"
+				DMG_INTERNAL_NAME=`/usr/bin/hdiutil imageinfo "$DMG_PATH" | awk '/^\tName:/ && sub("\tName: ", "")'`
+				TARGET=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX`
+				
+				log "Mounting the package dmg: $DMG_INTERNAL_NAME ($ORIGINAL_TARGET) at: $TARGET" information
+				/usr/bin/hdiutil mount "$DMG_PATH" -nobrowse -mountpoint "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+				if [ ${?} -ne 0 ]; then
+					log "Unable to mount $DMG_INTERNAL_NAME ($DMG_PATH) at: $TARGET" error
+					continue
+					# TODO: bail
+				fi
+			fi
+		fi
+				
+		/usr/bin/find -L "$TARGET" -depth 1 -iname "*pkg" | /usr/bin/awk 'tolower() ~ /\.(m)?pkg/ && !/\/\._/' | while read UPDATE_PKG
 		do
-			if [ -e "$SELECTED_FOLDER/$ORDERED_FOLDER/InstallerChoices.xml" ]; then
+			if [ -e "$TARGET/InstallerChoices.xml" ]; then
 				CHOICES_FILE="InstallerChoices.xml"
 				# TODO: better handle multiple pkg's and InstallerChoice files named for the file they should handle
 			fi
@@ -629,12 +673,21 @@ install_packages_from_folder() {
 			
 			if [ "$CHOICES_FILE" != "" ]; then
 				log "Installing $UPDATE_PKG with XML Choices file: $CHOICES_FILE" information
-				/usr/sbin/installer -verbose -applyChoiceChangesXML "$SELECTED_FOLDER/$ORDERED_FOLDER/$CHOICES_FILE" -pkg "$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+				/usr/sbin/installer -verbose -applyChoiceChangesXML "$TARGET/$CHOICES_FILE" -pkg "$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 			else
-				log "Installing $UPDATE_PKG" information
+				log "Installing $UPDATE_PKG" detail
 				/usr/sbin/installer -verbose -pkg "$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 			fi
 		done
+		
+		# cleanup the dmg
+		if [ ! -z "$DMG_PATH" ]; then
+			log "Unmounting Package DMG: $TARGET ($DMG_INTERNAL_NAME)" detail
+			/usr/bin/hdiutil eject -force "$TARGET" | (while read INPUT; do log "$INPUT " detail; done)
+			# clean up the folder
+			/bin/rmdir "$TARGET"
+		fi		
+
 	done
 }
 
@@ -677,10 +730,10 @@ close_up_and_compress() {
 	/usr/bin/hdiutil eject -force "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 	if [ $BASE_IMAGE_CACHING_ALLOWED == true ]; then
 		# use the shadow file
-		/usr/bin/hdiutil convert -puppetstrings -format UDZO -imagekey zlib-level=6 -shadow "$SCRATCH_FILE_LOCATION" -o "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" "$BASE_IMAGE_FILE" | (while read INPUT; do log "$INPUT " detail; done)
+		/usr/bin/hdiutil convert -ov -puppetstrings -format UDZO -imagekey zlib-level=6 -shadow "$SCRATCH_FILE_LOCATION" -o "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" "$BASE_IMAGE_FILE" | (while read INPUT; do log "$INPUT " detail; done)
 	else
 		# there is no shadow file to use, so the scratch file should be the one
-		/usr/bin/hdiutil convert -puppetstrings -format UDZO -imagekey zlib-level=6 -o "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done) 
+		/usr/bin/hdiutil convert -ov -puppetstrings -format UDZO -imagekey zlib-level=6 -o "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done) 
 	fi
 	
 	log "Scanning image for ASR: ${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" information
@@ -711,9 +764,15 @@ clean_up() {
 	if [ -f "$CURRENT_IMAGE_MOUNT/System" ]; then
 		/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
+	if [ -d "$CURRENT_IMAGE_MOUNT" ] && [ "`/bin/ls $CURRENT_IMAGE_MOUNT | /usr/bin/grep -c .`" -eq 2 ]; then
+		/bin/rmdir "$CURRENT_IMAGE_MOUNT"
+	fi
 	# TODO: close this image earlier
 	if [ ! -z "$CURRENT_OS_INSTALL_MOUNT" ]; then
 		/usr/bin/hdiutil eject "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+	fi
+	if [ $CURRENT_OS_INSTALL_AUTOMOUNTED == true ]; then
+		/bin/rmdir "$CURRENT_OS_INSTALL_AUTOMOUNTED"
 	fi
 	
 	log "Removing scratch DMG" 
@@ -731,26 +790,28 @@ reboot() {
 
 # Call the handlers as needed to make it all happen.
 
-while getopts "a:b:c:hi:l:m:n:o:qsu:vz" opt
+while getopts "a:b:c:d:hi:l:m:n:o:qsu:vz" opt
 do
 	case $opt in
 		a )	ASR_FOLDER="$OPTARG";;
 		b ) INSTALLER_FOLDER="$OPTARG";;
-		c ) CUSTOM_FOLDER="$OPTARG";;	
-		h ) usage;;
+		c ) CUSTOM_FOLDER="$OPTARG";;
+		d ) CONSOLE_LOG_LEVEL="$OPTARG";;
+		h ) usage 0;;
 		i ) ISO_CODE="$OPTARG";;
 		l ) LOG_FOLDER="$OPTARG";;
 		m ) ASR_OUPUT_FILE_NAME="$OPTARG";;
 		n ) ASR_FILESYSTEM_NAME="$OPTARG";;
 		o ) ASR_FOLDER="$OPTARG";;
 		q ) CONSOLE_LOG_LEVEL=0;;
-		s ) SERVER_INSTALL="1";;
+		s ) SERVER_INSTALL=true;;
 		u ) UPDATE_FOLDER="$OPTARG";;
 		v ) version;;
 		z ) BASE_IMAGE_CACHING_ALLOWED=false;;
 		\? ) usage;;
 	esac
 done
+
 check_setup
 
 rootcheck
