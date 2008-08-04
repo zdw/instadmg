@@ -256,7 +256,7 @@ class instaUpToDate:
 						os.symlink( os.path.join("../..", thisPackage.packageCacheLocation), newFolderPath )
 						# TODO: make this less dependent on the path
 	
-					elif thisPackage.packageType == "dmg":
+					elif thisPackage.archiveType == "dmg" && thisPackage.packageType = None:
 						os.symlink( os.path.join("../..", thisPackage.packageCacheLocation), newFolderPath )
 					
 					else:
@@ -321,9 +321,9 @@ class instaUpToDate:
 			asrFileSystemName = self.catalogFileSettings("Output Volume Name")
 			
 		if self.catalogFileSettings.has_key("Output File Name"):
-			asrFileSystemName = self.catalogFileSettings("Output File Name")
+			asrOutputFileName = self.catalogFileSettings("Output File Name")
 		else:
-			asrFileSystemName = self.topLevelCatalogFileName
+			asrOutputFileName = self.topLevelCatalogFileName
 		
 		print "Running InstaDMG:\n\n"
 		# we should be in the same directory as InstaDMG
@@ -790,7 +790,8 @@ class installerPackage:
 		
 		if fileExtension == "dmg": # we have already made sure that everything is lower case
 			self.archiveType = "dmg"
-			self.packageType = "dmg"
+			
+			# TODO: re-integrate the package unloading for a 4 field type
 			
 			# checksum the dmg file, and then let hdiutil internally checksum it
 			if self.archiveChecksum: # if there is no checksum, just trust it
