@@ -826,6 +826,9 @@ class installerPackage:
 			targetLocation =  os.path.join(cacheFolder, self.packageFileName)
 			shutil.copyfile(tempFilePath, targetLocation)
 			
+			# set flags on the file so that TimeMachine does not backup the file
+			subprocess.call(["/usr/bin/xattr", "-w", "com.apple.metadata:com_apple_backup_excludeItem", "com.apple.backupd", targetLocation])
+			
 			self.setStatus("Verified")
 			self.setPackageCacheLocation(targetLocation)
 			return True
