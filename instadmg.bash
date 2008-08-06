@@ -592,7 +592,12 @@ install_system() {
 		BASE_IMAGE_FILE="$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg"
 		
 		# unmount the image
-		/usr/bin/hdiutil eject -force "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+		/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+		if [ ${?} -ne 0 ]; then
+			# for some reason it did not un-mount, so we will try again with more force
+			log "The image did not eject cleanly, so I will force it" information
+			/usr/bin/hdiutil eject -force "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+		fi
 		
 		# move the image to the cached folder with the appropriate name
 		/bin/mv "$SCRATCH_FILE_LOCATION" "$BASE_IMAGE_FILE"
@@ -683,7 +688,13 @@ install_packages_from_folder() {
 		# cleanup the dmg
 		if [ ! -z "$DMG_PATH" ]; then
 			log "Unmounting Package DMG: $TARGET ($DMG_INTERNAL_NAME)" detail
-			/usr/bin/hdiutil eject -force "$TARGET" | (while read INPUT; do log "$INPUT " detail; done)
+			/usr/bin/hdiutil eject "$TARGET" | (while read INPUT; do log "$INPUT " detail; done)
+			if [ ${?} -ne 0 ]; then
+				# for some reason it did not un-mount, so we will try again with more force
+				log "The image did not eject cleanly, so I will force it" information
+				/usr/bin/hdiutil eject -force "$TARGET" | (while read INPUT; do log "$INPUT " detail; done)
+			fi
+			
 			# clean up the folder
 			/bin/rmdir "$TARGET"
 		fi		
@@ -727,7 +738,13 @@ close_up_and_compress() {
 	log "Create a read-only image"
 	
 	# unmount the image, then use convert to push it out to the desired place
-	/usr/bin/hdiutil eject -force "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+	if [ ${?} -ne 0 ]; then
+		# for some reason it did not un-mount, so we will try again with more force
+		log "The image did not eject cleanly, so I will force it" information
+		/usr/bin/hdiutil eject -force "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+	fi
+	
 	if [ $BASE_IMAGE_CACHING_ALLOWED == true ]; then
 		# use the shadow file
 		/usr/bin/hdiutil convert -ov -puppetstrings -format UDZO -imagekey zlib-level=6 -shadow "$SCRATCH_FILE_LOCATION" -o "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" "$BASE_IMAGE_FILE" | (while read INPUT; do log "$INPUT " detail; done)
