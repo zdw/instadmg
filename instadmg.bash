@@ -607,7 +607,9 @@ install_system() {
 		#/usr/bin/hdiutil convert -format UDZO -imagekey zlib-level=6 -o "$BASE_IMAGE_FILE" "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 		
 		# set the appropriate metadata on the file so that time-machine does not back it up
-		/usr/bin/xattr -w com.apple.metadata:com_apple_backup_excludeItem com.apple.backupd "$BASE_IMAGE_FILE"
+		if [ -x /usr/bin/xattr ]; then
+			/usr/bin/xattr -w com.apple.metadata:com_apple_backup_excludeItem com.apple.backupd "$BASE_IMAGE_FILE"
+		fi
 		
 		# remount the image with the shadow file (will be created automatically)
 		log "Remounting the image with a shadow file ($SCRATCH_FILE_LOCATION)" information
