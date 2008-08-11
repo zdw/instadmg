@@ -349,7 +349,7 @@ mount_os_install() {
 	BASE_IMAGE_CACHE_FOUND_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
 	BASE_IMAGE_FILE_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
 	
-	/usr/bin/find "$INSTALLER_FOLDER" -iname "*.dmg" | while read IMAGE_FILE
+	/usr/bin/find "$INSTALLER_FOLDER" -iname '*.dmg' | while read IMAGE_FILE
 	do
 		# Look to see if this is the first installer disk
 		# TODO: look at the dmg (internally) to see if it looks like the installer rather than relying on the name
@@ -667,7 +667,7 @@ install_packages_from_folder() {
 			fi
 		fi
 				
-		/usr/bin/find -L "$TARGET" -depth 1 -iname "*pkg" | /usr/bin/awk 'tolower() ~ /\.(m)?pkg/ && !/\/\._/' | while read UPDATE_PKG
+		/usr/bin/find -L "$TARGET" -depth 1 -iname '*pkg' | /usr/bin/awk 'tolower() ~ /\.(m)?pkg/ && !/\/\._/' | while read UPDATE_PKG
 		do
 			if [ -e "$TARGET/InstallerChoices.xml" ]; then
 				CHOICES_FILE="InstallerChoices.xml"
