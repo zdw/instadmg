@@ -726,6 +726,16 @@ clean_up_image() {
 	# make sure that we have not left any open files behind
 	log "Closing programs that have opened files on the disk" information
 	/usr/sbin/lsof | /usr/bin/grep "$CURRENT_IMAGE_MOUNT/" | /usr/bin/awk '{ print $2 }' | /usr/bin/sort -u | /usr/bin/xargs /bin/kill 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+	
+	# Delete Extensions.mkext
+	log "Deleting Extensions.mkext cache file" information
+	/bin/rm -vf "$CURRENT_IMAGE_MOUNT/System/Library/Extensions.mkext" | (while read INPUT; do log "$INPUT " detail; done)
+	
+	# Delete items from /System/Caches and /Library/Caches
+	log "Deleting cache files created during installations" information
+	/bin/rm -vRf "$CURRENT_IMAGE_MOUNT/System/Library/Caches/*" | (while read INPUT; do log "$INPUT " detail; done)
+	/bin/rm -vRf "$CURRENT_IMAGE_MOUNT/Library/Caches/*" | (while read INPUT; do log "$INPUT " detail; done)
+	
 }
 
 # close up the DMG, compress and scan for restore
