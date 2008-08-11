@@ -240,13 +240,21 @@ class instaUpToDate:
 		groupings = [ [systemSectionTypes, appleUpdatesFolder], [addedSectionTypes, customPKGFolder] ]
 		for sectionTypes, updateFolder in groupings:
 			folderCounter = 1
+			
+			orderOfMagnitude = 1
+			packageCounter = 0
+			for thisSection in sectionTypes:
+				packageCounter += len(self.packageGroups[thisSection])
+				
+			while packageCounter >= pow(10, orderOfMagnitude):
+				orderOfMagnitude += 1
+				
+			print "test: length: %d order of magintiude: %d" % ( packageCounter , orderOfMagnitude )
+			
 			for thisSection in sectionTypes:
 				
 				# there has got to be a better way of doing this
-				orderOfMagnitude = 1
-				while len(self.packageGroups[thisSection]) > pow(10, orderOfMagnitude):
-					orderOfMagnitude += 1
-			
+				
 				for thisPackage in self.packageGroups[thisSection]:
 					numberFormatString = '%0' + str(orderOfMagnitude) + 'd'
 					newFolderPath = os.path.join(updateFolder, numberFormatString % folderCounter)
