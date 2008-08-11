@@ -667,7 +667,7 @@ install_packages_from_folder() {
 			fi
 		fi
 				
-		/usr/bin/find -L "$TARGET" -depth 1 -iname '*pkg' | /usr/bin/awk 'tolower() ~ /\.(m)?pkg/ && !/\/\._/' | while read UPDATE_PKG
+		/usr/bin/find -L "$TARGET" -maxdepth 1 -iname '*pkg' | /usr/bin/awk 'tolower() ~ /\.(m)?pkg/ && !/\/\._/' | while read UPDATE_PKG
 		do
 			if [ -e "$TARGET/InstallerChoices.xml" ]; then
 				CHOICES_FILE="InstallerChoices.xml"
