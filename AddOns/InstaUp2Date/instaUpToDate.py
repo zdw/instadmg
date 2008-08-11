@@ -248,9 +248,7 @@ class instaUpToDate:
 				
 			while packageCounter >= pow(10, orderOfMagnitude):
 				orderOfMagnitude += 1
-				
-			print "test: length: %d order of magintiude: %d" % ( packageCounter , orderOfMagnitude )
-			
+							
 			for thisSection in sectionTypes:
 				
 				# there has got to be a better way of doing this
