@@ -320,14 +320,14 @@ class instaUpToDate:
 		asrOutputFileName	= None
 	
 		if self.catalogFileSettings.has_key("ISO Language Code"):
-			chosenLanguage = self.catalogFileSettings("ISO Language Code")
+			chosenLanguage = self.catalogFileSettings["ISO Language Code"]
 			# TODO: check with installer to see if it will accept this language code
 			
 		if self.catalogFileSettings.has_key("Output Volume Name"):
-			asrFileSystemName = self.catalogFileSettings("Output Volume Name")
+			asrFileSystemName = self.catalogFileSettings["Output Volume Name"]
 			
 		if self.catalogFileSettings.has_key("Output File Name"):
-			asrOutputFileName = self.catalogFileSettings("Output File Name")
+			asrOutputFileName = self.catalogFileSettings["Output File Name"]
 		else:
 			asrOutputFileName = self.topLevelCatalogFileName
 		
