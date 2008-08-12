@@ -30,6 +30,9 @@
 #
 # The <<Catalog File>> is a path to another .catalog file that will be parsed at the point it is in this file
 
+Output Volume Name = Macintosh HD
+Output File Name = 10.5 Vanilla
+
 Base OS Disk:
 	# the first one should be disk 1 of an installer disk
 	# this is not yet implimented
