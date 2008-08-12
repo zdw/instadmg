@@ -128,8 +128,10 @@ class instaUpToDate:
 		
 		# top-level catalog file need to do two things: clean out the InstaDMG folders, and set the outputFileName
 		if topLevel == True:
+			self.catalogFileSettings		= {}
+			self.parsedFiles 				= {}
 			self.cleanInstaDMGFolders()
-			self.topLevelCatalogFileName = self.catalogExtensionReplacer.sub( '', os.path.basename(fileLocation) )
+			self.topLevelCatalogFileName	= self.catalogExtensionReplacer.sub( '', os.path.basename(fileLocation) )
 					
 		# the file passed could be an absolute path, a relative path, or a catalog file name
 		#	the first two are handled without a special section, but the name needs some work
@@ -314,11 +316,13 @@ class instaUpToDate:
 				os.rmdir(thisFolder)
 	
 	def runInstaDMG(self):
+		global instaDMGName
+	
 		# defaults
 		chosenLanguage		= "en"
 		asrFileSystemName	= "MacintoshHD"
 		asrOutputFileName	= None
-	
+		
 		if self.catalogFileSettings.has_key("ISO Language Code"):
 			chosenLanguage = self.catalogFileSettings["ISO Language Code"]
 			# TODO: check with installer to see if it will accept this language code
@@ -333,7 +337,8 @@ class instaUpToDate:
 		
 		print "Running InstaDMG:\n\n"
 		# we should be in the same directory as InstaDMG
-		thisProcess = subprocess.Popen([instaDMGName, "-i", chosenLanguage, "-n", asrFileSystemName, "-m", asrOutputFileName])
+		
+		thisProcess = subprocess.Popen([os.path.join(os.getcwd(),instaDMGName), "-i", chosenLanguage, "-n", asrFileSystemName, "-m", asrOutputFileName])
 		thisProcess.communicate()
 		# TODO: a lot of improvementes in handling of InstaDMG
 

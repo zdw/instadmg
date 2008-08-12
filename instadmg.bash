@@ -325,7 +325,7 @@ check_setup () {
 	fi
 	
 	# if the ASR_OUPUT_FILE_NAME does not end in .dmg, add it
-	if [ `/bin/echo "$ASR_OUPUT_FILE_NAME" | /usr/bin/awk 'tolower($1) ~ /.*\.dmg$/ { print "true" }'` != "true" ]; then
+	if [ "`/bin/echo $ASR_OUPUT_FILE_NAME | /usr/bin/awk 'tolower($1) ~ /.*\.dmg$/ { print "true" }'`" != "true" ]; then
 		ASR_OUPUT_FILE_NAME="$ASR_OUPUT_FILE_NAME.dmg"
 	fi
 	
