@@ -678,11 +678,22 @@ install_packages_from_folder() {
 				CHOICES_FILE="" # 10.4 can not use them
 			fi			
 			
+			TARGET_FILE_NAME=`/usr/bin/basename "$UPDATE_PKG"`
+			INSTALLER_NUMBER_TEXT=""
+			if [ "$ORIGINAL_TARGET" == "$TARGET" ]; then
+				CONTAINER_PATH="$TARGET"
+			else
+				# probably a dmg installer
+				CONTAINER_PATH=`/usr/bin/readlink "$ORIGINAL_TARGET"`
+				INSTALLER_NUMBER_TEXT=`/usr/bin/basename "$ORIGINAL_TARGET"`
+				INSTALLER_NUMBER_TEXT=" ($INSTALLER_NUMBER_TEXT)"
+			fi
+			
 			if [ "$CHOICES_FILE" != "" ]; then
-				log "Installing $UPDATE_PKG with XML Choices file: $CHOICES_FILE" information
+				log "Installing $TARGET_FILE_NAME from ${CONTAINER_PATH}${INSTALLER_NUMBER_TEXT} with XML Choices file: $CHOICES_FILE" information
 				/usr/sbin/installer -verbose -applyChoiceChangesXML "$TARGET/$CHOICES_FILE" -pkg "$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 			else
-				log "Installing $UPDATE_PKG" information
+				log "Installing $TARGET_FILE_NAME from ${CONTAINER_PATH}${INSTALLER_NUMBER_TEXT}" information
 				/usr/sbin/installer -verbose -pkg "$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 			fi
 		done
