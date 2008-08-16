@@ -540,7 +540,7 @@ class installerPackage:
 		# no local cached file, so if there is no archive location we have to bomb out
 		if self.archiveLocation == None:
 			self.setStatus("Invalid")
-			raise Exception() # TODO: better errors
+			raise Exception('Unable to find package: %s' % self.name) # TODO: better errors
 			
 		# since it is not in our cache, we need to retieve it from the archive
 		if self.retrieveFromArchive():
