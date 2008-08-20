@@ -411,7 +411,7 @@ mount_os_install() {
 							
 							# both the SCRATCH_FILE_LOCATION and the CURRENT_IMAGE_MOUNT are pre-determined
 							log "Mounting the shadow file ($SCRATCH_FILE_LOCATION) onto the image." information
-							/usr/bin/hdiutil mount "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" -nobrowse -puppetstrings -mountpoint "$CURRENT_IMAGE_MOUNT" -shadow "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+							/usr/bin/hdiutil attach "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" -owners on -nobrowse -puppetstrings -mountpoint "$CURRENT_IMAGE_MOUNT" -shadow "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 							
 							# signal that this is a cached image
 							`/bin/echo "true" > "$BASE_IMAGE_CACHE_FOUND_TEMPFILE"`
@@ -463,7 +463,7 @@ mount_os_install() {
 				
 				CURRENT_OS_INSTALL_MOUNT=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX`
 				log "Mounting the main OS Installer Disk from: $IMAGE_FILE at: $CURRENT_OS_INSTALL_MOUNT" information
-				/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log $INPUT detail; done)
+				/usr/bin/hdiutil attach "$IMAGE_FILE" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log $INPUT detail; done)
 				`/bin/echo "$CURRENT_OS_INSTALL_MOUNT" > "$OS_INSTALL_LOCATION_TEMPFILE"`
 				# TODO: check to see if there was a problem
 			fi
@@ -473,7 +473,7 @@ mount_os_install() {
 			# TODO: add this mount to the list of things we are going to unmount
 			# TODO: use union mounting to see if we can't co-mount this
 			log "Mounting a support disk from $INSTALLER_FOLDER/$IMAGE_FILE" information
-			/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly | (while read INPUT; do log $INPUT detail; done)
+			/usr/bin/hdiutil attach "$IMAGE_FILE" -readonly | (while read INPUT; do log $INPUT detail; done)
 		fi
 	done
 	
@@ -526,7 +526,7 @@ create_and_mount_image() {
 	SCRATCH_FILE_LOCATION="$SCRATCH_FILE_LOCATION.sparseimage"
 	
 	/usr/bin/hdiutil create -ov -size $DMG_SIZE -type SPARSE -fs HFS+ "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
-	CURRENT_IMAGE_MOUNT_DEV=`/usr/bin/hdiutil attach "$SCRATCH_FILE_LOCATION" | /usr/bin/head -n 1 |  /usr/bin/awk '{ print $1 }'`
+	CURRENT_IMAGE_MOUNT_DEV=`/usr/bin/hdiutil attach -owners on "$SCRATCH_FILE_LOCATION" | /usr/bin/head -n 1 |  /usr/bin/awk '{ print $1 }'`
 	log "Image mounted at $CURRENT_IMAGE_MOUNT_DEV" 
 	
 	# Format the DMG so that the Installer will like it 
@@ -547,7 +547,7 @@ create_and_mount_image() {
 	
 	# since this unmounts the disk, and then auto-mounts it at the end, we have to re-mount it to get it hidden again
 	/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT_DEV" | (while read INPUT; do log $INPUT detail; done)
-	/usr/bin/hdiutil mount "$SCRATCH_FILE_LOCATION" -noverify -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/bin/hdiutil attach "$SCRATCH_FILE_LOCATION" -owners on -noverify -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 	
 	log "Intimediary image creation complete" information
 }
@@ -613,7 +613,7 @@ install_system() {
 		
 		# remount the image with the shadow file (will be created automatically)
 		log "Remounting the image with a shadow file ($SCRATCH_FILE_LOCATION)" information
-		/usr/bin/hdiutil mount "$BASE_IMAGE_FILE" -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" -shadow "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+		/usr/bin/hdiutil attach "$BASE_IMAGE_FILE" -owners on -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" -shadow "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 		# TODO: error handling
 	fi
 }
@@ -658,7 +658,7 @@ install_packages_from_folder() {
 				TARGET=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX`
 				
 				log "Mounting the package dmg: $DMG_INTERNAL_NAME ($ORIGINAL_TARGET) at: $TARGET" detail
-				/usr/bin/hdiutil mount "$DMG_PATH" -nobrowse -mountpoint "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+				/usr/bin/hdiutil attach "$DMG_PATH" -owners on -nobrowse -mountpoint "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				if [ ${?} -ne 0 ]; then
 					log "Unable to mount $DMG_INTERNAL_NAME ($DMG_PATH) at: $TARGET" error
 					continue
