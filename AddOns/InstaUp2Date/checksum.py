@@ -3,39 +3,62 @@
 import sys
 import os
 import hashlib
+import re
+import urllib2
+import urlparse
 
-for arg in sys.argv[1:]:
+for fileLocation in sys.argv[1:]:
 
-	fileLocation = arg
-	checksumType = "sha1"
+	checksumType = "sha1" # TODO: command line switch to allow other checksum types
 	
 	# now we check that the file exists:
-	if not(os.path.exists(fileLocation)):
-		raise Exception() # TODO: better errors
+	#if not(os.path.exists(fileLocation)):
+	#	raise Exception() # TODO: better errors
 	
 	hashGenerator = hashlib.new( checksumType )
+	
 	foundAFile = False
+	returnArray = None
 	
 	if os.path.isfile(fileLocation):
 		HASHFILE = open(fileLocation)
 		if HASHFILE == None:
 			raise Exception("Unable to open file for checksumming: %s" % folderLocation) # TODO: better errors
+		
 		foundAFile = True
 		hashGenerator.update(HASHFILE.read())
 		HASHFILE.close()
+		
+		returnArray = (os.path.splitext(os.path.basename(fileLocation))[0], os.path.basename(fileLocation), checksumType + ":" + hashGenerator.hexdigest())
+		
+	elif os.path.isdir(fileLocation):
 	
-	for thisFolder, subFolders, subFiles in os.walk(fileLocation):
-		for thisFile in subFiles:
-			thisFilePath = os.path.join(thisFolder, thisFile)
-			if os.path.isfile(thisFilePath) and not(os.path.islink(thisFilePath) and thisFile == "InstallThisOneOnly"):
-				HASHFILE = open(thisFilePath)
-				if HASHFILE == None:
-					raise Exception("Unable to open file for checksumming: %s" % thisFilePath) # TODO: better errors
-				foundAFile = True
-				hashGenerator.update(HASHFILE.read())
-				HASHFILE.close()
+		for thisFolder, subFolders, subFiles in os.walk(fileLocation):
+			for thisFile in subFiles:
+				thisFilePath = os.path.join(thisFolder, thisFile)
+				if os.path.isfile(thisFilePath) and not(os.path.islink(thisFilePath) and thisFile == "InstallThisOneOnly"):
+					HASHFILE = open(thisFilePath)
+					if HASHFILE == None:
+						raise Exception("Unable to open file for checksumming: %s" % thisFilePath) # TODO: better errors
+					foundAFile = True
+					hashGenerator.update(HASHFILE.read())
+					HASHFILE.close()
+					
+		returnArray = (os.path.splitext(os.path.basename( urlparse.urlparse(fileLocation).path ))[0], os.path.basename( urlparse.urlparse(fileLocation).path ), checksumType + ":" + hashGenerator.hexdigest())
+	
+	elif re.search('^http(s)?://', fileLocation, re.I):
+		HASHFILE = urllib2.urlopen(fileLocation)
+		if HASHFILE == None:
+			raise Exception("Unable to open file for checksumming: %s" % folderLocation) # TODO: better errors
+		foundAFile = True
+		
+		hashGenerator.update(HASHFILE.read())
+		
+		HASHFILE.close()
+		
+		returnArray = (os.path.splitext(os.path.basename(fileLocation))[0], fileLocation, checksumType + ":" + hashGenerator.hexdigest())
 	
 	if foundAFile == False:
 		raise Exception() # TODO: better errors
 	
-	print "\t%s\t%s\t%s:%s" % (os.path.splitext(os.path.basename(fileLocation))[0], os.path.basename(fileLocation), checksumType, hashGenerator.hexdigest())
+	print "\t" + "\t".join(returnArray)
