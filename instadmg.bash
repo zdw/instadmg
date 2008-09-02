@@ -79,6 +79,9 @@ LOG_FOLDER="./Logs"
 LOG_FILE="$LOG_FOLDER/`date +%y-%m-%d--%H:%M`.log"
 PKG_LOG="$LOG_FOLDER/`date +%y-%m-%d--%H:%M`.pkg.log"
 
+# Default temp location
+TEMP_LOCATION="/tmp"
+
 # Default scratch image size. It should not need adjustment.
 DMG_SIZE=300g
 
@@ -106,8 +109,8 @@ export CM_BUILD=CM_BUILD
 CURRENT_OS_INSTALL_MOUNT="" # the location where the primary installer disk is mounted
 CURRENT_OS_INSTALL_AUTOMOUNTED=false
 
-CURRENT_IMAGE_MOUNT=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX` # the location where the target is mounted, we will choose this initially
-SCRATCH_FILE_LOCATION="/tmp/`/usr/bin/uuidgen`.dmg" # the location of the shadow file that will be scanned for the ASR output
+CURRENT_IMAGE_MOUNT=`/usr/bin/mktemp -d $TEMP_LOCATION/instaDMGMount.XXXXXX` # the location where the target is mounted, we will choose this initially
+SCRATCH_FILE_LOCATION="$TEMP_LOCATION/`/usr/bin/uuidgen`.dmg" # the location of the shadow file that will be scanned for the ASR output
 
 BASE_IMAGE_CHECKSUM="" # the checksum reported by diskutil for the OS Instal disk image
 BASE_IMAGE_CACHE_FOUND=false
@@ -142,18 +145,18 @@ Usage:	$PROGRAM [options]
 Note:	This program must be run as root (sudo is acceptable)
 
 Options:
-	-a <folder path>	Put the final output in this folder
-	-b <folder path>	Look for the base image in this folder
-	-c <folder path>	Look for custom pkgs in this folder
+	-b <folder path>	Look for the base image in this folder ($INSTALLER_FOLDER)
+	-c <folder path>	Look for custom pkgs in this folder ($CUSTOM_FOLDER)
 	-h			Print the useage information (this) and exit
-	-i <iso code>		Use <iso code> for the installer language (default en)
-	-l <folder path>	Set the foler to use as the log folder
-	-m <name>		The file name to use for the ouput file. '.dmg' will be appended as needed.
-	-n <name>		The volume name to use for the output file. Defaults to: $ASR_FILESYSTEM_NAME
-	-o <folder path>	Set the foler to use as the output folder
+	-i <iso code>		Use <iso code> for the installer language ($ISO_CODE)
+	-l <folder path>	Set the folder to use as the log folder ($LOG_FOLDER)
+	-m <name>		The file name to use for the ouput file. '.dmg' will be appended as needed. ($ASR_OUPUT_FILE_NAME)
+	-n <name>		The volume name to use for the output file. ($ASR_FILESYSTEM_NAME)
+	-o <folder path>	Set the folder to use as the output folder ($ASR_FOLDER)
 	-q			Quiet: print only errors to the console
 	-s			Enable MacOS X Server installs (not implimented)
-	-u <folder path>	Use this folder as the BaseUpdates folder
+	-t <folder path>	Set the folder to use as the output folder ($TEMP_LOCATION)
+	-u <folder path>	Use this folder as the BaseUpdates folder ($UPDATE_FOLDER)
 	-v			Print the version number and exit
 	-z			Disable caching of the base image
 EOF
@@ -312,7 +315,7 @@ rootcheck() {
 
 check_setup () {
 	# Check the language
-	LANGUAGE_CODE_IS_VALID_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
+	LANGUAGE_CODE_IS_VALID_TEMPFILE=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
 	/usr/sbin/installer -listiso | /usr/bin/tr "\t" "\n" | while read LANGUAGE_CODE
 	do
 		if [ "$ISO_CODE" == "$LANGUAGE_CODE" ]; then
@@ -343,11 +346,11 @@ mount_os_install() {
 	log "Mounting Mac OS X installer image" section
 	
 	# to get around bash variable scope difficulties we will be stashing things in tempfiles
-	OS_INSTALL_LOCATION_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
-	BASE_IMAGE_CACHING_ALLOWED_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
-	BASE_IMAGE_CHECKSUM_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
-	BASE_IMAGE_CACHE_FOUND_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
-	BASE_IMAGE_FILE_TEMPFILE=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
+	OS_INSTALL_LOCATION_TEMPFILE=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
+	BASE_IMAGE_CACHING_ALLOWED_TEMPFILE=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
+	BASE_IMAGE_CHECKSUM_TEMPFILE=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
+	BASE_IMAGE_CACHE_FOUND_TEMPFILE=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
+	BASE_IMAGE_FILE_TEMPFILE=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
 	
 	/usr/bin/find "$INSTALLER_FOLDER" -iname '*.dmg' | while read IMAGE_FILE
 	do
@@ -411,7 +414,7 @@ mount_os_install() {
 							
 							# both the SCRATCH_FILE_LOCATION and the CURRENT_IMAGE_MOUNT are pre-determined
 							log "Mounting the shadow file ($SCRATCH_FILE_LOCATION) onto the image." information
-							/usr/bin/hdiutil attach "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" -owners on -nobrowse -puppetstrings -mountpoint "$CURRENT_IMAGE_MOUNT" -shadow "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+							/usr/bin/hdiutil mount "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" -nobrowse -puppetstrings -mountpoint "$CURRENT_IMAGE_MOUNT" -shadow "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 							
 							# signal that this is a cached image
 							`/bin/echo "true" > "$BASE_IMAGE_CACHE_FOUND_TEMPFILE"`
@@ -461,9 +464,9 @@ mount_os_install() {
 				# since it was not already mounted, we have to mount it
 				#	we are going to mount it non-browsable, so it does not appear in the finder, and we are going to mount it to a temp folder
 				
-				CURRENT_OS_INSTALL_MOUNT=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX`
+				CURRENT_OS_INSTALL_MOUNT=`/usr/bin/mktemp -d $TEMP_LOCATION/instaDMGMount.XXXXXX`
 				log "Mounting the main OS Installer Disk from: $IMAGE_FILE at: $CURRENT_OS_INSTALL_MOUNT" information
-				/usr/bin/hdiutil attach "$IMAGE_FILE" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log $INPUT detail; done)
+				/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log $INPUT detail; done)
 				`/bin/echo "$CURRENT_OS_INSTALL_MOUNT" > "$OS_INSTALL_LOCATION_TEMPFILE"`
 				# TODO: check to see if there was a problem
 			fi
@@ -473,7 +476,7 @@ mount_os_install() {
 			# TODO: add this mount to the list of things we are going to unmount
 			# TODO: use union mounting to see if we can't co-mount this
 			log "Mounting a support disk from $INSTALLER_FOLDER/$IMAGE_FILE" information
-			/usr/bin/hdiutil attach "$IMAGE_FILE" -readonly | (while read INPUT; do log $INPUT detail; done)
+			/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly | (while read INPUT; do log $INPUT detail; done)
 		fi
 	done
 	
@@ -521,12 +524,12 @@ create_and_mount_image() {
 	
 	log "Creating intermediary disk image" section
 	
-	SCRATCH_FILE_LOCATION=`/usr/bin/mktemp /tmp/instaDMGTemp.XXXXXX`
+	SCRATCH_FILE_LOCATION=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
 	/bin/mv "$SCRATCH_FILE_LOCATION" "$SCRATCH_FILE_LOCATION.sparseimage" # since 
 	SCRATCH_FILE_LOCATION="$SCRATCH_FILE_LOCATION.sparseimage"
 	
 	/usr/bin/hdiutil create -ov -size $DMG_SIZE -type SPARSE -fs HFS+ "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
-	CURRENT_IMAGE_MOUNT_DEV=`/usr/bin/hdiutil attach -owners on "$SCRATCH_FILE_LOCATION" | /usr/bin/head -n 1 |  /usr/bin/awk '{ print $1 }'`
+	CURRENT_IMAGE_MOUNT_DEV=`/usr/bin/hdiutil attach "$SCRATCH_FILE_LOCATION" | /usr/bin/head -n 1 |  /usr/bin/awk '{ print $1 }'`
 	log "Image mounted at $CURRENT_IMAGE_MOUNT_DEV" 
 	
 	# Format the DMG so that the Installer will like it 
@@ -547,7 +550,7 @@ create_and_mount_image() {
 	
 	# since this unmounts the disk, and then auto-mounts it at the end, we have to re-mount it to get it hidden again
 	/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT_DEV" | (while read INPUT; do log $INPUT detail; done)
-	/usr/bin/hdiutil attach "$SCRATCH_FILE_LOCATION" -owners on -noverify -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/bin/hdiutil mount "$SCRATCH_FILE_LOCATION" -noverify -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 	
 	log "Intimediary image creation complete" information
 }
@@ -613,7 +616,7 @@ install_system() {
 		
 		# remount the image with the shadow file (will be created automatically)
 		log "Remounting the image with a shadow file ($SCRATCH_FILE_LOCATION)" information
-		/usr/bin/hdiutil attach "$BASE_IMAGE_FILE" -owners on -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" -shadow "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+		/usr/bin/hdiutil mount "$BASE_IMAGE_FILE" -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" -shadow "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 		# TODO: error handling
 	fi
 }
@@ -655,10 +658,10 @@ install_packages_from_folder() {
 			else
 				DMG_PATH="$TARGET"
 				DMG_INTERNAL_NAME=`/usr/bin/hdiutil imageinfo "$DMG_PATH" | awk '/^\tName:/ && sub("\tName: ", "")'`
-				TARGET=`/usr/bin/mktemp -d /tmp/instaDMGMount.XXXXXX`
+				TARGET=`/usr/bin/mktemp -d $TEMP_LOCATION/instaDMGMount.XXXXXX`
 				
 				log "Mounting the package dmg: $DMG_INTERNAL_NAME ($ORIGINAL_TARGET) at: $TARGET" detail
-				/usr/bin/hdiutil attach "$DMG_PATH" -owners on -nobrowse -mountpoint "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+				/usr/bin/hdiutil mount "$DMG_PATH" -nobrowse -mountpoint "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				if [ ${?} -ne 0 ]; then
 					log "Unable to mount $DMG_INTERNAL_NAME ($DMG_PATH) at: $TARGET" error
 					continue
@@ -830,10 +833,9 @@ reboot() {
 
 # Call the handlers as needed to make it all happen.
 
-while getopts "a:b:c:d:hi:l:m:n:o:qsu:vz" opt
+while getopts "b:c:d:hi:l:m:n:o:qst:u:vz" opt
 do
 	case $opt in
-		a )	ASR_FOLDER="$OPTARG";;
 		b ) INSTALLER_FOLDER="$OPTARG";;
 		c ) CUSTOM_FOLDER="$OPTARG";;
 		d ) CONSOLE_LOG_LEVEL="$OPTARG";;
@@ -845,6 +847,7 @@ do
 		o ) ASR_FOLDER="$OPTARG";;
 		q ) CONSOLE_LOG_LEVEL=0;;
 		s ) SERVER_INSTALL=true;;
+		t ) TEMP_LOCATION="$OPTARG";;
 		u ) UPDATE_FOLDER="$OPTARG";;
 		v ) version;;
 		z ) BASE_IMAGE_CACHING_ALLOWED=false;;
