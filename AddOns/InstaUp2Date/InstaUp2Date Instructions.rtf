@@ -1,89 +1,136 @@
 {\rtf1\ansi\ansicpg1252\cocoartf949\cocoasubrtf330
-{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
-{\colortbl;\red255\green255\blue255;}
-\margl1440\margr1440\vieww18000\viewh17600\viewkind0
-\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+{\fonttbl\f0\fswiss\fcharset0 ArialMT;\f1\fmodern\fcharset0 Courier;}
+{\colortbl;\red255\green255\blue255;\red85\green27\blue140;}
+{\*\listtable{\list\listtemplateid1\listhybrid{\listlevel\levelnfc0\levelnfcn0\leveljc2\leveljcn2\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{decimal\}.}{\leveltext\leveltemplateid0\'02\'05.;}{\levelnumbers\'01;}}{\listname ;}\listid1}
+{\list\listtemplateid2\listhybrid{\listlevel\levelnfc0\levelnfcn0\leveljc2\leveljcn2\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{decimal\}.}{\leveltext\leveltemplateid0\'02\'05.;}{\levelnumbers\'01;}}{\listname ;}\listid2}
+{\list\listtemplateid3\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc2\leveljcn2\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid0\'02\'05.;}{\levelnumbers\'01;}}{\listname ;}\listid3}
+{\list\listtemplateid4\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc2\leveljcn2\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid0\'02\'05.;}{\levelnumbers\'01;}}{\listname ;}\listid4}
+{\list\listtemplateid5\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc2\leveljcn2\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid0\'02\'05.;}{\levelnumbers\'01;}}{\listname ;}\listid5}
+{\list\listtemplateid6\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc2\leveljcn2\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid0\'02\'05.;}{\levelnumbers\'01;}}{\listname ;}\listid6}
+{\list\listtemplateid7\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc2\leveljcn2\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid0\'02\'05.;}{\levelnumbers\'01;}}{\listname ;}\listid7}
+{\list\listtemplateid8\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc2\leveljcn2\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid0\'02\'05.;}{\levelnumbers\'01;}}{\listname ;}\listid8}
+{\list\listtemplateid9\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc2\leveljcn2\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid0\'02\'05.;}{\levelnumbers\'01;}}{\listname ;}\listid9}
+{\list\listtemplateid10\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc2\leveljcn2\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid0\'02\'05.;}{\levelnumbers\'01;}}{\listname ;}\listid10}
+{\list\listtemplateid11\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc2\leveljcn2\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid0\'02\'05.;}{\levelnumbers\'01;}}{\listname ;}\listid11}}
+{\*\listoverridetable{\listoverride\listid1\listoverridecount0\ls1}{\listoverride\listid2\listoverridecount0\ls2}{\listoverride\listid3\listoverridecount0\ls3}{\listoverride\listid4\listoverridecount0\ls4}{\listoverride\listid5\listoverridecount0\ls5}{\listoverride\listid6\listoverridecount0\ls6}{\listoverride\listid7\listoverridecount0\ls7}{\listoverride\listid8\listoverridecount0\ls8}{\listoverride\listid9\listoverridecount0\ls9}{\listoverride\listid10\listoverridecount0\ls10}{\listoverride\listid11\listoverridecount0\ls11}}
+\margl1440\margr1440\vieww13860\viewh14260\viewkind0
+\deftab720
+\pard\pardeftab720\sa320\ql\qnatural
 
-\f0\b\fs42 \cf0 InstaUp2Date
-\fs24 \
-\
+\f0\b\fs48 \cf0 Introduction\
+\pard\pardeftab720\sa260\ql\qnatural
 
-\b0 Note: These directions are based on the version of InstaUp2Date as is in rev. 120 of the InstaDMG SVN repository. This should match up with version 0.4b or 1.4b4 of InstaDMG. \
-\
-	InstaUp2Date serves as a front-end to InstaDMG, managing the folders that InstaDMG uses to select what gets installed on an image. By using configuration (.catalog) files InstaUp2Date can automate the creation of multiple images in a single run each with their own names and set of installers used. And because the catalog files can reference each other a tree can be built with a base image at the root and specific images all referencing the same building blocks at the core while each being able to add their own specifics.\
-\
-	As an example: A company has three types of images that they need to create: one for general use, one that adds the developer tools, and one that has the Adobe Suite on it. With only InstaDMG the packages for each of these images would have to be moved in and out of the appropriate folders by hand. But with InstaUp2Date three catalog files could be created: a base image for the first image, a second catalog file that references the first and adds the developer tools, and a third that similarly references the first file and adds the Adobe Suite. The real advantage comes when something changes in your base image (such as a new security update from Apple). With InstaUp2Date you only have to change a single line in your base catalog file, and then re-run to create all three images. The image creation is not any faster, but the amount of human time has been reduced to a few minutes.\
+\b0\fs26 \cf0 The latest version of this document can always be found at: {\field{\*\fldinst{HYPERLINK "http://code.google.com/p/instadmg/wiki/InstaUp2Date"}}{\fldrslt \cf2 \ul \ulc2 http://code.google.com/p/instadmg/wiki/InstaUp2Date}}\
+!InstaDMG is focused on producing a single base image and producing the same thing every single time, changing only the things that you deliberately change in the process. However, many people need to produce many different images with different load-sets on them. For that purpose !InstaDMG becomes a little unwieldy.\
+However, included in the package with !InstaDMG is an add-on program, InstaUp2Date, that can be used to manage the folders that !InstaDMG uses. It uses files called "catalog files" (with an extension of .catalog) to list out the software that should be in a particular image. These catalog files can reference each other, so you can create a base image or pools of shared software so that you only have to make a single adjustment when something changes.\
+The catalog files reference the installers that they will be managing in one of three ways:\
+\pard\pardeftab720\ql\qnatural
+\ls1\ilvl0\cf0 {\listtext	1.	}A filesystem reference to a folder containing .pkg installers or to a dmg containing .pkg installers.\
+{\listtext	2.	}A file/folder name to be searched for in the InstaDMG/InstallerFiles/InstaUp2DatePackages folder.\
+{\listtext	3.	}A http(s) reference to a dmg containing .pkg installers.\
+\pard\pardeftab720\sa260\ql\qnatural
+\cf0 \
+The references to other .catalog files can also be any of those types, allowing (in principal) for a shared baseOS catalog file to referenced. Any packages that are referenced with http urls can will even be downloaded for you by InstaUp2Date.\
+At this point everything is command-line only, but InstaUp2Date is written in Python and has been written with the possibility of sliding a Cocoa GUI on in mind.\
+\pard\pardeftab720\sa320\ql\qnatural
 
-\b \
+\b\fs48 \cf0 Installation\
+\pard\pardeftab720\sa260\ql\qnatural
 
-\fs26 Installation:
-\b0 \
-\
-	InstaUp2Date now comes as part of InstaDMG. It is located in the AddOns directory and can be used from that directory with no changes necessary. Installing from a reference release on InstaDMG or from SVN should require no additional changes.\
-\
-	InstaUp2Date uses a few directories, and those need to be in the appropriate places relative to the root InstaDMG folder. In addition to the folders that InstaDMG needs the following are needed:\
-\
-InstaDMG/AddOns/InstaUp2Date/CatalogFiles - this is where the catalog files will be looked for\
-\
-InstaDMG/Caches/InstaUp2DateCache
-\b\fs24 \
-\
+\b0\fs26 \cf0 InstaUp2Date is included with InstaDMG, so no installation is necessary. It is in InstaDMG/AddOns/InstaUp2Date, and should probably be left there. While running it will automatically 'cd' to the InstaDMG folder, so you can run it from within any folder without changing things.\
+\pard\pardeftab720\sa320\ql\qnatural
 
-\fs26 Instructions:
-\fs24 \
-\
-	
-\b0 The first thing you need is at least one .catalog file. A couple of examples should be provided with this script, and the current documentation for that is in the vanilla.catalog file. Examine both of the sample .catalog files to help you create your own. It is best to put all of your catalog files in the CatalogFiles folder and then reference them by name.\
-\
-	When you are creating your own lines for a catalog file the checksum.py command-line program can come in handy to create the checksums you need.\
-\
-	You will also need to provide InstaDMG with a image of a 10.5 installer disk. InstaUpToDate does not change this. At some point it will provide the option of managing these for you. But you will still need to provide your own.
-\b \
-\
-	
-\b0 At this point the script is still a command-line only version. So you need to open the terminal and type the following command:\
-\
-path/to/instaUpToDate.py <<catalog file>>\
-\
-	Naturally you need to replace <<catalog file>> with the name of the catalog file you want to use. Once InstaUpToDate runs successfully you will be all setup to run instadmg.bash. If you want to go ahead and run InstaDMG after successfully setting up the folders you can run it like this:\
-\
-sudo path/to/instaUpToDate.py --process <<catalog file>>\
-\
-	If you want to create multiple images you can add more catalog file names after the first. This is only really useful when using the -p/--process flag.
-\b \
-\
-Creating Checksums:\
+\b\fs48 \cf0 Using InstaUp2Date\
+\pard\pardeftab720\sa260\ql\qnatural
 
-\b0 \
-	In the same folder as the instaUp2Date.py script is another script that can help you create lines for .catalog files: checksum.py. By calling this on the command line and providing either a file location of a dmg or folder or a http location of a dmg it will do the work of checksumming the target and provide you with the line that should go into the catalog file.\
-\
-	Note that at the moment it does not check for a .pkg installer in the target, and does not do any work to make sure that what you give it is valid for InstaDMG.
-\b \
-\
-Command Line Options:
-\b0 \
-\
-	There are three command line options that InstaUp2Date will accept:\
-\
--h or --help		Print the usage information and exit.\
-\
--p or --process	Runs InstaDMG after successfully setting things up. This requires being run as root, and will pass additional information to InstaDMG (such as the image and dmg names)\
-\
--v or --version	Print version information and quit.
-\b \
-\
+\b0\fs26 \cf0 To use InstaUp2Date you need to have a few things setup already:\
+\pard\pardeftab720\ql\qnatural
+\ls2\ilvl0\cf0 {\listtext	1.	}Have a Base OS image already in place in InstaDMG/InstallerFiles/!BaseOS\
+{\listtext	2.	}Have at least one catalog file in InstaDMG/AddOns/InstaUp2Date/CatalogFiles\
+{\listtext	3.	}Have any dmg's or pkg's referenced in the catalog files that you are using that don't use http addresses already placed in InstaDMG/InstallerFiles/InstaUp2DatePackages (so the packages you create yourself)\
+\pard\pardeftab720\sa260\ql\qnatural
+\cf0 \
+With those things in place, then you simply need to call InstaUp2Date:\
+\pard\pardeftab720\sa260\ql\qnatural
 
-\fs26 Notes:\
-\
+\f1\fs22 \cf0 /path/to/instaUp2Date.py <<catalog file>>
+\f0\fs26 \
+If you would like to run !InstaDMG immediately after preparing the folders for it, then you just have to add either 
+\f1\fs22 -p
+\f0\fs26  or 
+\f1\fs22 --process
+\f0\fs26  to the invocation. When called like this InstaUp2Date will call !InstaDMG, and even add appropriate command-line switches to use the file names as are specified in the command files. An invocation like this needs to be run as root, and might look like this:\
 
-\b0\fs24 * InstaUpToDate does not add any extra abilities to InstaDMG once it starts running. It only allows the automation of setting things up before you run InstaDMG. So you can't do anything using InstaUp2Date that was not already possible with InstaDMG.\
-\
-* The script is still in a somewhat rough form. I am using it in my workflow, and it is working, but it has not been extensively tested at this point. No warrantee is implied at all.\
-\
-* Additions and bug-fixes are always welcome\
-\
-* At the moment error reporting is very rough. Often you will need to read through the code to figure out what went wrong. Sometime in the future this will be cleaned up some.\
-\
-* A final copyright has not been decided for this, but I am leaning towards a BSD-style license. For the moment fell free to use the code, but please refrain from distributing it.
-\b \
+\f1\fs22 sudo /path/to/instaUp2Date.py --process <<catalog file>>
+\f0\fs26 \
+Additionally, you can supply multiple catalog files. InstaUp2Date will run through them one after another. This is most useful if you are using the 
+\f1\fs22 --process
+\f0\fs26  flag as at the start of each run the setup from the previous run is wiped out. However it might be useful to know that all of your catalog files are (at least mostly) valid and that you have downloaded all the relevant http files.\
+\pard\pardeftab720\sa320\ql\qnatural
+
+\b\fs48 \cf0 Command Line Options\
+\pard\pardeftab720\sa260\ql\qnatural
+
+\b0\fs26 \cf0 There are three command line options that InstaUp2Date will accept:\
+\pard\pardeftab720\sa260\ql\qnatural
+
+\f1\fs22 \cf0 -h
+\f0\fs26  or 
+\f1\fs22 --help
+\f0\fs26  Print the usage information and exit.\
+
+\f1\fs22 -p
+\f0\fs26  or 
+\f1\fs22 --process
+\f0\fs26  Runs InstaDMG after successfully setting things up. This requires being run as root, and will pass additional information to InstaDMG (such as the image and dmg names)\
+
+\f1\fs22 -v
+\f0\fs26  or 
+\f1\fs22 --version
+\f0\fs26  Print version information and quit.\
+\pard\pardeftab720\sa320\ql\qnatural
+
+\b\fs48 \cf0 Creating Catalog Files\
+\pard\pardeftab720\sa280\ql\qnatural
+
+\fs36 \cf0 Creating Checksums\
+\pard\pardeftab720\sa260\ql\qnatural
+
+\b0\fs26 \cf0 Since all of the lines in a catalog file require (or at least strongly encourage) a checksum, there is an included tool to help you produce checksums for the files you are using. The tool is conveniently called "checksum.py" and is located in the same folder as the !instaUp2Date.py script. To use it just call it like this (on the command line):\
+\pard\pardeftab720\sa260\ql\qnatural
+
+\f1\fs22 \cf0 /path/to/checksum.py <<path/to.DMG_or_PKG>>
+\f0\fs26 \
+The path you use can either be of the normal "/tmp/thisfile.dmg" variety, or as a http(s) url (
+\f1\fs22 http://somewhere.com/myGreatPkg.dmg
+\f0\fs26 . The latter form is probably the more useful for packages that you don't create yourself, as InstaUp2Date will cache them and then you don't have to move them with you if you go to a new computer. The checkusmming program will download the item (so that it can be checksummed), but will not save it anywhere.\
+\pard\pardeftab720\sa320\ql\qnatural
+
+\b\fs48 \cf0 Internal Details\
+Random Notes\
+\pard\pardeftab720\ql\qnatural
+\ls3\ilvl0
+\b0\fs26 \cf0 {\listtext	\'95	}InstaUpToDate does not add any extra abilities to !InstaDMG once it starts running. It only allows the automation of setting things up before you run InstaDMG. So you can't do anything using InstaUp2Date that was not already possible with !InstaDMG.\
+\pard\pardeftab720\ql\qnatural
+\ls4\ilvl0\cf0 {\listtext	\'95	}The script is still in a somewhat rough form. I am using it in my workflow, and it is working, but it has not been extensively tested at this point. No warrantee is implied at all.\
+\pard\pardeftab720\ql\qnatural
+\ls5\ilvl0\cf0 {\listtext	\'95	}Additions and bug-fixes are always welcome\
+\pard\pardeftab720\ql\qnatural
+\ls6\ilvl0\cf0 {\listtext	\'95	}At the moment error reporting is very rough. Often you will need to read through the code to figure out what went wrong. Sometime in the future this will be cleaned up some.\
+\pard\pardeftab720\ql\qnatural
+\ls7\ilvl0\cf0 {\listtext	\'95	}InstaUp2Date is under the same license as !InstaDMG.\
+\pard\pardeftab720\sa320\ql\qnatural
+
+\b\fs48 \cf0 Future Directions\
+\pard\pardeftab720\sa260\ql\qnatural
+
+\b0\fs26 \cf0 These are ideas that InstaUp2Date might take, but are not promises:\
+\pard\pardeftab720\ql\qnatural
+\ls8\ilvl0\cf0 {\listtext	\'95	}There are a bunch of problems that combining !InstaDMG and InstaUp2Date together into one program would solve. This includes: having pre/postflight scripts, adding items without pkg's, and improving the loging in !InstaDMG (right now stderr is really tough).\
+\pard\pardeftab720\ql\qnatural
+\ls9\ilvl0\cf0 {\listtext	\'95	}Add a Cocoa GUI.\
+\pard\pardeftab720\ql\qnatural
+\ls10\ilvl0\cf0 {\listtext	\'95	}Do more pre-flighting of the items to make sure that they include pkg's.\
+\pard\pardeftab720\ql\qnatural
+\ls11\ilvl0\cf0 {\listtext	\'95	}Allow for some introspection into pkg's... possibly even use a union mount to allow pre and postflight scripts to be edited without changing anything. This would require the first item.\
 }
