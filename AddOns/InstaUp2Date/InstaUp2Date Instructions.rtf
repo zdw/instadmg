@@ -1,0 +1,89 @@
+{\rtf1\ansi\ansicpg1252\cocoartf949\cocoasubrtf330
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww18000\viewh17600\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+
+\f0\b\fs42 \cf0 InstaUp2Date
+\fs24 \
+\
+
+\b0 Note: These directions are based on the version of InstaUp2Date as is in rev. 120 of the InstaDMG SVN repository. This should match up with version 0.4b or 1.4b4 of InstaDMG. \
+\
+	InstaUp2Date serves as a front-end to InstaDMG, managing the folders that InstaDMG uses to select what gets installed on an image. By using configuration (.catalog) files InstaUp2Date can automate the creation of multiple images in a single run each with their own names and set of installers used. And because the catalog files can reference each other a tree can be built with a base image at the root and specific images all referencing the same building blocks at the core while each being able to add their own specifics.\
+\
+	As an example: A company has three types of images that they need to create: one for general use, one that adds the developer tools, and one that has the Adobe Suite on it. With only InstaDMG the packages for each of these images would have to be moved in and out of the appropriate folders by hand. But with InstaUp2Date three catalog files could be created: a base image for the first image, a second catalog file that references the first and adds the developer tools, and a third that similarly references the first file and adds the Adobe Suite. The real advantage comes when something changes in your base image (such as a new security update from Apple). With InstaUp2Date you only have to change a single line in your base catalog file, and then re-run to create all three images. The image creation is not any faster, but the amount of human time has been reduced to a few minutes.\
+
+\b \
+
+\fs26 Installation:
+\b0 \
+\
+	InstaUp2Date now comes as part of InstaDMG. It is located in the AddOns directory and can be used from that directory with no changes necessary. Installing from a reference release on InstaDMG or from SVN should require no additional changes.\
+\
+	InstaUp2Date uses a few directories, and those need to be in the appropriate places relative to the root InstaDMG folder. In addition to the folders that InstaDMG needs the following are needed:\
+\
+InstaDMG/AddOns/InstaUp2Date/CatalogFiles - this is where the catalog files will be looked for\
+\
+InstaDMG/Caches/InstaUp2DateCache
+\b\fs24 \
+\
+
+\fs26 Instructions:
+\fs24 \
+\
+	
+\b0 The first thing you need is at least one .catalog file. A couple of examples should be provided with this script, and the current documentation for that is in the vanilla.catalog file. Examine both of the sample .catalog files to help you create your own. It is best to put all of your catalog files in the CatalogFiles folder and then reference them by name.\
+\
+	When you are creating your own lines for a catalog file the checksum.py command-line program can come in handy to create the checksums you need.\
+\
+	You will also need to provide InstaDMG with a image of a 10.5 installer disk. InstaUpToDate does not change this. At some point it will provide the option of managing these for you. But you will still need to provide your own.
+\b \
+\
+	
+\b0 At this point the script is still a command-line only version. So you need to open the terminal and type the following command:\
+\
+path/to/instaUpToDate.py <<catalog file>>\
+\
+	Naturally you need to replace <<catalog file>> with the name of the catalog file you want to use. Once InstaUpToDate runs successfully you will be all setup to run instadmg.bash. If you want to go ahead and run InstaDMG after successfully setting up the folders you can run it like this:\
+\
+sudo path/to/instaUpToDate.py --process <<catalog file>>\
+\
+	If you want to create multiple images you can add more catalog file names after the first. This is only really useful when using the -p/--process flag.
+\b \
+\
+Creating Checksums:\
+
+\b0 \
+	In the same folder as the instaUp2Date.py script is another script that can help you create lines for .catalog files: checksum.py. By calling this on the command line and providing either a file location of a dmg or folder or a http location of a dmg it will do the work of checksumming the target and provide you with the line that should go into the catalog file.\
+\
+	Note that at the moment it does not check for a .pkg installer in the target, and does not do any work to make sure that what you give it is valid for InstaDMG.
+\b \
+\
+Command Line Options:
+\b0 \
+\
+	There are three command line options that InstaUp2Date will accept:\
+\
+-h or --help		Print the usage information and exit.\
+\
+-p or --process	Runs InstaDMG after successfully setting things up. This requires being run as root, and will pass additional information to InstaDMG (such as the image and dmg names)\
+\
+-v or --version	Print version information and quit.
+\b \
+\
+
+\fs26 Notes:\
+\
+
+\b0\fs24 * InstaUpToDate does not add any extra abilities to InstaDMG once it starts running. It only allows the automation of setting things up before you run InstaDMG. So you can't do anything using InstaUp2Date that was not already possible with InstaDMG.\
+\
+* The script is still in a somewhat rough form. I am using it in my workflow, and it is working, but it has not been extensively tested at this point. No warrantee is implied at all.\
+\
+* Additions and bug-fixes are always welcome\
+\
+* At the moment error reporting is very rough. Often you will need to read through the code to figure out what went wrong. Sometime in the future this will be cleaned up some.\
+\
+* A final copyright has not been decided for this, but I am leaning towards a BSD-style license. For the moment fell free to use the code, but please refrain from distributing it.
+\b \
+}
