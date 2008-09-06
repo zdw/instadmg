@@ -108,11 +108,31 @@ export CM_BUILD=CM_BUILD
 
 startup() {
 	# this is a function so that some of the variables can be overriden by command-line flags
-
+	
+	# sanitise the folder paths to make sure that they don't end in /
+	if [ "`/bin/echo $INSTALLER_FOLDER | /usr/bin/awk 'tolower() ~ /\/$/ { print 1 }'`" == "1" ]; then
+		INSTALLER_FOLDER=`/bin/echo $INSTALLER_FOLDER | /usr/bin/awk 'sub("/$", "")'`
+	fi
+	if [ "`/bin/echo $CUSTOM_FOLDER | /usr/bin/awk 'tolower() ~ /\/$/ { print 1 }'`" == "1" ]; then
+		CUSTOM_FOLDER=`/bin/echo $CUSTOM_FOLDER | /usr/bin/awk 'sub("/$", "")'`
+	fi	
+	if [ "`/bin/echo $LOG_FOLDER | /usr/bin/awk 'tolower() ~ /\/$/ { print 1 }'`" == "1" ]; then
+		LOG_FOLDER=`/bin/echo $LOG_FOLDER | /usr/bin/awk 'sub("/$", "")'`
+	fi
+	if [ "`/bin/echo $ASR_FOLDER | /usr/bin/awk 'tolower() ~ /\/$/ { print 1 }'`" == "1" ]; then
+		ASR_FOLDER=`/bin/echo $ASR_FOLDER | /usr/bin/awk 'sub("/$", "")'`
+	fi
+	if [ "`/bin/echo $TEMP_LOCATION | /usr/bin/awk 'tolower() ~ /\/$/ { print 1 }'`" == "1" ]; then
+		TEMP_LOCATION=`/bin/echo $TEMP_LOCATION | /usr/bin/awk 'sub("/$", "")'`
+	fi
+		if [ "`/bin/echo $UPDATE_FOLDER | /usr/bin/awk 'tolower() ~ /\/$/ { print 1 }'`" == "1" ]; then
+		UPDATE_FOLDER=`/bin/echo $UPDATE_FOLDER | /usr/bin/awk 'sub("/$", "")'`
+	fi
+	
 	CURRENT_OS_INSTALL_MOUNT="" # the location where the primary installer disk is mounted
 	CURRENT_OS_INSTALL_AUTOMOUNTED=false
 	
-	CURRENT_IMAGE_MOUNT=`/usr/bin/mktemp -d $TEMP_LOCATION/instaDMGMount.XXXXXX` # the location where the target is mounted, we will choose this initially
+	CURRENT_IMAGE_MOUNT=`/usr/bin/mktemp -d "$TEMP_LOCATION/instaDMGMount.XXXXXX"` # the location where the target is mounted, we will choose this initially
 	SCRATCH_FILE_LOCATION="$TEMP_LOCATION/`/usr/bin/uuidgen`.dmg" # the location of the shadow file that will be scanned for the ASR output
 	
 	BASE_IMAGE_CHECKSUM="" # the checksum reported by diskutil for the OS Instal disk image
@@ -319,7 +339,7 @@ rootcheck() {
 
 check_setup () {
 	# Check the language
-	LANGUAGE_CODE_IS_VALID_TEMPFILE=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
+	LANGUAGE_CODE_IS_VALID_TEMPFILE=`/usr/bin/mktemp "$TEMP_LOCATION/instaDMGTemp.XXXXXX"`
 	/usr/sbin/installer -listiso | /usr/bin/tr "\t" "\n" | while read LANGUAGE_CODE
 	do
 		if [ "$ISO_CODE" == "$LANGUAGE_CODE" ]; then
@@ -350,11 +370,11 @@ mount_os_install() {
 	log "Mounting Mac OS X installer image" section
 	
 	# to get around bash variable scope difficulties we will be stashing things in tempfiles
-	OS_INSTALL_LOCATION_TEMPFILE=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
-	BASE_IMAGE_CACHING_ALLOWED_TEMPFILE=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
-	BASE_IMAGE_CHECKSUM_TEMPFILE=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
-	BASE_IMAGE_CACHE_FOUND_TEMPFILE=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
-	BASE_IMAGE_FILE_TEMPFILE=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
+	OS_INSTALL_LOCATION_TEMPFILE=`/usr/bin/mktemp "$TEMP_LOCATION/instaDMGTemp.XXXXXX"`
+	BASE_IMAGE_CACHING_ALLOWED_TEMPFILE=`/usr/bin/mktemp "$TEMP_LOCATION/instaDMGTemp.XXXXXX"`
+	BASE_IMAGE_CHECKSUM_TEMPFILE=`/usr/bin/mktemp "$TEMP_LOCATION/instaDMGTemp.XXXXXX"`
+	BASE_IMAGE_CACHE_FOUND_TEMPFILE=`/usr/bin/mktemp "$TEMP_LOCATION/instaDMGTemp.XXXXXX"`
+	BASE_IMAGE_FILE_TEMPFILE=`/usr/bin/mktemp "$TEMP_LOCATION/instaDMGTemp.XXXXXX"`
 	
 	/usr/bin/find "$INSTALLER_FOLDER" -iname '*.dmg' | while read IMAGE_FILE
 	do
@@ -468,7 +488,7 @@ mount_os_install() {
 				# since it was not already mounted, we have to mount it
 				#	we are going to mount it non-browsable, so it does not appear in the finder, and we are going to mount it to a temp folder
 				
-				CURRENT_OS_INSTALL_MOUNT=`/usr/bin/mktemp -d $TEMP_LOCATION/instaDMGMount.XXXXXX`
+				CURRENT_OS_INSTALL_MOUNT=`/usr/bin/mktemp -d "$TEMP_LOCATION/instaDMGMount.XXXXXX"`
 				log "Mounting the main OS Installer Disk from: $IMAGE_FILE at: $CURRENT_OS_INSTALL_MOUNT" information
 				/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log $INPUT detail; done)
 				`/bin/echo "$CURRENT_OS_INSTALL_MOUNT" > "$OS_INSTALL_LOCATION_TEMPFILE"`
@@ -528,7 +548,7 @@ create_and_mount_image() {
 	
 	log "Creating intermediary disk image" section
 	
-	SCRATCH_FILE_LOCATION=`/usr/bin/mktemp $TEMP_LOCATION/instaDMGTemp.XXXXXX`
+	SCRATCH_FILE_LOCATION=`/usr/bin/mktemp "$TEMP_LOCATION/instaDMGTemp.XXXXXX"`
 	/bin/mv "$SCRATCH_FILE_LOCATION" "$SCRATCH_FILE_LOCATION.sparseimage" # since 
 	SCRATCH_FILE_LOCATION="$SCRATCH_FILE_LOCATION.sparseimage"
 	
@@ -662,7 +682,7 @@ install_packages_from_folder() {
 			else
 				DMG_PATH="$TARGET"
 				DMG_INTERNAL_NAME=`/usr/bin/hdiutil imageinfo "$DMG_PATH" | awk '/^\tName:/ && sub("\tName: ", "")'`
-				TARGET=`/usr/bin/mktemp -d $TEMP_LOCATION/instaDMGMount.XXXXXX`
+				TARGET=`/usr/bin/mktemp -d "$TEMP_LOCATION/instaDMGMount.XXXXXX"`
 				
 				log "Mounting the package dmg: $DMG_INTERNAL_NAME ($ORIGINAL_TARGET) at: $TARGET" detail
 				/usr/bin/hdiutil mount "$DMG_PATH" -nobrowse -mountpoint "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
