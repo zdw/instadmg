@@ -106,20 +106,24 @@ export CM_BUILD=CM_BUILD
 # Variables that will be filled in durring the process
 #
 
-CURRENT_OS_INSTALL_MOUNT="" # the location where the primary installer disk is mounted
-CURRENT_OS_INSTALL_AUTOMOUNTED=false
+startup() {
+	# this is a function so that some of the variables can be overriden by command-line flags
 
-CURRENT_IMAGE_MOUNT=`/usr/bin/mktemp -d $TEMP_LOCATION/instaDMGMount.XXXXXX` # the location where the target is mounted, we will choose this initially
-SCRATCH_FILE_LOCATION="$TEMP_LOCATION/`/usr/bin/uuidgen`.dmg" # the location of the shadow file that will be scanned for the ASR output
-
-BASE_IMAGE_CHECKSUM="" # the checksum reported by diskutil for the OS Instal disk image
-BASE_IMAGE_CACHE_FOUND=false
-
-# Get the MacOS X version information.
-OS_REV_MAJOR=`/usr/bin/sw_vers -productVersion | awk -F "." '{ print $2 }'`
-OS_REV_MINOR=`/usr/bin/sw_vers -productVersion | awk -F "." '{ print $3 }'`
-
-CPU_TYPE=`/usr/bin/arch` # CPU type of the Mac running InstaDMG
+	CURRENT_OS_INSTALL_MOUNT="" # the location where the primary installer disk is mounted
+	CURRENT_OS_INSTALL_AUTOMOUNTED=false
+	
+	CURRENT_IMAGE_MOUNT=`/usr/bin/mktemp -d $TEMP_LOCATION/instaDMGMount.XXXXXX` # the location where the target is mounted, we will choose this initially
+	SCRATCH_FILE_LOCATION="$TEMP_LOCATION/`/usr/bin/uuidgen`.dmg" # the location of the shadow file that will be scanned for the ASR output
+	
+	BASE_IMAGE_CHECKSUM="" # the checksum reported by diskutil for the OS Instal disk image
+	BASE_IMAGE_CACHE_FOUND=false
+	
+	# Get the MacOS X version information.
+	OS_REV_MAJOR=`/usr/bin/sw_vers -productVersion | awk -F "." '{ print $2 }'`
+	OS_REV_MINOR=`/usr/bin/sw_vers -productVersion | awk -F "." '{ print $3 }'`
+	
+	CPU_TYPE=`/usr/bin/arch` # CPU type of the Mac running InstaDMG
+}
 
 #
 # Now for the meat
@@ -858,6 +862,8 @@ done
 check_setup
 
 rootcheck
+
+startup
 
 log "InstaDMG build initiated" section
 
