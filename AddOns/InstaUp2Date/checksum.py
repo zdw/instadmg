@@ -21,13 +21,20 @@ for fileLocation in sys.argv[1:]:
 	returnArray = None
 	
 	if os.path.isfile(fileLocation):
-		HASHFILE = open(fileLocation)
+		HASHFILE = open(fileLocation, 'rb')
 		if HASHFILE == None:
 			raise Exception("Unable to open file for checksumming: %s" % folderLocation) # TODO: better errors
 		
 		foundAFile = True
-		hashGenerator.update(HASHFILE.read())
+		size = 0
+		thisChunkSize = 1
+		while thisChunkSize > 0:
+			thisChunk = HASHFILE.read(chunksize)
+			thisChunkSize = len(thisChunk)
+			size += thisChunkSize
+			hashGenerator.update(thisChunk)
 		HASHFILE.close()
+		print size
 		
 		returnArray = (os.path.splitext(os.path.basename(fileLocation))[0], os.path.basename(fileLocation), checksumType + ":" + hashGenerator.hexdigest())
 		

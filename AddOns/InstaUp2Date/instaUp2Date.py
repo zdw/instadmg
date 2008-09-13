@@ -605,7 +605,13 @@ class installerPackage:
 			if HASHFILE == None:
 				raise Exception("Unable to open file for checksumming: %s" % folderLocation) # TODO: better errors
 			foundAFile = True
-			hashGenerator.update(HASHFILE.read())
+			
+			chunksize = 5 * 1024 * 1024
+			thisChunkSize = 1
+			while thisChunkSize > 0:
+				thisChunk = HASHFILE.read(chunksize)
+				thisChunkSize = len(thisChunk)
+				hashGenerator.update(thisChunk)
 			HASHFILE.close()
 		
 		for thisFolder, subFolders, subFiles in os.walk(fileLocation):
@@ -617,7 +623,12 @@ class installerPackage:
 					if HASHFILE == None:
 						raise Exception("Unable to open file for checksumming: %s" % thisFilePath) # TODO: better errors
 					foundAFile = True
-					hashGenerator.update(HASHFILE.read())
+					chunksize = 5 * 1024 * 1024
+					thisChunkSize = 1
+					while thisChunkSize > 0:
+						thisChunk = HASHFILE.read(chunksize)
+						thisChunkSize = len(thisChunk)
+						hashGenerator.update(thisChunk)
 					HASHFILE.close()
 		
 		if foundAFile == False:
