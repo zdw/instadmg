@@ -26,7 +26,7 @@ Needs testing on more hardware, specifically PPC.
 
 Needs more testing on 10.4 as the development team is focusing on 10.5. There are signs that the script currently has major problems on 10.4.
 
-If you are running on 10.5 it will try to apply any InstallerChoices.xml file it finds. Next revision will also detect the OS being installed and not try to apply it to 10.4 build trains running on 10.5.
+If you are running on 10.5 it will try to apply any InstallerChoices.xml file it finds. Future revision will also detect the OS being installed and not try to apply it to 10.4 build trains running on 10.5.
 
 On 10.4 installs all packages in the OSInstall.mpkg will be installed. This is a limitation of the 10.4 installer.
 

@@ -1,3 +1,22 @@
+Changes in instadmg 1.4b4
+
+General:
+Added the -m option to the help text.
+Removed the -a flag (duplicate of -o), added the -t flag (change temp directory) and the machinery behind it.
+Allow the numbered folders to actually be dmg's (or soft-links to dmg's).
+Added the code to exclude cache files from TimeMachine. (Check for xattr first.)
+Unmount the images without the "-force" option, then if that does not work resort to -force.
+Sanitize the Kext caches before creating the ASR.
+Created startup function to delay filling in the tmp location till after command line options are processed
+Removed instaUser example and added in createUser.
+
+Lots of changes to instaUp2Date. Check the svn log for more details.
+
+Logging:
+Changed the "Installing " message back to information level.
+ 
+
+------------------------
 Changes in instadmg 1.4b3
 
 Handlers:
