@@ -25,6 +25,8 @@ for fileLocation in sys.argv[1:]:
 		if HASHFILE == None:
 			raise Exception("Unable to open file for checksumming: %s" % folderLocation) # TODO: better errors
 		
+		chunksize = 1 * 1024 * 1025
+		
 		foundAFile = True
 		size = 0
 		thisChunkSize = 1
