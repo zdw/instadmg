@@ -42,6 +42,7 @@ OS Updates:
 	Security Update 2008-005 2008-005 (Leopard)	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=20388&cat=57&platform=osx&method=sa/SecUpd2008-005.dmg	sha1:9c4fd4ee59965819427445f6de172c42b223e6e1
 	QuickTime 7.5.5 Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-4709.20080909.AqspI/QuickTime755_Leopard.dmg	sha1:934f784a553c2d4484d298071ad6d95ea34b8b2f
 	AirPort Utility 5.3.2 for Leopard	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4614.20080611.vbh98/AirPortUtility_Leopard.dmg	sha1:f5105d0c5353a2838d191e04454e77280c0a8c81
+	HewlettPackardPrinterDrivers	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21133&cat=59&platform=osx&method=sa/HewlettPackardPrinterDrivers.dmg	sha1:f22422db0e7228fd83a4ed9368bc5ce99111537f
 
 Apple Updates:
 	iTunes8	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes8/061-4744.20080909.5Ty6li/iTunes8.dmg	sha1:af54727e4b2e0e6bb0c367b34ae5075f36096aef
