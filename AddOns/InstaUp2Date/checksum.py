@@ -19,24 +19,23 @@ for fileLocation in sys.argv[1:]:
 	
 	foundAFile = False
 	returnArray = None
+	chunksize = 1 * 1024 * 1024
 	
 	if os.path.isfile(fileLocation):
 		HASHFILE = open(fileLocation, 'rb')
 		if HASHFILE == None:
 			raise Exception("Unable to open file for checksumming: %s" % folderLocation) # TODO: better errors
 		
-		chunksize = 1 * 1024 * 1025
+		
 		
 		foundAFile = True
-		size = 0
+
 		thisChunkSize = 1
 		while thisChunkSize > 0:
 			thisChunk = HASHFILE.read(chunksize)
 			thisChunkSize = len(thisChunk)
-			size += thisChunkSize
 			hashGenerator.update(thisChunk)
 		HASHFILE.close()
-		print size
 		
 		returnArray = (os.path.splitext(os.path.basename(fileLocation))[0], os.path.basename(fileLocation), checksumType + ":" + hashGenerator.hexdigest())
 		
@@ -50,7 +49,12 @@ for fileLocation in sys.argv[1:]:
 					if HASHFILE == None:
 						raise Exception("Unable to open file for checksumming: %s" % thisFilePath) # TODO: better errors
 					foundAFile = True
-					hashGenerator.update(HASHFILE.read())
+					
+					thisChunkSize = 1
+					while thisChunkSize > 0:
+						thisChunk = HASHFILE.read(chunksize)
+						thisChunkSize = len(thisChunk)
+						hashGenerator.update(thisChunk)
 					HASHFILE.close()
 					
 		returnArray = (os.path.splitext(os.path.basename( urlparse.urlparse(fileLocation).path ))[0], os.path.basename( urlparse.urlparse(fileLocation).path ), checksumType + ":" + hashGenerator.hexdigest())
