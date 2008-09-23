@@ -26,8 +26,6 @@ for fileLocation in sys.argv[1:]:
 		if HASHFILE == None:
 			raise Exception("Unable to open file for checksumming: %s" % folderLocation) # TODO: better errors
 		
-		
-		
 		foundAFile = True
 
 		thisChunkSize = 1
@@ -65,8 +63,11 @@ for fileLocation in sys.argv[1:]:
 			raise Exception("Unable to open file for checksumming: %s" % folderLocation) # TODO: better errors
 		foundAFile = True
 		
-		hashGenerator.update(HASHFILE.read())
-		
+		thisChunkSize = 1
+		while thisChunkSize > 0:
+			thisChunk = HASHFILE.read(chunksize)
+			thisChunkSize = len(thisChunk)
+			hashGenerator.update(thisChunk)
 		HASHFILE.close()
 		
 		returnArray = (os.path.splitext(os.path.basename(fileLocation))[0], fileLocation, checksumType + ":" + hashGenerator.hexdigest())
