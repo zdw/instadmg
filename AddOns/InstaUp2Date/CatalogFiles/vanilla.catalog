@@ -38,15 +38,16 @@ Base OS Disk:
 	# this is not yet implimented
 
 OS Updates:
-	Mac OS X 10.5.4 Combo Update	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4758.20080626.vfgp9/MacOSXUpdCombo10.5.4.dmg	sha1:490962bf712b2d801d08f42ca66b8a4541e9da16
+	MacOSX 10.5.5 Combo Update	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21155&cat=59&platform=osx&method=sa/MacOSXUpdCombo10.5.5.dmg	sha1:91ac9b720ba3b4166e5dc1dd518b1651d77c0f46
 	Security Update 2008-005 (Leopard)	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=20388&cat=57&platform=osx&method=sa/SecUpd2008-005.dmg	sha1:9c4fd4ee59965819427445f6de172c42b223e6e1
 	QuickTime 7.5.5 Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-4709.20080909.AqspI/QuickTime755_Leopard.dmg	sha1:934f784a553c2d4484d298071ad6d95ea34b8b2f
 	AirPort Utility 5.3.2 for Leopard	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4614.20080611.vbh98/AirPortUtility_Leopard.dmg	sha1:f5105d0c5353a2838d191e04454e77280c0a8c81
 	HewlettPackardPrinterDrivers	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21133&cat=59&platform=osx&method=sa/HewlettPackardPrinterDrivers.dmg	sha1:f22422db0e7228fd83a4ed9368bc5ce99111537f
 	Remote Desktop Client 3.2.2	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21193&cat=59&platform=osx&method=sa/RemoteDesktopClient.dmg	sha1:b1a81f17724d9b2f7b6dbffed56bc9a0463d1d7e
+	JavaForMacOSX10.5Update2	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21277&cat=1&platform=osx&method=sa/JavaForMacOSX10.5Update2.dmg	sha1:5b2a8de347fe68d0638bcf0ede8a71ba35adbab9
 
 Apple Updates:
-	iTunes8	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes8/061-4744.20080909.5Ty6li/iTunes8.dmg	sha1:af54727e4b2e0e6bb0c367b34ae5075f36096aef
+	iTunes 8.0.1	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes8/061-5553.20081002.kjy65/iTunes801.dmg	sha1:722f5603bd12808d895cf822f3c4267febc56b74
 	iLife Support 8.3	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=20215&cat=59&platform=osx&method=sa/iLifeSupport.dmg	sha1:f1fd3a28135a0b0a576c5d4e32161e2a537895d4
 	FrontRow Update 2.1.6	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21075&cat=1&platform=osx&method=sa/FrontRowUpdate2.1.6.dmg	sha1:d9fc3c4bed2addb7397c201b2b86311673b3e1cc
 	AppleProResQuickTimeDecoder	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=20846&cat=59&platform=osx&method=sa/AppleProResQuickTimeDecoder.dmg	sha1:32213a8cbff83a6b583ed0ac8cfdb81e439438b8
