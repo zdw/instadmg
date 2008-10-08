@@ -506,7 +506,8 @@ class installerPackage:
 					(httpHeaders, myError) = thisProcess.communicate()
 					
 					if thisProcess.returncode != 0:
-						raise Exception(); # TODO: better errors
+						# TODO: show some error here, we can't get the package name from the interenet
+						raise Exception('Unable to get the name of package: %s\n%s\n%s' % ( self.archiveLocation, httpHeaders, myError) ); # TODO: better errors
 
 					contentDisposition = contentDispositionRegex.search(httpHeaders.split("HTTP/1")[-1])
 					if contentDisposition:
