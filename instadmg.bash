@@ -664,7 +664,7 @@ install_packages_from_folder() {
 		exit 1;
 	fi
 	
-	/bin/ls -A1 "$SELECTED_FOLDER" | /usr/bin/awk "/^[[:digit:]]+$/" | while read ORDERED_FOLDER
+	/bin/ls -A1 "$SELECTED_FOLDER" | /usr/bin/awk "/^[[:digit:]]+/" | while read ORDERED_FOLDER
 	do
 		TARGET="$SELECTED_FOLDER/$ORDERED_FOLDER"
 		ORIGINAL_TARGET="$TARGET"
