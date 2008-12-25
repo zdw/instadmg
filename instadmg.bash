@@ -19,8 +19,7 @@ PROGRAM=$( (basename $0) )
 
 # Set up some safety measures
 
-IFS=' 	
-'
+IFS=$'\n'
 
 unset -f unalias
 
@@ -347,14 +346,16 @@ rootcheck() {
 
 check_setup () {
 	# Check the language
-	LANGUAGE_CODE_IS_VALID_TEMPFILE=`/usr/bin/mktemp "$TEMP_LOCATION/instaDMGTemp.XXXXXX"`
-	/usr/sbin/installer -listiso | /usr/bin/tr "\t" "\n" | while read LANGUAGE_CODE
-	do
+	LANGUAGE_CODE_IS_VALID=false
+	
+	IFS=$'\n'
+	for LANGUAGE_CODE in $(/usr/sbin/installer -listiso | /usr/bin/tr "\t" "\n"); do
 		if [ "$ISO_CODE" == "$LANGUAGE_CODE" ]; then
-			/bin/echo "true" > "$LANGUAGE_CODE_IS_VALID_TEMPFILE"
+			LANGUAGE_CODE_IS_VALID=true
 		fi
 	done
-	if [ ! -s "$LANGUAGE_CODE_IS_VALID_TEMPFILE" ]; then
+	
+	if [ $LANGUAGE_CODE_IS_VALID == false ]; then
 		log "The ISO language code $ISO_CODE is not recognized by the Apple installer" error
 		exit 1
 	fi
@@ -363,7 +364,6 @@ check_setup () {
 	if [ "`/bin/echo $ASR_OUPUT_FILE_NAME | /usr/bin/awk 'tolower($1) ~ /.*\.dmg$/ { print "true" }'`" != "true" ]; then
 		ASR_OUPUT_FILE_NAME="$ASR_OUPUT_FILE_NAME.dmg"
 	fi
-	
 	
 	# make sure that the CONSOLE_LOG_LEVEL is one of the accepted values
 	if [ "$CONSOLE_LOG_LEVEL" != "0" ] && [ "$CONSOLE_LOG_LEVEL" != "1" ] && [ "$CONSOLE_LOG_LEVEL" != "2" ] && [ "$CONSOLE_LOG_LEVEL" != "3" ] && [ "$CONSOLE_LOG_LEVEL" != "4" ]; then
@@ -377,15 +377,13 @@ check_setup () {
 mount_os_install() {
 	log "Mounting Mac OS X installer image" section
 	
-	# to get around bash variable scope difficulties we will be stashing things in tempfiles
-	OS_INSTALL_LOCATION_TEMPFILE=`/usr/bin/mktemp "$TEMP_LOCATION/instaDMGTemp.XXXXXX"`
-	BASE_IMAGE_CACHING_ALLOWED_TEMPFILE=`/usr/bin/mktemp "$TEMP_LOCATION/instaDMGTemp.XXXXXX"`
-	BASE_IMAGE_CHECKSUM_TEMPFILE=`/usr/bin/mktemp "$TEMP_LOCATION/instaDMGTemp.XXXXXX"`
-	BASE_IMAGE_CACHE_FOUND_TEMPFILE=`/usr/bin/mktemp "$TEMP_LOCATION/instaDMGTemp.XXXXXX"`
-	BASE_IMAGE_FILE_TEMPFILE=`/usr/bin/mktemp "$TEMP_LOCATION/instaDMGTemp.XXXXXX"`
+	CURRENT_OS_INSTALL_MOUNT=''
+	BASE_IMAGE_CHECKSUM=''
+	BASE_IMAGE_CACHE_FOUND=false
+	BASE_IMAGE_FILE=''
 	
-	/usr/bin/find "$INSTALLER_FOLDER" -iname '*.dmg' | while read IMAGE_FILE
-	do
+	IFS=$'\n'
+	for IMAGE_FILE in $(/usr/bin/find "$INSTALLER_FOLDER" -iname '*.dmg'); do
 		# Look to see if this is the first installer disk
 		# TODO: look at the dmg (internally) to see if it looks like the installer rather than relying on the name
 		# TODO: somehow make sure that the base installer disk is first
@@ -433,14 +431,13 @@ mount_os_install() {
 					fi
 					
 					if [ ! -z "$BASE_IMAGE_CHECKSUM" ]; then # just in case the image is invalid or somehow does not have a checksum
-						/bin/echo "$BASE_IMAGE_CHECKSUM" > "$BASE_IMAGE_CHECKSUM_TEMPFILE"
 						
 						if [ -e "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" ]; then
 							# here we have found the appropriate image, we will mount it with a "shadow" file, and make changes into that.
 							# TODO: better error checking if the image is not mountable
 							# TODO: check to see if the disk is already mounted
 							
-							/bin/echo "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" > "$BASE_IMAGE_FILE_TEMPFILE"
+							BASE_IMAGE_FILE="$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg"
 							
 							# in this case our scratch file will be a shadow mounted dmg
 							
@@ -449,7 +446,7 @@ mount_os_install() {
 							/usr/bin/hdiutil mount "$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" -nobrowse -puppetstrings -mountpoint "$CURRENT_IMAGE_MOUNT" -shadow "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 							
 							# signal that this is a cached image
-							`/bin/echo "true" > "$BASE_IMAGE_CACHE_FOUND_TEMPFILE"`
+							BASE_IMAGE_CACHE_FOUND=true
 							
 							# we don't need to cycle over any other files, but we do need to close up things, and save our variables
 							break
@@ -466,9 +463,10 @@ mount_os_install() {
 			# mount the image
 			
 			# but first we have to make sure that it is not already mounted
-			/usr/bin/hdiutil info | while read HDIUTIL_LINE
-			do
-				if [ `/bin/echo "$HDIUTIL_LINE" | /usr/bin/grep -c '================================================'` -eq 1 ]; then
+			IFS=$'\n'
+			for HDIUTIL_LINE in $(/usr/bin/hdiutil info); do
+			
+				if [ "$HDIUTIL_LINE" == '================================================' ]; then
 					# this is the marker for a new section, so we need to clear things out
 					IMAGE_LOCATION=""
 					MOUNTED_IMAGES=""
@@ -486,7 +484,6 @@ mount_os_install() {
 				elif [ "$IMAGE_LOCATION" != "" ] && [ "`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk '/\/dev\/.+[[:space:]]+Apple_HFS[[:space:]]+\//'`" != "" ]; then
 					# find the mount point
 					CURRENT_OS_INSTALL_MOUNT=`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk 'sub("/dev/.+[[:space:]]+Apple_HFS[[:space:]]+", "")'`
-					`/bin/echo "$CURRENT_OS_INSTALL_MOUNT" > "$OS_INSTALL_LOCATION_TEMPFILE"` # to get around bash variable scope difficulties
 					# Here we are done!
 					log "The main OS Installer Disk was already mounted at: $CURRENT_OS_INSTALL_MOUNT" warning
 				fi
@@ -499,7 +496,6 @@ mount_os_install() {
 				CURRENT_OS_INSTALL_MOUNT=`/usr/bin/mktemp -d "$TEMP_LOCATION/instaDMGMount.XXXXXX"`
 				log "Mounting the main OS Installer Disk from: $IMAGE_FILE at: $CURRENT_OS_INSTALL_MOUNT" information
 				/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log $INPUT detail; done)
-				`/bin/echo "$CURRENT_OS_INSTALL_MOUNT" > "$OS_INSTALL_LOCATION_TEMPFILE"`
 				# TODO: check to see if there was a problem
 			fi
 	
@@ -512,30 +508,11 @@ mount_os_install() {
 		fi
 	done
 	
-	# handle the flags that we got left to handle bash variable scope difficulties
-	if [ -s "$BASE_IMAGE_CACHING_ALLOWED_TEMPFILE" ]; then
-		BASE_IMAGE_CACHING_ALLOWED=false
-	fi
-	if [ -s "$BASE_IMAGE_FILE_TEMPFILE" ]; then
-		BASE_IMAGE_FILE=`/bin/cat "$BASE_IMAGE_FILE_TEMPFILE"`
-	fi
-	if [ -s "$BASE_IMAGE_CACHE_FOUND_TEMPFILE" ]; then
-		BASE_IMAGE_CACHE_FOUND=true
-	fi
-	if [ -s "$BASE_IMAGE_CHECKSUM_TEMPFILE" ]; then
-		BASE_IMAGE_CHECKSUM=`/bin/cat "$BASE_IMAGE_CHECKSUM_TEMPFILE"`
-	fi
-	if [ -s "$OS_INSTALL_LOCATION_TEMPFILE" ]; then
-		CURRENT_OS_INSTALL_MOUNT=`/bin/cat "$OS_INSTALL_LOCATION_TEMPFILE"`
+	if [ -f "$CURRENT_OS_INSTALL_MOUNT" ]; then
 		CURRENT_OS_INSTALL_AUTOMOUNTED=true
 	fi
 	
 	# and clean up the tempfiles
-	/bin/rm "$OS_INSTALL_LOCATION_TEMPFILE"
-	/bin/rm "$BASE_IMAGE_CACHING_ALLOWED_TEMPFILE"
-	/bin/rm "$BASE_IMAGE_CHECKSUM_TEMPFILE"
-	/bin/rm "$BASE_IMAGE_CACHE_FOUND_TEMPFILE"
-	/bin/rm "$BASE_IMAGE_FILE_TEMPFILE"
 	
 	if [ ! -d "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages" ] && [ $BASE_IMAGE_CACHE_FOUND == false ]; then
 		log "ERROR: the main install disk was not sucessfully mounted!" 
@@ -664,8 +641,8 @@ install_packages_from_folder() {
 		exit 1;
 	fi
 	
-	/bin/ls -A1 "$SELECTED_FOLDER" | /usr/bin/awk "/^[[:digit:]]+/" | while read ORDERED_FOLDER
-	do
+	IFS=$'\n'
+	for ORDERED_FOLDER in $(/bin/ls -A1 "$SELECTED_FOLDER" | /usr/bin/awk "/^[[:digit:]]+$/"); do
 		TARGET="$SELECTED_FOLDER/$ORDERED_FOLDER"
 		ORIGINAL_TARGET="$TARGET"
 		DMG_PATH=""
@@ -701,9 +678,9 @@ install_packages_from_folder() {
 				fi
 			fi
 		fi
-				
-		/usr/bin/find -L "$TARGET" -maxdepth 1 -iname '*pkg' | /usr/bin/awk 'tolower() ~ /\.(m)?pkg/ && !/\/\._/' | while read UPDATE_PKG
-		do
+		
+		IFS=$'\n'	
+		for UPDATE_PKG in $(/usr/bin/find -L "$TARGET" -maxdepth 1 -iname '*pkg' | /usr/bin/awk 'tolower() ~ /\.(m)?pkg/ && !/\/\._/'); do
 			if [ -e "$TARGET/InstallerChoices.xml" ]; then
 				CHOICES_FILE="InstallerChoices.xml"
 				# TODO: better handle multiple pkg's and InstallerChoice files named for the file they should handle
@@ -756,8 +733,8 @@ clean_up_image() {
 	
 	# find all the symlinks that are pointing to $CURRENT_IMAGE_MOUNT, and make them point at the "root"
 	log "Correcting symlinks that point off the disk" information
-	/usr/bin/find -x "$CURRENT_IMAGE_MOUNT" -type l | while read THIS_LINK
-	do
+	IFS=$'\n'
+	for THIS_LINK in $(/usr/bin/find -x -f "$CURRENT_IMAGE_MOUNT" -type l); do
 		if [ `/usr/bin/readlink "$THIS_LINK" | /usr/bin/grep -c "$CURRENT_IMAGE_MOUNT"` -gt 0 ]; then
 		
 			log "Correcting soft-link: $THIS_LINK" detail
@@ -887,10 +864,11 @@ do
 	esac
 done
 
-startup
 check_setup
 
 rootcheck
+
+startup
 
 log "InstaDMG build initiated" section
 
