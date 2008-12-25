@@ -109,22 +109,22 @@ startup() {
 	# this is a function so that some of the variables can be overriden by command-line flags
 	
 	# sanitise the folder paths to make sure that they don't end in /
-	if [ "`/bin/echo $INSTALLER_FOLDER | /usr/bin/awk 'tolower() ~ /\/$/ { print 1 }'`" == "1" ] && [ "$INSTALLER_FOLDER" != "/" ]; then
+	if [ "`/bin/echo $INSTALLER_FOLDER | /usr/bin/awk '/\/$/ { print 1 }'`" == "1" ] && [ "$INSTALLER_FOLDER" != "/" ]; then
 		INSTALLER_FOLDER=`/bin/echo $INSTALLER_FOLDER | /usr/bin/awk 'sub("/$", "")'`
 	fi
-	if [ "`/bin/echo $CUSTOM_FOLDER | /usr/bin/awk 'tolower() ~ /\/$/ { print 1 }'`" == "1" ] && [ "$CUSTOM_FOLDER" != "/" ]; then
+	if [ "`/bin/echo $CUSTOM_FOLDER | /usr/bin/awk '/\/$/ { print 1 }'`" == "1" ] && [ "$CUSTOM_FOLDER" != "/" ]; then
 		CUSTOM_FOLDER=`/bin/echo $CUSTOM_FOLDER | /usr/bin/awk 'sub("/$", "")'`
 	fi	
-	if [ "`/bin/echo $LOG_FOLDER | /usr/bin/awk 'tolower() ~ /\/$/ { print 1 }'`" == "1" ] && [ "$LOG_FOLDER" != "/" ]; then
+	if [ "`/bin/echo $LOG_FOLDER | /usr/bin/awk '/\/$/ { print 1 }'`" == "1" ] && [ "$LOG_FOLDER" != "/" ]; then
 		LOG_FOLDER=`/bin/echo $LOG_FOLDER | /usr/bin/awk 'sub("/$", "")'`
 	fi
-	if [ "`/bin/echo $ASR_FOLDER | /usr/bin/awk 'tolower() ~ /\/$/ { print 1 }'`" == "1" ] && [ "$ASR_FOLDER" != "/" ]; then
+	if [ "`/bin/echo $ASR_FOLDER | /usr/bin/awk '/\/$/ { print 1 }'`" == "1" ] && [ "$ASR_FOLDER" != "/" ]; then
 		ASR_FOLDER=`/bin/echo $ASR_FOLDER | /usr/bin/awk 'sub("/$", "")'`
 	fi
-	if [ "`/bin/echo $TEMP_LOCATION | /usr/bin/awk 'tolower() ~ /\/$/ { print 1 }'`" == "1" ] && [ "$TEMP_LOCATION" != "/" ]; then
+	if [ "`/bin/echo $TEMP_LOCATION | /usr/bin/awk '/\/$/ { print 1 }'`" == "1" ] && [ "$TEMP_LOCATION" != "/" ]; then
 		TEMP_LOCATION=`/bin/echo $TEMP_LOCATION | /usr/bin/awk 'sub("/$", "")'`
 	fi
-		if [ "`/bin/echo $UPDATE_FOLDER | /usr/bin/awk 'tolower() ~ /\/$/ { print 1 }'`" == "1" ] && [ "$UPDATE_FOLDER" != "/" ]; then
+		if [ "`/bin/echo $UPDATE_FOLDER | /usr/bin/awk '/\/$/ { print 1 }'`" == "1" ] && [ "$UPDATE_FOLDER" != "/" ]; then
 		UPDATE_FOLDER=`/bin/echo $UPDATE_FOLDER | /usr/bin/awk 'sub("/$", "")'`
 	fi
 	
