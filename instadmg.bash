@@ -108,29 +108,16 @@ export CM_BUILD=CM_BUILD
 startup() {
 	# this is a function so that some of the variables can be overriden by command-line flags
 	
-	# sanitise the folder paths to make sure that they don't end in /
-	if [ "`/bin/echo $INSTALLER_FOLDER | /usr/bin/awk '/\/$/ { print 1 }'`" == "1" ] && [ "$INSTALLER_FOLDER" != "/" ]; then
-		INSTALLER_FOLDER=`/bin/echo $INSTALLER_FOLDER | /usr/bin/awk 'sub("/$", "")'`
-	fi
-	if [ "`/bin/echo $CUSTOM_FOLDER | /usr/bin/awk '/\/$/ { print 1 }'`" == "1" ] && [ "$CUSTOM_FOLDER" != "/" ]; then
-		CUSTOM_FOLDER=`/bin/echo $CUSTOM_FOLDER | /usr/bin/awk 'sub("/$", "")'`
-	fi	
-	if [ "`/bin/echo $LOG_FOLDER | /usr/bin/awk '/\/$/ { print 1 }'`" == "1" ] && [ "$LOG_FOLDER" != "/" ]; then
-		LOG_FOLDER=`/bin/echo $LOG_FOLDER | /usr/bin/awk 'sub("/$", "")'`
-	fi
-	if [ "`/bin/echo $ASR_FOLDER | /usr/bin/awk '/\/$/ { print 1 }'`" == "1" ] && [ "$ASR_FOLDER" != "/" ]; then
-		ASR_FOLDER=`/bin/echo $ASR_FOLDER | /usr/bin/awk 'sub("/$", "")'`
-	fi
-	if [ "`/bin/echo $TEMP_LOCATION | /usr/bin/awk '/\/$/ { print 1 }'`" == "1" ] && [ "$TEMP_LOCATION" != "/" ]; then
-		TEMP_LOCATION=`/bin/echo $TEMP_LOCATION | /usr/bin/awk 'sub("/$", "")'`
-	fi
-		if [ "`/bin/echo $UPDATE_FOLDER | /usr/bin/awk '/\/$/ { print 1 }'`" == "1" ] && [ "$UPDATE_FOLDER" != "/" ]; then
-		UPDATE_FOLDER=`/bin/echo $UPDATE_FOLDER | /usr/bin/awk 'sub("/$", "")'`
-	fi
-	
-	# check that all the things that should be folders are folders
-	for thisFolder in "$INSTALLER_FOLDER" "$CUSTOM_FOLDER" "$LOG_FOLDER" "$ASR_FOLDER" "$TEMP_LOCATION" "$UPDATE_FOLDER"; do
-		if [ ! -d "$thisFolder" ]; then
+	$IFS=' '
+	FOLDER_LIST="INSTALLER_FOLDER CUSTOM_FOLDER LOG_FOLDER ASR_FOLDER TEMP_LOCATION UPDATE_FOLDER"
+	for FOLDER_ITEM in $FOLDER_LIST; do
+		# sanitise the folder paths to make sure that they don't end in /
+		if [ ${!FOLDER_ITEM: -1} == '/' ] && [ "${!FOLDER_ITEM}" != '/' ]; then
+			THE_STR="${!FOLDER_ITEM}"
+			eval $FOLDER_ITEM='${THE_STR: 0: $((${#THE_STR} - 1)) }'
+		fi
+		# check that all the things that should be folders are folders
+		if [ ! -d "${!FOLDER_ITEM}" ]; then
 			log "A required folder is missing or was not a folder: $thisFolder" error
 			exit 1
 		fi
