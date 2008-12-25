@@ -734,7 +734,7 @@ clean_up_image() {
 	# find all the symlinks that are pointing to $CURRENT_IMAGE_MOUNT, and make them point at the "root"
 	log "Correcting symlinks that point off the disk" information
 	IFS=$'\n'
-	for THIS_LINK in $(/usr/bin/find -x -f "$CURRENT_IMAGE_MOUNT" -type l); do
+	for THIS_LINK in $(/usr/bin/find -x "$CURRENT_IMAGE_MOUNT" -type l); do
 		if [ `/usr/bin/readlink "$THIS_LINK" | /usr/bin/grep -c "$CURRENT_IMAGE_MOUNT"` -gt 0 ]; then
 		
 			log "Correcting soft-link: $THIS_LINK" detail
