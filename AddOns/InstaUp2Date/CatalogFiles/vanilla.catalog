@@ -38,26 +38,27 @@ Base OS Disk:
 	# this is not yet implimented
 
 OS Updates:
-	MacOSX 10.5.5 Combo Update	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21155&cat=59&platform=osx&method=sa/MacOSXUpdCombo10.5.5.dmg	sha1:91ac9b720ba3b4166e5dc1dd518b1651d77c0f46
-	Security Update 2008-005 (Leopard)	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=20388&cat=57&platform=osx&method=sa/SecUpd2008-005.dmg	sha1:9c4fd4ee59965819427445f6de172c42b223e6e1
+	MacOSXUpdCombo10.5.6	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5539.20081211.Aswe3/MacOSXUpdCombo10.5.6.dmg	sha1:09de4ac2c5591ab75d51ef37dc70f9e5630150d4
 
 	QuickTime 7.5.5 Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-4709.20080909.AqspI/QuickTime755_Leopard.dmg	sha1:934f784a553c2d4484d298071ad6d95ea34b8b2f
+	QuickTime 7.5.5 H.264 Compatibility Update	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5786.20081117.plUt5/CompatibilityUpdateQT755.dmg	sha1:8e54cdadbb19f331d95a82acac94351bf731329c
 	AirPort Utility 5.3.2 for Leopard	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4614.20080611.vbh98/AirPortUtility_Leopard.dmg	sha1:f5105d0c5353a2838d191e04454e77280c0a8c81
 	HewlettPackardPrinterDrivers	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21133&cat=59&platform=osx&method=sa/HewlettPackardPrinterDrivers.dmg	sha1:f22422db0e7228fd83a4ed9368bc5ce99111537f
-	Remote Desktop Client 3.2.2	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21193&cat=59&platform=osx&method=sa/RemoteDesktopClient.dmg	sha1:b1a81f17724d9b2f7b6dbffed56bc9a0463d1d7e
+#	Remote Desktop Client 3.2.2	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21193&cat=59&platform=osx&method=sa/RemoteDesktopClient.dmg	sha1:b1a81f17724d9b2f7b6dbffed56bc9a0463d1d7e
 	JavaForMacOSX10.5Update2	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21277&cat=1&platform=osx&method=sa/JavaForMacOSX10.5Update2.dmg	sha1:5b2a8de347fe68d0638bcf0ede8a71ba35adbab9
 
-	SecUpd2008-007	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21597&cat=1&platform=osx&method=sa/SecUpd2008-007.dmg	sha1:2e2489a223d13e9d7b9928735b6693ab0cbe6e00
-
 	AirPortExtremeUp2008-004	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21721&cat=1&platform=osx&method=sa/AirPortExtremeUp2008004.dmg	sha1:3519b7f8771ec2ede3be5b0da4b439de3ec35ba1
-	Migration DVD CD Sharing Update	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21647&cat=1&platform=osx&method=sa/MigrationDVDCDSharingUp.dmg	sha1:f7e4ae2fc548a99440cb59a5dc06a9737abbcde0
+#	Migration DVD CD Sharing Update	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21647&cat=1&platform=osx&method=sa/MigrationDVDCDSharingUp.dmg	sha1:f7e4ae2fc548a99440cb59a5dc06a9737abbcde0
 
 Apple Updates:
-	iTunes 8.0.1	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes8/061-5553.20081002.kjy65/iTunes801.dmg	sha1:722f5603bd12808d895cf822f3c4267febc56b74
+
 	iLife Support 8.3	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=20215&cat=59&platform=osx&method=sa/iLifeSupport.dmg	sha1:f1fd3a28135a0b0a576c5d4e32161e2a537895d4
 	FrontRow Update 2.1.6	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21075&cat=1&platform=osx&method=sa/FrontRowUpdate2.1.6.dmg	sha1:d9fc3c4bed2addb7397c201b2b86311673b3e1cc
 	AppleProResQuickTimeDecoder	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=20846&cat=59&platform=osx&method=sa/AppleProResQuickTimeDecoder.dmg	sha1:32213a8cbff83a6b583ed0ac8cfdb81e439438b8
 	RAWCameraUpdate	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21995&cat=59&platform=osx&method=sa/RAWCameraUpdate.dmg	sha1:eff080f0fe873f613db4fa5c05fd6ee85fe07084
+	Safari 3.2.1 (Leopard)	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/Safari3/061-5805.20881124.ShIPH/Safari321Leopard.dmg	sha1:394162bfa555dd82a0b52adf35ecfde693b69b78
+	iTunes 8.0.2	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes8/061-5810.20081120.wm3n4/iTunes802.dmg	sha1:ad1d027ec850af8c70a3af39eb3c47e1192067df
+	MailUpdate10.5.6	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5876.20081222.pltre/MailUpdate10.5.6.dmg	sha1:664e709eda26d26b721b647a447a003861e30c0d
 
 System Settings:
 
