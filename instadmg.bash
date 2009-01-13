@@ -108,7 +108,7 @@ export CM_BUILD=CM_BUILD
 startup() {
 	# this is a function so that some of the variables can be overriden by command-line flags
 	
-	$IFS=' '
+	IFS=' '
 	FOLDER_LIST="INSTALLER_FOLDER CUSTOM_FOLDER LOG_FOLDER ASR_FOLDER TEMP_LOCATION UPDATE_FOLDER"
 	for FOLDER_ITEM in $FOLDER_LIST; do
 		# sanitise the folder paths to make sure that they don't end in /
