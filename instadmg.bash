@@ -747,7 +747,7 @@ clean_up_image() {
 	/bin/rm -vRf "$CURRENT_IMAGE_MOUNT/Library/Caches/*" | (while read INPUT; do log "$INPUT " detail; done)
 	
 	# Make sure that /tmp is empty
-	/bin/rm -vRf  "$CURRENT_IMAGE_MOUNT/private/var/tmp" | (while read INPUT; do log "$INPUT " detail; done)
+	/bin/rm -vRf "$CURRENT_IMAGE_MOUNT/private/var/tmp/*" | (while read INPUT; do log "$INPUT " detail; done)
 	
 }
 
