@@ -9,7 +9,8 @@
 # Latest news, releases, and user forums @ http://www.afp548.com
 #
 
-VERSION="1.4b4 (svn revision: $Revision$)"
+SVN_REVISION=`/bin/echo '$Revision$' | /usr/bin/awk '{ print $2 }'`
+VERSION="1.4b4 (svn revision: $SVN_REVISION)"
 PROGRAM=$( (basename $0) )
 
 #
