@@ -18,7 +18,7 @@ from datetime import date
 #------------------------------SETTINGS------------------------------
 
 svnRevision					= int('$Revision$'.split(" ")[1])
-versionString				= "0.4b (svn revision:%i)" % svnRevision
+versionString				= "0.4b (svn revision: %i)" % svnRevision
 
 relativePathToInstaDMG		= "../../" # the relative path between InstaUp2date and InstaDMG
 relativePathFromInstaDMG	= "AddOns/InstaUp2Date/"
