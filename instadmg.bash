@@ -9,8 +9,7 @@
 # Latest news, releases, and user forums @ http://www.afp548.com
 #
 
-# Version 1.4b4
-VERSION="1.4b4"
+VERSION="1.4b4 (svn revision: $Revision$)"
 PROGRAM=$( (basename $0) )
 
 #

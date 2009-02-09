@@ -1,18 +1,19 @@
 # this catalog file will produce a instaDMG setup to generate a up-to-date 10.5.2 image with XCode 3 included.
 #	Because XCode is not redily avalible you must download it yourself.
 
-include-file:	vanilla.catalog
-
 Base OS Disk:
 	# the first one should be disk 1 of an installer disk
 	# this is not yet implimented
 
 OS Updates:
-	XCode 3	xcode31_2199_developerdvd.dmg	sha1:e90f21f262dec5f1dae983e8fb53a613f2cc72b0
+	XCode 3.1.1 2517	xcode311_2517_developerdvd.dmg	sha1:27f436c179cd9ff1d263e6507a0f5aeb3cf4e3ac
 Apple Updates:
 
 System Settings:
 
 Third Party Software:
+	StanfordEclipse	StanfordEclipse.mpkg	sha1:f9a3a8b0b417307b7fbb2b3e1a4bae1aefe2b79a
+	CS106LibrariesForXcode	CS106LibrariesForXcode.pkg	sha1:41f61f22db39ec7218e925bcda2ae4de862fd284
+	Python IDLE Repackage	Python IDLE Repackage.mpkg	sha1:5d7757e8bb5fdbbcef7f833cfa218301d23f3a89
 
 Software Settings:

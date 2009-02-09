@@ -17,7 +17,7 @@ from datetime import date
 
 #------------------------------SETTINGS------------------------------
 
-versionString = "0.4b"
+versionString = "0.4b (svn revision: $Revision$)"
 
 relativePathToInstaDMG		= "../../" # the relative path between InstaUp2date and InstaDMG
 relativePathFromInstaDMG	= "AddOns/InstaUp2Date/"
@@ -197,7 +197,7 @@ class instaUpToDate:
 				continue
 			
 			includeLineMatch = self.includeLineParser.search(line)
-			if includeLineMatch:			
+			if includeLineMatch:
 				self.parseFile( includeLineMatch.group("location") )
 				continue
 			
