@@ -43,22 +43,28 @@ OS Updates:
 	QuickTime 7.6 Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-5375.20090121.CCE8B/QuickTime76_Leopard.dmg	sha1:2b09c606ad381642d3ba34a32aaa6b50c7fc7ce7
 
 	AirPort Utility 5.3.2 for Leopard	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4614.20080611.vbh98/AirPortUtility_Leopard.dmg	sha1:f5105d0c5353a2838d191e04454e77280c0a8c81
-	HewlettPackardPrinterDrivers	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21133&cat=59&platform=osx&method=sa/HewlettPackardPrinterDrivers.dmg	sha1:f22422db0e7228fd83a4ed9368bc5ce99111537f
-	JavaForMacOSX10.5Update2	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21277&cat=1&platform=osx&method=sa/JavaForMacOSX10.5Update2.dmg	sha1:5b2a8de347fe68d0638bcf0ede8a71ba35adbab9
 
-	AirPort Extreme Update 2008-004	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21721&cat=1&platform=osx&method=sa/AirPortExtremeUp2008004.dmg	sha1:3519b7f8771ec2ede3be5b0da4b439de3ec35ba1
-#	Migration DVD CD Sharing Update	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21647&cat=1&platform=osx&method=sa/MigrationDVDCDSharingUp.dmg	sha1:f7e4ae2fc548a99440cb59a5dc06a9737abbcde0
+	Java For MacOSX 10.5 Update 2	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4651.20080919.9d67c/JavaForMacOSX10.5Update2.dmg	sha1:5b2a8de347fe68d0638bcf0ede8a71ba35adbab9
+	Java For MacOSX 10.5 Update 3	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5852.20090212.Ccder/JavaForMacOSX10.5Update3.dmg	sha1:c4b2a1ed7a6629a0dee6498758c69d5b473ed6dc
+
+	AirPort Extreme Update 2008-004	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5739.20081029.Arpt4/AirPortExtremeUp2008004.dmg	sha1:3519b7f8771ec2ede3be5b0da4b439de3ec35ba1
+	
+	Security Update 2009-001	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5880.20090211.Xer9i/SecUpd2009-001.dmg	sha1:08d8e962e2687f01b3cdc4cb386ef4e44992a1e0
+
+	AirPort Utility	http://support.apple.com/downloads/DL793/AirPortUtility.dmg	sha1:9fc0f343103111fefc192f512e2f95d1c06c0774
+	AirPort Client Update 2009-001	http://support.apple.com/downloads/DL792/AirPortClientUpdate2009001.dmg	sha1:168065c8bf2e6530a3053899ac7a6a210e9397d7
 
 Apple Updates:
 
-	iLife Support 8.3	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=20215&cat=59&platform=osx&method=sa/iLifeSupport.dmg	sha1:f1fd3a28135a0b0a576c5d4e32161e2a537895d4
-	FrontRow Update 2.1.6	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=21075&cat=1&platform=osx&method=sa/FrontRowUpdate2.1.6.dmg	sha1:d9fc3c4bed2addb7397c201b2b86311673b3e1cc
-	Apple ProRes QuickTime Decoder	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=20846&cat=59&platform=osx&method=sa/AppleProResQuickTimeDecoder.dmg	sha1:32213a8cbff83a6b583ed0ac8cfdb81e439438b8
-	RAW Camera Update 2.4	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5780.20081218.gt56y/RAWCameraUpdate.dmg	sha1:3bed9370bad126498c2b9696b9572929af83395c
+	iLife Support 8.3	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4725.20080722.vf12Q/iLifeSupport.dmg	sha1:f1fd3a28135a0b0a576c5d4e32161e2a537895d4
+	FrontRow Update 2.1.6	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5571.20081014.QsWE6/FrontRowUpdate2.1.6.dmg	sha1:e4a27e98087bbf89343cb62e7142e2c570343ec4
+	Apple ProRes QuickTime Decoder 1.0	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4678.20080826.vg9ol/AppleProResQuickTimeDecoder.dmg	sha1:32213a8cbff83a6b583ed0ac8cfdb81e439438b8
+	RAW Camera Update	http://support.apple.com/downloads/DL789/RAWCameraUpdate.dmg	sha1:d16be5b1521ec2974811232876e641b490e01cd5
 	Safari 3.2.1 (Leopard)	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/Safari3/061-5805.20881124.ShIPH/Safari321Leopard.dmg	sha1:394162bfa555dd82a0b52adf35ecfde693b69b78
 	iTunes 8.0.2	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes8/061-5810.20081120.wm3n4/iTunes802.dmg	sha1:ad1d027ec850af8c70a3af39eb3c47e1192067df
 	Mail Update 10.5.6	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5876.20081222.pltre/MailUpdate10.5.6.dmg	sha1:664e709eda26d26b721b647a447a003861e30c0d
 	iLife Media Browser v2	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5770.20090126.FFder/iLifeMediaBrowser_v2.dmg	sha1:fc169e98174a70c841b5ccf0ed9607975337aa1d
+	iLife Support 9.0.1	http://support.apple.com/downloads/DL791/iLifeSupport9.dmg	sha1:1b0f38da1281f7bf0c801eb11c8acf4555e85e13
 
 System Settings:
 
