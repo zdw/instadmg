@@ -2,8 +2,7 @@
 # <tab> Package Name <tab> Archive Source Location <tab> Archive Checksum <tab> Package Name </tab> Package Checksum
 # The <<Package Name>> is a user-facing string, and is not used internally, it can be empty
 # The <<Archive Source Location>> can be one of the following:
-#		name of a .pkg file in the autoUpdateCache folder or one of the InstaDMG numbered folders
-#			in this case no <<Package Name>> or <<Package Checksum>> is necessary
+#		name of a .pkg file in the InstaUp2DatePackages folder in InstallerFiles
 #		http: reference to be downloaded (a flat-file .pkg, a .dmg or a .zip of a folder)
 #
 # Downloaded Files that are .dmg or .zip files are automatically opened, and the specified .pkg is extraced from them
