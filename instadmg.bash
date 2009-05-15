@@ -89,7 +89,8 @@ ASR_TARGET_VOLUME=/Volumes/foo
 
 # Make sure that we are opterating out of the correct directory
 cd "`/usr/bin/dirname "$0"`" # note we are using the shell builtin
-#WORKING_DIR=`pwd`
+
+USE_CHROOT=true
 
 # Handler calls are at the end of the script. Other than that you should not need to modify anything below this line.
 
@@ -172,6 +173,7 @@ Options:
 	-n <name>		The volume name to use for the output file. ($ASR_FILESYSTEM_NAME)
 	-o <folder path>	Set the folder to use as the output folder ($ASR_FOLDER)
 	-q			Quiet: print only errors to the console
+	-r			Disable using chroot for package installs
 	-s			Enable MacOS X Server installs (not implimented)
 	-t <folder path>	Set the folder to use as the output folder ($TEMP_LOCATION)
 	-u <folder path>	Use this folder as the BaseUpdates folder ($UPDATE_FOLDER)
@@ -617,6 +619,16 @@ install_system() {
 	fi
 }
 
+# make any adjustments that need to be made before installing packages
+prepare_image() {
+	if [ $USE_CHROOT == true ]; then
+		# create a folder inside the chroot with the same path as the mount point pointing at root to fix some installer bugs
+		/bin/mkdir -p "${CURRENT_IMAGE_MOUNT}${CURRENT_IMAGE_MOUNT}"
+		/bin/rmdir "${CURRENT_IMAGE_MOUNT}${CURRENT_IMAGE_MOUNT}"
+		/bin/ln -s / "${CURRENT_IMAGE_MOUNT}${CURRENT_IMAGE_MOUNT}"
+	fi
+}
+
 # install packages from a folder of folders (01, 02, 03...etc)
 install_packages_from_folder() {
 	SELECTED_FOLDER="$1"
@@ -689,11 +701,40 @@ install_packages_from_folder() {
 			fi
 			
 			if [ "$CHOICES_FILE" != "" ]; then
-				log "Installing $TARGET_FILE_NAME from ${CONTAINER_PATH}${INSTALLER_NUMBER_TEXT} with XML Choices file: $CHOICES_FILE" information
-				/usr/sbin/installer -verbose -applyChoiceChangesXML "$TARGET/$CHOICES_FILE" -pkg "$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+				if [ $USE_CHROOT == true ]; then
+					log "Installing $TARGET_FILE_NAME from ${CONTAINER_PATH}${INSTALLER_NUMBER_TEXT} with XML Choices file: $CHOICES_FILE using a chroot environment" information
+					
+					# copy the installer and the choices files into the image
+					INSTALLER_NAME=`/usr/bin/basename "$UPDATE_PKG"`
+					/bin/cp -RH "$UPDATE_PKG" "$CURRENT_IMAGE_MOUNT/private/tmp/"
+					/bin/cp -RH "$TARGET" "$CURRENT_IMAGE_MOUNT/private/tmp/"
+					
+					# note: the path to the update package needs to be absolute, not chroot relative, whiel the target needs to be chroot relative
+					/usr/sbin/chroot "$CURRENT_IMAGE_MOUNT" /usr/sbin/installer -verbose -applyChoiceChangesXML "/private/tmp/$CHOICES_FILE" -pkg "/private/tmp/$INSTALLER_NAME" -target / | (while read INPUT; do log "$INPUT " detail; done)
+					
+					# remove the installer from the image
+					/bin/rm -R "$CURRENT_IMAGE_MOUNT/private/tmp/$INSTALLER_NAME"
+					/bin/rm -R "$CURRENT_IMAGE_MOUNT/private/tmp/$INSTALLER_NAME"
+				else
+					log "Installing $TARGET_FILE_NAME from ${CONTAINER_PATH}${INSTALLER_NUMBER_TEXT} with XML Choices file: $CHOICES_FILE" information
+					/usr/sbin/installer -verbose -applyChoiceChangesXML "$TARGET/$CHOICES_FILE" -pkg "$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+				fi
 			else
-				log "Installing $TARGET_FILE_NAME from ${CONTAINER_PATH}${INSTALLER_NUMBER_TEXT}" information
-				/usr/sbin/installer -verbose -pkg "$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+				if [ $USE_CHROOT == true ]; then
+					log "Installing $TARGET_FILE_NAME from ${CONTAINER_PATH}${INSTALLER_NUMBER_TEXT} using a chroot environment" information
+					
+					# copy the installer into the image
+					INSTALLER_NAME=`/usr/bin/basename "$UPDATE_PKG"`
+					/bin/cp -RH "$UPDATE_PKG" "$CURRENT_IMAGE_MOUNT/private/tmp/"
+					
+					/usr/sbin/chroot "$CURRENT_IMAGE_MOUNT" /usr/sbin/installer -verbose -pkg "/private/tmp/$INSTALLER_NAME" -target / | (while read INPUT; do log "$INPUT " detail; done)
+					
+					# remove the installer from the image
+					/bin/rm -R "$CURRENT_IMAGE_MOUNT/private/tmp/$INSTALLER_NAME"
+				else
+					log "Installing $TARGET_FILE_NAME from ${CONTAINER_PATH}${INSTALLER_NUMBER_TEXT}" information
+					/usr/sbin/installer -verbose -pkg "$UPDATE_PKG" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+				fi
 			fi
 		done
 		
@@ -832,7 +873,7 @@ reboot() {
 
 # Call the handlers as needed to make it all happen.
 
-while getopts "b:c:d:hi:l:m:n:o:qst:u:vz" opt
+while getopts "b:c:d:hi:l:m:n:o:qrst:u:vz" opt
 do
 	case $opt in
 		b ) INSTALLER_FOLDER="$OPTARG";;
@@ -845,6 +886,7 @@ do
 		n ) ASR_FILESYSTEM_NAME="$OPTARG";;
 		o ) ASR_FOLDER="$OPTARG";;
 		q ) CONSOLE_LOG_LEVEL=0;;
+		r ) USE_CHROOT=true;;
 		s ) SERVER_INSTALL=true;;
 		t ) TEMP_LOCATION="$OPTARG";;
 		u ) UPDATE_FOLDER="$OPTARG";;
@@ -865,6 +907,8 @@ log "InstaDMG build initiated" section
 mount_os_install
 create_and_mount_image
 install_system
+
+prepare_image
 
 install_packages_from_folder "$UPDATE_FOLDER"
 install_packages_from_folder "$CUSTOM_FOLDER"
