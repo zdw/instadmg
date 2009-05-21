@@ -58,15 +58,16 @@ DMG_MOUNT_LOCATION="/private/tmp"				# DMGs will be mounted at a location inside
 
 # Default Names
 DMG_BASE_NAME=`/usr/bin/uuidgen`				# Name of the intermediary image
-MOUNT_FOLDER_TEMPLATE="${PROGRAM}_mount_folder.XXXXXX"
-MOUNT_POINT_TEMPLATE="${PROGRAM}_mount_point.XXXXXX"
-SOURCE_FOLDER_TEMPLATE="${PROGRAM}_package.XXXXXX"
+
+MOUNT_FOLDER_TEMPLATE="mount_folder.XXXXXX"
+MOUNT_POINT_TEMPLATE="mount_point.XXXXXX"
+SOURCE_FOLDER_TEMPLATE="package.XXXXXX"
+
 ASR_OUPUT_FILE_NAME="${CREATE_DATE}.dmg"		# Name of the final image file
 ASR_FILESYSTEM_NAME="InstaDMG"					# Name of the filesystem in the final image
 
 # Names allowed for the primary installer disk
 ALLOWED_INSTALLER_DISK_NAMES=("Mac OS X Install Disc 1.dmg" "Mac OS X Install DVD.dmg")
-
 
 # Default log names. The PKG log is a more consise history of what was installed.
 DATE_STRING=`/bin/date +%y.%m.%d-%H.%M`
@@ -74,16 +75,15 @@ LOG_FILE="${LOG_FOLDER}/${DATE_STRING}.debug.log"		# The debug log
 PKG_LOG="${LOG_FOLDER}/${DATE_STRING}.package.log"		# List of packages installed
 
 
-#<!-------------------- Working Variable ------------------->
+#<!-------------------- Working Variables ------------------>
 HOST_MOUNT_FOLDER=''					# Enclosing folder for the base image mount point, and othes if not using chroot
 TARGET_TEMP_FOLDER=''					# If using chroot packages will be copied into temp folders in here before install
 
-BASE_IMAGE_FILE=''						# Location of the installer dmg
-BASE_IMAGE_CHECKSUM=''					# Checksum reported by diskutil for the OS Instal disk image
-BASE_IMAGE_CACHE_FOUND=false
+TARGET_IMAGE_MOUNT=''					# Where the target is mounted
+TARGET_IMAGE_FILE=''					# Location of the base image dmg if using cached images, the whole image dmg otherwise
+TARGET_IMAGE_CHECKSUM=''				# Checksum reported by diskutil for the OS Instal disk image
 
-CURRENT_IMAGE_MOUNT=''					# Where the (read-only) target is mounted
-SCRATCH_FILE_LOCATION=''				# Location of the scratch file that is grafted onto the CURRENT_IMAGE_MOUNT
+SHADOW_FILE_LOCATION=''					# Location of the shadow file that is grafted onto the TARGET_IMAGE_MOUNT
 
 CURRENT_OS_INSTALL_FILE=''				# Location of the primary installer disk
 CURRENT_OS_INSTALL_MOUNT=''				# Mounted location of the primary installer disk
@@ -277,6 +277,33 @@ EOF
 	fi
 }
 
+unmount_dmg() {
+	if [ -z "$1" ]; then
+		log "Internal error: tried to eject an image without a path" error
+		exit 1
+	fi
+	if [ ! -d "$1" ]; then
+		log "Internal error: tried to eject and image from $1 but that path is not a directory" error
+		exit 1
+	fi
+	if [ -z "$2" ]; then
+		log "Internal error: the unmount_dmg function requires the second parameter as a name" error
+		exit 1
+	fi
+	
+	/usr/bin/hdiutil eject "$1" | (while read INPUT; do log "$INPUT " detail; done)
+	if [ ${?} -ne 0 ]; then
+		# for some reason it did not un-mount, so we will try again with more force
+		log "The image did not eject cleanly, so I will force it" information
+		/usr/bin/hdiutil eject -force "$1" | (while read INPUT; do log "$INPUT " detail; done)
+		if [ ${?} -ne 0 ]; then
+			log "Failed to unmount the $2 image from $1, unable to continue" error
+			exit 1
+		fi
+	fi
+	log "Unmounted the $2 image from $1" information
+}
+
 #<!------------------------ Phases ------------------------->
 
 check_setup () {
@@ -332,15 +359,8 @@ startup() {
 	
 	# Create folder to enclose host mount points
 	HOST_MOUNT_FOLDER=`/usr/bin/mktemp -d "$DMG_MOUNT_LOCATION/$MOUNT_FOLDER_TEMPLATE"`
+	/bin/chmod go+x "$HOST_MOUNT_FOLDER" # allow the installer user thourgh
 	log "Host mount folder: $HOST_MOUNT_FOLDER" detail
-	
-	# Create mount point for the (read-only) target
-	CURRENT_IMAGE_MOUNT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
-	log "Current image mount point: $CURRENT_IMAGE_MOUNT" detail
-	
-	# Decide the location for the shadow file to be attached to the target dmg
-	SCRATCH_FILE_LOCATION="$HOST_MOUNT_FOLDER/`/usr/bin/uuidgen`.dmg"
-	log "Shadow file location: $SCRATCH_FILE_LOCATION" detail
 	
 	# Get the MacOS X version information.
 	OS_REV_MAJOR=`/usr/bin/sw_vers -productVersion | awk -F "." '{ print $2 }'`
@@ -380,12 +400,12 @@ mount_cached_image() {
 	# figure out the name the filesystem should have
 	
 	# compatibility for old-style checksums (using colons)
-	OLD_STYLE_BASE_IMAGE_CHECKSUM=''	# using colons
+	OLD_STYLE_TARGET_IMAGE_CHECKSUM=''	# using colons
 	
-	BASE_IMAGE_CHECKSUM=`/usr/bin/hdiutil imageinfo "$CURRENT_OS_INSTALL_FILE" | /usr/bin/awk '/^Checksum Value:/ { print $3 }' | /usr/bin/sed 's/\\$//'`
+	TARGET_IMAGE_CHECKSUM=`/usr/bin/hdiutil imageinfo "$CURRENT_OS_INSTALL_FILE" | /usr/bin/awk '/^Checksum Value:/ { print $3 }' | /usr/bin/sed 's/\\$//'`
 	
 	# sanity check
-	if [ -z "$BASE_IMAGE_CHECKSUM" ]; then
+	if [ -z "$TARGET_IMAGE_CHECKSUM" ]; then
 		log "Unable to get checksum for image: $CURRENT_OS_INSTALL_FILE" error
 		return
 	fi
@@ -395,24 +415,32 @@ mount_cached_image() {
 		INSTALLER_CHOICES_FILE="$INSTALLER_FOLDER/InstallerChoices.xml"
 		
 		INSTALLER_CHOICES_CHEKSUM=`/usr/bin/openssl dgst -sha1 "$INSTALLER_CHOICES_FILE" | awk 'sub(".*= ", "")'`
-		OLD_STYLE_BASE_IMAGE_CHECKSUM="${BASE_IMAGE_CHECKSUM}:${INSTALLER_CHOICES_CHEKSUM}"
-		BASE_IMAGE_CHECKSUM="${BASE_IMAGE_CHECKSUM}_${INSTALLER_CHOICES_CHEKSUM}"
+		OLD_STYLE_TARGET_IMAGE_CHECKSUM="${TARGET_IMAGE_CHECKSUM}:${INSTALLER_CHOICES_CHEKSUM}"
+		TARGET_IMAGE_CHECKSUM="${TARGET_IMAGE_CHECKSUM}_${INSTALLER_CHOICES_CHEKSUM}"
 	fi
 	
 	# look for the cached image, new style first
-	if [ -e "${BASE_IMAGE_CACHE}/${BASE_IMAGE_CHECKSUM}.dmg" ]; then
-		BASE_IMAGE_FILE="${BASE_IMAGE_CACHE}/${BASE_IMAGE_CHECKSUM}.dmg"
+	if [ -e "${BASE_IMAGE_CACHE}/${TARGET_IMAGE_CHECKSUM}.dmg" ]; then
+		TARGET_IMAGE_FILE="${BASE_IMAGE_CACHE}/${TARGET_IMAGE_CHECKSUM}.dmg"
 	
-	elif [ -e "${BASE_IMAGE_CACHE}/${OLD_STYLE_BASE_IMAGE_CHECKSUM}.dmg" ]; then
-		BASE_IMAGE_FILE="${BASE_IMAGE_CACHE}/${OLD_STYLE_BASE_IMAGE_CHECKSUM}.dmg"
+	elif [ -e "${BASE_IMAGE_CACHE}/${OLD_STYLE_TARGET_IMAGE_CHECKSUM}.dmg" ]; then
+		TARGET_IMAGE_FILE="${BASE_IMAGE_CACHE}/${OLD_STYLE_TARGET_IMAGE_CHECKSUM}.dmg"
 	else
 		log "No cached image found" information
 		return
 	fi
 	
+	# Create mount point for the (read-only) target
+	TARGET_IMAGE_MOUNT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
+	log "Current image mount point: $TARGET_IMAGE_MOUNT" detail
+	
+	# Decide the location for the shadow file to be attached to the target dmg
+	SHADOW_FILE_LOCATION="$HOST_MOUNT_FOLDER/`/usr/bin/uuidgen`.shadowfile"
+	log "Shadow file location: $SHADOW_FILE_LOCATION" detail
+	
 	# Mount the image and the shadow file
-	log "Mounting the shadow file ($SCRATCH_FILE_LOCATION) onto the cached image ($BASE_IMAGE_FILE)" information
-	/usr/bin/hdiutil mount "$BASE_IMAGE_FILE" -nobrowse -puppetstrings -owners on -mountpoint "$CURRENT_IMAGE_MOUNT" -shadow "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+	log "Mounting the shadow file ($SHADOW_FILE_LOCATION) onto the cached image ($TARGET_IMAGE_FILE)" information
+	/usr/bin/hdiutil mount "$TARGET_IMAGE_FILE" -nobrowse -puppetstrings -owners on -mountpoint "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	# TODO: check to see if there was a problem
 }
 
@@ -455,7 +483,8 @@ mount_os_install() {
 				# mount the installer
 				CURRENT_OS_INSTALL_MOUNT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
 				log "Mounting the main OS Installer Disk from: $IMAGE_FILE at: $CURRENT_OS_INSTALL_MOUNT" information
-				/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly -nobrowse -mountpoint "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log $INPUT detail; done)
+				/usr/bin/hdiutil mount "$IMAGE_FILE" -readonly -nobrowse -noautofsck -noverify -mountpoint "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log $INPUT detail; done)
+				# NEXT_VERSION: put in paranoia levels
 				CURRENT_OS_INSTALL_AUTOMOUNTED=true
 				# TODO: check to see if there was a problem
 			fi
@@ -488,7 +517,7 @@ mount_os_install() {
 create_and_mount_image() {
 	log "Creating intermediary disk image" section
 	
-	if ["$CPU_TYPE" == "ppc" ]; then
+	if [ "$CPU_TYPE" == "ppc" ]; then
 		LAYOUT_TYPE="SPUD"
 	elif [ "$CPU_TYPE" == "i386" ]; then
 		LAYOUT_TYPE="GPTSPUD"
@@ -497,14 +526,30 @@ create_and_mount_image() {
 		exit 1
 	fi
 	
-	/usr/bin/hdiutil create -size $DMG_SIZE -volname "$ASR_FILESYSTEM_NAME" -layout "$LAYOUT_TYPE" -type SPARSE -fs "HFS+" "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
-	/usr/bin/hdiutil mount "$SCRATCH_FILE_LOCATION" -noverify -nobrowse -mountpoint "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+	# Create mount point for the (read-only) target
+	TARGET_IMAGE_MOUNT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
+	log "Current image mount point: $TARGET_IMAGE_MOUNT" detail
+	
+	# Decide the location for the shadow file to be attached to the target dmg
+	SHADOW_FILE_LOCATION="$HOST_MOUNT_FOLDER/`/usr/bin/uuidgen`"
+	log "Shadow file location: $SHADOW_FILE_LOCATION.sparseimage" detail
+	
+	/usr/bin/hdiutil create -size $DMG_SIZE -volname "$ASR_FILESYSTEM_NAME" -layout "$LAYOUT_TYPE" -type SPARSE -fs "HFS+" "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	if [ $? -ne 0 ]; then
-		log "Failed to mount scratch image $SCRATCH_FILE_LOCATION mounted at $CURRENT_IMAGE_MOUNT" error
+		log "Failed to create targetimage: $SHADOW_FILE_LOCATION" error
 		exit 1
 	fi
 	
-	log "Scratch image $SCRATCH_FILE_LOCATION mounted sucessfuly at $CURRENT_IMAGE_MOUNT" information
+	# The create command appends a ".sparseimage"
+	SHADOW_FILE_LOCATION="$SHADOW_FILE_LOCATION.sparseimage"
+	
+	/usr/bin/hdiutil mount "$SHADOW_FILE_LOCATION" -owners on -noverify -nobrowse -mountpoint "$TARGET_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+	if [ $? -ne 0 ]; then
+		log "Failed to mount target image: $SHADOW_FILE_LOCATION at: $TARGET_IMAGE_MOUNT" error
+		exit 1
+	fi
+	
+	log "Target image: $SHADOW_FILE_LOCATION mounted sucessfuly at: $TARGET_IMAGE_MOUNT" information
 }
 
 # Install from installation media to the DMG
@@ -530,36 +575,43 @@ install_system() {
 		exit 1
 	fi
 	
+	# Fix a bug in 'installer' on certian versions of the OS
+	/bin/mkdir "$CURRENT_OS_INSTALL_MOUNT/Library/Caches"
+	
 	if [ -z "$INSTALLER_CHOICES_FILE" ]; then
-		log "Installing system from: $CURRENT_OS_INSTALL_MOUNT on to image at: $CURRENT_IMAGE_MOUNT using language code: $ISO_CODE" information
-		/usr/sbin/installer -verbose -pkg "$OS_INSTALLER_PACKAGE" -target $CURRENT_IMAGE_MOUNT -lang $ISO_CODE | (while read INPUT; do log "$INPUT " detail; done)
+		log "Installing system from: $CURRENT_OS_INSTALL_MOUNT onto image at: $TARGET_IMAGE_MOUNT using language code: $ISO_CODE" information
+		/usr/sbin/installer -verbose -dumplog -pkg "$OS_INSTALLER_PACKAGE" -target "$TARGET_IMAGE_MOUNT" -lang $ISO_CODE | (while read INPUT; do log "$INPUT " detail; done)
 	else
-		log "Installing system from: $CURRENT_OS_INSTALL_MOUNT on to image at: $CURRENT_IMAGE_MOUNT using InstallerChoices file: $INSTALLER_CHOICES_FILE and language code: $ISO_CODE" information
-		/usr/sbin/installer -verbose -applyChoiceChangesXML "$INSTALLER_CHOICES_FILE" -pkg "$OS_INSTALLER_PACKAGE" -target "$CURRENT_IMAGE_MOUNT" -lang "$ISO_CODE" | (while read INPUT; do log "$INPUT " detail; done)
+		log "Installing system from: $CURRENT_OS_INSTALL_MOUNT onto image at: $TARGET_IMAGE_MOUNT using InstallerChoices file: $INSTALLER_CHOICES_FILE and language code: $ISO_CODE" information
+		/usr/sbin/installer -verbose -dumplog -applyChoiceChangesXML "$INSTALLER_CHOICES_FILE" -pkg "$OS_INSTALLER_PACKAGE" -target "$TARGET_IMAGE_MOUNT" -lang "$ISO_CODE" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
+
+	if [ $? -ne 0 ]; then
+		log "Failed to install the base image" error
+		exit 1
+	fi
+	
+	# Eject the installer disk
+	if [ $CURRENT_OS_INSTALL_AUTOMOUNTED == true ]; then
+		unmount_dmg "$CURRENT_OS_INSTALL_MOUNT" "Primary OS install disk"
+		/bin/rmdir "$CURRENT_OS_INSTALL_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+	fi
+	CURRENT_OS_INSTALL_MOUNT=''
+	# TODO: unmount supporting disks
 	
 	log "Base OS installed" information
 }
 
 save_cached_image()	{
 	# if we are at this point we need to close the image, move it to the cached folder
-	log "Compacting and saving cached image to: $BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg" information
+	log "Compacting and saving cached image to: $BASE_IMAGE_CACHE/$TARGET_IMAGE_CHECKSUM.dmg" information
 	
 	# unmount the image
-	/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
-	if [ ${?} -ne 0 ]; then
-		# for some reason it did not un-mount, so we will try again with more force
-		log "The image did not eject cleanly, so I will force it" information
-		/usr/bin/hdiutil eject -force "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
-		if [ ${?} -ne 0 ]; then
-			log "Unable to unmount image to save cache image, unable to continue" error
-			exit 1
-		fi
-	fi
+	unmount_dmg "$TARGET_IMAGE_MOUNT" "target image to cache it"
 	
 	# move the image to the cached folder with the appropriate name
-	BASE_IMAGE_FILE="$BASE_IMAGE_CACHE/$BASE_IMAGE_CHECKSUM.dmg"
-	/bin/mv "$SCRATCH_FILE_LOCATION" "$BASE_IMAGE_FILE"
+	TARGET_IMAGE_FILE="$BASE_IMAGE_CACHE/$TARGET_IMAGE_CHECKSUM.dmg"
+	/bin/mv "$SHADOW_FILE_LOCATION" "$TARGET_IMAGE_FILE"
 	if [ $? -ne 0 ]; then
 		log "Unable to move the image to cache folder, unable to continue" error
 		exit 1
@@ -567,11 +619,11 @@ save_cached_image()	{
 	
 	# NOTE: backing off this code for the moment... does not seem happy
 	# compress the image and store it in the new location
-	#/usr/bin/hdiutil convert -format UDZO -imagekey zlib-level=6 -o "$BASE_IMAGE_FILE" "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+	#/usr/bin/hdiutil convert -format UDZO -imagekey zlib-level=6 -o "$TARGET_IMAGE_FILE" "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	
 	# set the appropriate metadata on the file so that time-machine does not back it up
 	if [ -x /usr/bin/xattr ]; then
-		/usr/bin/xattr -w com.apple.metadata:com_apple_backup_excludeItem com.apple.backupd "$BASE_IMAGE_FILE"
+		/usr/bin/xattr -w com.apple.metadata:com_apple_backup_excludeItem com.apple.backupd "$TARGET_IMAGE_FILE"
 	fi
 }
 
@@ -579,13 +631,13 @@ save_cached_image()	{
 prepare_image() {
 	if [ $DISABLE_CHROOT == false ]; then
 		# create a folder inside the chroot with the same path as the mount point pointing at root to fix some installer bugs
-		/bin/mkdir -p "${CURRENT_IMAGE_MOUNT}${CURRENT_IMAGE_MOUNT}"
-		/bin/rmdir "${CURRENT_IMAGE_MOUNT}${CURRENT_IMAGE_MOUNT}"
-		/bin/ln -s / "${CURRENT_IMAGE_MOUNT}${CURRENT_IMAGE_MOUNT}"
+		/bin/mkdir -p "${TARGET_IMAGE_MOUNT}${TARGET_IMAGE_MOUNT}"
+		/bin/rmdir "${TARGET_IMAGE_MOUNT}${TARGET_IMAGE_MOUNT}"
+		/bin/ln -s / "${TARGET_IMAGE_MOUNT}${TARGET_IMAGE_MOUNT}"
 		
 		# make sure that the
-		TARGET_TEMP_FOLDER="${CURRENT_IMAGE_MOUNT}${DMG_MOUNT_LOCATION}"
-		/bin/mkdir -p "${CURRENT_IMAGE_MOUNT}${DMG_MOUNT_LOCATION}" # this should probably already exist
+		TARGET_TEMP_FOLDER="${TARGET_IMAGE_MOUNT}${DMG_MOUNT_LOCATION}"
+		/bin/mkdir -p "${TARGET_IMAGE_MOUNT}${DMG_MOUNT_LOCATION}" # this should probably already exist
 	fi
 }
 
@@ -644,10 +696,10 @@ install_packages_from_folder() {
 		if [ $DISABLE_CHROOT == false ]; then
 			# create a folder inside the HOST_MOUNT_FOLDER on the target
 			OLD_TARGET="$TARGET"
-			TARGET=`/usr/bin/mktemp -d "$TARGET_TEMP_FOLDER/$SOURCE_FOLDER_TEMPLATE"`
+			CHROOT_TARGET=`/usr/sbin/chroot "$TARGET_IMAGE_MOUNT" /usr/bin/mktemp -d "$DMG_MOUNT_LOCATION/$SOURCE_FOLDER_TEMPLATE"`
 			log "	Copying folder $ORIGINAL_TARGET into the target at $TARGET" information
-			/bin/cp -RH "$OLD_TARGET/" "$TARGET/" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
-			
+			/bin/cp -RH "$OLD_TARGET/" "${TARGET_IMAGE_MOUNT}${TARGET}/" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+						
 			TARGET_COPIED=true
 		fi
 		
@@ -675,34 +727,27 @@ install_packages_from_folder() {
 					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER}) inside a chroot jail" information
 					
 					# note: the path to the update package needs to be absolute, not chroot relative, while the target needs to be chroot relative
-					/usr/sbin/chroot "$CURRENT_IMAGE_MOUNT" /usr/sbin/installer -verbose -pkg "$TARGET/$TARGET_FILE_NAME" -target / | (while read INPUT; do log "$INPUT " detail; done)
+					/usr/sbin/chroot "$TARGET_IMAGE_MOUNT" /usr/sbin/installer -verbose -pkg "$CHROOT_TARGET/$TARGET_FILE_NAME" -target / | (while read INPUT; do log "$INPUT " detail; done)
 				else
 					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER})" information
-					/usr/sbin/installer -verbose -pkg "$TARGET/$TARGET_FILE_NAME" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+					/usr/sbin/installer -verbose -pkg "$TARGET/$TARGET_FILE_NAME" -target "$TARGET_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 				fi
 			else
 				if [ $DISABLE_CHROOT == false ]; then
 					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH}/${ORDERED_FOLDER} with XML Choices file: $CHOICES_FILE inside a chroot jail" information
 					
 					# note: the path to the update package needs to be absolute, not chroot relative, while the target needs to be chroot relative
-					/usr/sbin/chroot "$CURRENT_IMAGE_MOUNT" /usr/sbin/installer -verbose -applyChoiceChangesXML "/private/tmp/$CHOICES_FILE" -pkg "$TARGET/$TARGET_FILE_NAME" -target / | (while read INPUT; do log "$INPUT " detail; done)
+					/usr/sbin/chroot "$TARGET_IMAGE_MOUNT" /usr/sbin/installer -verbose -applyChoiceChangesXML "/private/tmp/$CHOICES_FILE" -pkg "$TARGET/$TARGET_FILE_NAME" -target / | (while read INPUT; do log "$INPUT " detail; done)
 				else
 					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH}  (${ORDERED_FOLDER}) with XML Choices file: $CHOICES_FILE" information
-					/usr/sbin/installer -verbose -applyChoiceChangesXML "$TARGET/$CHOICES_FILE" -pkg "$TARGET/$TARGET_FILE_NAME" -target "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+					/usr/sbin/installer -verbose -applyChoiceChangesXML "$CHROOT_TARGET/$CHOICES_FILE" -pkg "$CHROOT_TARGET/$TARGET_FILE_NAME" -target "$TARGET_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
 				fi
 			fi
 		done
-exit 1		
+			
 		# cleanup
 		if [ ! -z "$DMG_PATH" ]; then
-			log "Unmounting Package DMG: $DMG_MOUNT ($DMG_INTERNAL_NAME)" detail
-			/usr/bin/hdiutil eject "$DMG_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
-			if [ ${?} -ne 0 ]; then
-				# for some reason it did not un-mount, so we will try again with more force
-				log "The image did not eject cleanly, so I will force it" information
-				/usr/bin/hdiutil eject -force "$DMG_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
-			fi
-			
+			unmount_dmg "$DMG_MOUNT" "Package DMG"
 			# remove up the mount point
 			/bin/rmdir "$DMG_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 		fi
@@ -720,14 +765,14 @@ exit 1
 clean_up_image() {
 	log "Correcting some generic installer errors" section
 	
-	# find all the symlinks that are pointing to $CURRENT_IMAGE_MOUNT, and make them point at the "root"
+	# find all the symlinks that are pointing to $TARGET_IMAGE_MOUNT, and make them point at the "root"
 	log "Correcting symlinks that point off the disk" information
 	IFS=$'\n'
-	for THIS_LINK in $(/usr/bin/find -x "$CURRENT_IMAGE_MOUNT" -type l); do
-		if [ `/usr/bin/readlink "$THIS_LINK" | /usr/bin/grep -c "$CURRENT_IMAGE_MOUNT"` -gt 0 ]; then
+	for THIS_LINK in $(/usr/bin/find -x "$TARGET_IMAGE_MOUNT" -type l); do
+		if [ `/usr/bin/readlink "$THIS_LINK" | /usr/bin/grep -c "$TARGET_IMAGE_MOUNT"` -gt 0 ]; then
 		
 			log "Correcting soft-link: $THIS_LINK" detail
-			CORRECTED_LINK=`/usr/bin/readlink "$THIS_LINK" | /usr/bin/awk "sub(\"$CURRENT_IMAGE_MOUNT\", \"\") { print }"`
+			CORRECTED_LINK=`/usr/bin/readlink "$THIS_LINK" | /usr/bin/awk "sub(\"$TARGET_IMAGE_MOUNT\", \"\") { print }"`
 			
 			/bin/rm "$THIS_LINK"
 			/bin/ln -fs "$CORRECTED_LINK" "$THIS_LINK" | (while read INPUT; do log "$INPUT " detail; done)
@@ -737,19 +782,19 @@ clean_up_image() {
 	
 	# make sure that we have not left any open files behind
 	log "Closing programs that have opened files on the disk" information
-	/usr/sbin/lsof | /usr/bin/grep "$CURRENT_IMAGE_MOUNT/" | /usr/bin/awk '{ print $2 }' | /usr/bin/sort -u | /usr/bin/xargs /bin/kill 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/sbin/lsof | /usr/bin/grep "$TARGET_IMAGE_MOUNT/" | /usr/bin/awk '{ print $2 }' | /usr/bin/sort -u | /usr/bin/xargs /bin/kill 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	
 	# Delete Extensions.mkext
 	log "Deleting Extensions.mkext cache file" information
-	/bin/rm -vf "$CURRENT_IMAGE_MOUNT/System/Library/Extensions.mkext" | (while read INPUT; do log "$INPUT " detail; done)
+	/bin/rm -vf "$TARGET_IMAGE_MOUNT/System/Library/Extensions.mkext" | (while read INPUT; do log "$INPUT " detail; done)
 	
 	# Delete items from /System/Caches and /Library/Caches
 	log "Deleting cache files created during installations" information
-	/bin/rm -vRf "$CURRENT_IMAGE_MOUNT/System/Library/Caches/*" | (while read INPUT; do log "$INPUT " detail; done)
-	/bin/rm -vRf "$CURRENT_IMAGE_MOUNT/Library/Caches/*" | (while read INPUT; do log "$INPUT " detail; done)
+	/bin/rm -vRf "$TARGET_IMAGE_MOUNT/System/Library/Caches/*" | (while read INPUT; do log "$INPUT " detail; done)
+	/bin/rm -vRf "$TARGET_IMAGE_MOUNT/Library/Caches/*" | (while read INPUT; do log "$INPUT " detail; done)
 	
 	# Make sure that /tmp is empty
-	/bin/rm -vRf "$CURRENT_IMAGE_MOUNT/private/var/tmp/*" | (while read INPUT; do log "$INPUT " detail; done)
+	/bin/rm -vRf "$TARGET_IMAGE_MOUNT/private/var/tmp/*" | (while read INPUT; do log "$INPUT " detail; done)
 	
 }
 
@@ -759,25 +804,20 @@ close_up_and_compress() {
 	
 	# We'll rename the newly installed system so that computers imaged with this will get the name
 	log "Rename the deployment volume: $ASR_FILESYSTEM_NAME" information
-	/usr/sbin/diskutil rename "$CURRENT_IMAGE_MOUNT" "$ASR_FILESYSTEM_NAME" | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/sbin/diskutil rename "$TARGET_IMAGE_MOUNT" "$ASR_FILESYSTEM_NAME" | (while read INPUT; do log "$INPUT " detail; done)
 
 	# Create a new, compessed, image from the intermediary one and scan for ASR.
 	log "Create a read-only image"
 	
 	# unmount the image, then use convert to push it out to the desired place
-	/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
-	if [ ${?} -ne 0 ]; then
-		# for some reason it did not un-mount, so we will try again with more force
-		log "The image did not eject cleanly, so I will force it" information
-		/usr/bin/hdiutil eject -force "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
-	fi
+	unmount_dmg "$TARGET_IMAGE_MOUNT" "Target image"
 	
 	if [ $DISABLE_BASE_IMAGE_CACHING == false ]; then
 		# use the shadow file
-		/usr/bin/hdiutil convert -ov -puppetstrings -format UDZO -imagekey zlib-level=6 -shadow "$SCRATCH_FILE_LOCATION" -o "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" "$BASE_IMAGE_FILE" | (while read INPUT; do log "$INPUT " detail; done)
+		/usr/bin/hdiutil convert -ov -puppetstrings -format UDZO -imagekey zlib-level=6 -shadow "$SHADOW_FILE_LOCATION" -o "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" "$TARGET_IMAGE_FILE" | (while read INPUT; do log "$INPUT " detail; done)
 	else
 		# there is no shadow file to use, so the scratch file should be the one
-		/usr/bin/hdiutil convert -ov -puppetstrings -format UDZO -imagekey zlib-level=6 -o "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done) 
+		/usr/bin/hdiutil convert -ov -puppetstrings -format UDZO -imagekey zlib-level=6 -o "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done) 
 	fi
 	
 	log "Scanning image for ASR: ${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" information
@@ -796,7 +836,7 @@ restore_image() {
 # set test partition to be the boot partition
 set_boot_test() {
 	log "Blessing test partition" section
-	/usr/sbin/bless "--mount $CURRENT_IMAGE_MOUNT --setBoot" | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/sbin/bless "--mount $TARGET_IMAGE_MOUNT --setBoot" | (while read INPUT; do log "$INPUT " detail; done)
 	log "Test partition blessed" information
 }
 
@@ -805,23 +845,23 @@ clean_up() {
 	log "Cleaning up" section
 	
 	log "Ejecting images" information
-	if [ -f "$CURRENT_IMAGE_MOUNT/System" ]; then
-		/usr/bin/hdiutil eject "$CURRENT_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+	if [ -f "$TARGET_IMAGE_MOUNT/System" ]; then
+		unmount_dmg "$TARGET_IMAGE_MOUNT" "Target Disk"
 	fi
-	if [ -d "$CURRENT_IMAGE_MOUNT" ] && [ "`/bin/ls $CURRENT_IMAGE_MOUNT | /usr/bin/grep -c .`" -eq 2 ]; then
-		/bin/rmdir "$CURRENT_IMAGE_MOUNT"
+	if [ -d "$TARGET_IMAGE_MOUNT" ] && [ "`/bin/ls $TARGET_IMAGE_MOUNT | /usr/bin/grep -c .`" -eq 2 ]; then
+		/bin/rmdir "$TARGET_IMAGE_MOUNT"
 	fi
 	# TODO: close this image earlier
 	if [ ! -z "$CURRENT_OS_INSTALL_MOUNT" ]; then
-		/usr/bin/hdiutil eject "$CURRENT_OS_INSTALL_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
-	fi
-	if [ $CURRENT_OS_INSTALL_AUTOMOUNTED == true ]; then
-		/bin/rmdir "$CURRENT_OS_INSTALL_AUTOMOUNTED"
+		unmount_dmg "$CURRENT_OS_INSTALL_MOUNT" "Primary OS install disk"
+		if [ $CURRENT_OS_INSTALL_AUTOMOUNTED == true ]; then
+			/bin/rmdir "$CURRENT_OS_INSTALL_MOUNT"
+		fi
 	fi
 	
-	log "Removing scratch DMG" 
-	if [ ! -z "$SCRATCH_FILE_LOCATION" ] && [ -e "$SCRATCH_FILE_LOCATION" ]; then
-		/bin/rm "$SCRATCH_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+	log "Deleting scratch DMG" 
+	if [ ! -z "$SHADOW_FILE_LOCATION" ] && [ -e "$SHADOW_FILE_LOCATION" ]; then
+		/bin/rm "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
 }
@@ -856,11 +896,11 @@ do
 	esac
 done
 
-check_setup
 rootcheck
-startup
 
 log "InstaDMG build initiated" section
+check_setup
+startup
 
 find_base_os
 
@@ -868,7 +908,7 @@ if [ $DISABLE_BASE_IMAGE_CACHING == false ]; then
 	mount_cached_image
 fi
 
-if [ -z "$CURRENT_IMAGE_MOUNT" ]; then
+if [ -z "$TARGET_IMAGE_MOUNT" ]; then
 	mount_os_install
 	create_and_mount_image
 	install_system
