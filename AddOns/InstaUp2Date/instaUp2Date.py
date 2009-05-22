@@ -320,26 +320,24 @@ class instaUpToDate:
 		global instaDMGName
 	
 		# defaults
-		chosenLanguage		= "en"
-		asrFileSystemName	= "MacintoshHD"
-		asrOutputFileName	= None
+		chosenLanguage			= "en"
+		asrFileSystemNameOption	= []
+		asrOutputFileNameOption	= []
 		
 		if self.catalogFileSettings.has_key("ISO Language Code"):
 			chosenLanguage = self.catalogFileSettings["ISO Language Code"]
 			# TODO: check with installer to see if it will accept this language code
 			
 		if self.catalogFileSettings.has_key("Output Volume Name"):
-			asrFileSystemName = self.catalogFileSettings["Output Volume Name"]
+			asrFileSystemNameOption = ["-n", self.catalogFileSettings["Output Volume Name"]]
 			
 		if self.catalogFileSettings.has_key("Output File Name"):
-			asrOutputFileName = self.catalogFileSettings["Output File Name"]
-		else:
-			asrOutputFileName = self.topLevelCatalogFileName
+			asrOutputFileNameOption = ["-m", self.catalogFileSettings["Output File Name"]]
 		
 		print "Running InstaDMG:\n\n"
 		# we should be in the same directory as InstaDMG
 		
-		thisProcess = subprocess.Popen([os.path.join(os.getcwd(),instaDMGName), "-i", chosenLanguage, "-n", asrFileSystemName, "-m", asrOutputFileName])
+		thisProcess = subprocess.Popen([os.path.join(os.getcwd(),instaDMGName), '-f'] + ["-i", chosenLanguage] + asrFileSystemNameOption + asrOutputFileNameOption)
 		thisProcess.communicate()
 		# TODO: a lot of improvementes in handling of InstaDMG
 
