@@ -10,7 +10,7 @@
 #
 
 SVN_REVISION=`/bin/echo '$Revision$' | /usr/bin/awk '{ print $2 }'`
-VERSION="1.5rc1 (svn revision: $SVN_REVISION)"
+VERSION="1.5rc2 (svn revision: $SVN_REVISION)"
 PROGRAM=$( (basename $0) )
 
 
@@ -75,6 +75,9 @@ ASR_FILESYSTEM_NAME="InstaDMG"					# Name of the filesystem in the final image
 
 # Names allowed for the primary installer disk
 ALLOWED_INSTALLER_DISK_NAMES=("Mac OS X Install Disc 1.dmg" "Mac OS X Install DVD.dmg")
+
+# Bundle identifier codes to exclude from the chroot system
+CHROOT_EXCLUDED_CODES=("edu.uc.daap.createuser.pkg")
 
 # Default log names. The PKG log is a more consise history of what was installed.
 DATE_STRING=`/bin/date +%y.%m.%d-%H.%M`
@@ -706,7 +709,7 @@ install_packages_from_folder() {
 	
 	log "Beginning Update Installs from $SELECTED_FOLDER" section
 
-	if [ "$SELECTED_FOLDER" == "" ]; then
+	if [ -z "$SELECTED_FOLDER" ]; then
 		log "install_packages_from_folder called without folder" error
 		exit 1;
 	fi
@@ -722,14 +725,14 @@ install_packages_from_folder() {
 		PACKAGE_DMG_FILE=''
 		
 		log "Working on folder $ORDERED_FOLDER (`date '+%H:%M:%S'`)" information
-		
+				
 		# first resolve any chain of symlinks
-		while [ -h "$TARGET" ]; do
+		#while [ -h "$TARGET" ]; do
 			# look into this being a dmg
-			NEW_LINK=`/usr/bin/readlink "$TARGET"`
-			BASE_LINK=`/usr/bin/dirname "$TARGET"`
-			TARGET="$BASE_LINK/$NEW_LINK"
-		done
+		#	NEW_LINK=`/usr/bin/readlink "$TARGET"`
+		#	BASE_LINK=`/usr/bin/dirname "$TARGET"`
+		#	TARGET="$BASE_LINK/$NEW_LINK"
+		#done
 		
 		# check for dmgs
 		if [ -f "$TARGET" ]; then
@@ -763,11 +766,38 @@ install_packages_from_folder() {
 			
 			TARGET_COPIED=true
 		fi
-			
+		
+		ABSOLUTE_TARGET_PATH=( `cd "$TARGET"; pwd -P` )
+		
 		IFS=$'\n'	
-		for UPDATE_PKG in $(/usr/bin/find -L "$TARGET" -maxdepth 1 -iname '*pkg' | /usr/bin/awk 'tolower() ~ /\.(m)?pkg/ && !/\/\._/'); do
+		for UPDATE_PKG in $(/usr/bin/find -L "$ABSOLUTE_TARGET_PATH" -maxdepth 1 -iname '*pkg' | /usr/bin/awk 'tolower() ~ /\.(m)?pkg/ && !/\/\._/'); do
 			CHOICES_FILE=''
+			PACKAGE_DISABLE_CHROOT=false
 			
+			# check to see if this package should be excluded from the chroot system
+			if [ -d "$UPDATE_PKG" ]; then
+				# does not work on flat packages
+				
+				PACKAGE_BUNDLE_ID=`/usr/bin/defaults read "$UPDATE_PKG/Contents/Info" "CFBundleIdentifier" 2>/dev/null`
+				PACKAGE_CHROOT_DISABLE=`/usr/bin/defaults read "$UPDATE_PKG/Contents/Info" "InstaDMG Chroot Disable" 2>/dev/null`
+
+				if [ "$PACKAGE_CHROOT_DISABLE" == 0 ]; then
+					PACKAGE_DISABLE_CHROOT=true
+				fi
+				
+				if [ ! -z "$PACKAGE_BUNDLE_ID" ]; then
+					BUNDLE_ID_ARRAY_LENGTH=${#CHROOT_EXCLUDED_CODES[@]}
+					INDEX=0
+					while [ "$INDEX" -lt "$BUNDLE_ID_ARRAY_LENGTH" ]; do
+						if [ "$PACKAGE_BUNDLE_ID" == "${CHROOT_EXCLUDED_CODES[$INDEX]}" ]; then
+							PACKAGE_DISABLE_CHROOT=true
+						fi
+						let "INDEX = $INDEX + 1"
+					done
+				fi
+				
+			fi
+						
 			if [ -e "$TARGET/InstallerChoices.xml" ] && [ $OS_REV_MAJOR -ge 5 ]; then # remember: 10.4 and before can't use InstallerChoices files
 				CHOICES_FILE="InstallerChoices.xml"
 				# TODO: better handle multiple pkg's and InstallerChoice files named for the file they should handle
@@ -782,7 +812,7 @@ install_packages_from_folder() {
 			fi
 			
 			if [ -z "$CHOICES_FILE" ]; then
-				if [ $DISABLE_CHROOT == false ]; then
+				if [ $DISABLE_CHROOT == false ] && [ $PACKAGE_DISABLE_CHROOT == false ]; then
 					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER}) inside a chroot jail" information
 					
 					/usr/sbin/chroot "$TARGET_IMAGE_MOUNT" /usr/sbin/installer -verbose -dumplog -pkg "$CHROOT_TARGET/$TARGET_FILE_NAME" -target / 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
@@ -791,7 +821,7 @@ install_packages_from_folder() {
 					/usr/sbin/installer -verbose -dumplog -pkg "$TARGET/$TARGET_FILE_NAME" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				fi
 			else
-				if [ $DISABLE_CHROOT == false ]; then
+				if [ $DISABLE_CHROOT == false ] && [ $PACKAGE_DISABLE_CHROOT == false ]; then
 					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH}/${ORDERED_FOLDER} with XML Choices file: $CHOICES_FILE inside a chroot jail" information
 					
 					/usr/sbin/chroot "$TARGET_IMAGE_MOUNT" /usr/sbin/installer -verbose -dumplog -applyChoiceChangesXML "/private/tmp/$CHOICES_FILE" -pkg "$TARGET/$TARGET_FILE_NAME" -target / 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
