@@ -781,7 +781,7 @@ install_packages_from_folder() {
 				PACKAGE_BUNDLE_ID=`/usr/bin/defaults read "$UPDATE_PKG/Contents/Info" "CFBundleIdentifier" 2>/dev/null`
 				PACKAGE_CHROOT_DISABLE=`/usr/bin/defaults read "$UPDATE_PKG/Contents/Info" "InstaDMG Chroot Disable" 2>/dev/null`
 
-				if [ "$PACKAGE_CHROOT_DISABLE" == 0 ]; then
+				if [ -z "$PACKAGE_CHROOT_DISABLE" ]; then
 					PACKAGE_DISABLE_CHROOT=true
 				fi
 				
