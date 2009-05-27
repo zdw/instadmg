@@ -729,12 +729,24 @@ class installerPackage:
 						elif re.search("\.dmg$", thisFileName, re.I):
 							# since the checksum is correct on the file (not referring to the internal one) this is probably ok
 							#	but being paridoid... we will have hdiutil cheksum it at well
-
-							thisProcess = subprocess.Popen(["/usr/bin/hdiutil", "verify", thisFilePath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
-							(myResponce, myError) = thisProcess.communicate()
 							
-							if thisProcess.returncode != 0:
-								raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to checksum it:\n%s" % ( thisFileName, myError )); # TODO: better errors
+							# check with hdiutil to see if it should have a checksum
+							hdiutilProcess = subprocess.Popen(['/usr/bin/hdiutil', 'imageinfo', '-plist', thisFilePath] , stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+							if hdiutilProcess.wait() != 0:
+								raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to checksum it:\n%s" % ( thisFilePath, myError )); # TODO: better errors
+							
+							imageInfoString = hdiutilProcess.stdout.read()
+							imageInfoNSData = Foundation.NSString.stringWithString_(imageInfoString).dataUsingEncoding_(Foundation.NSUTF8StringEncoding)
+							imageInfo, format, error = Foundation.NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(imageInfoNSData, Foundation.NSPropertyListImmutable, None, None)
+							if error:
+								raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to get the image info:\n%s" % ( tempFilePath, myError )); # TODO: better errors
+							
+							if "Checksum Value" in imageInfo and imageInfo["Checksum Value"] != "":
+								thisProcess = subprocess.Popen(["/usr/bin/hdiutil", "verify", thisFilePath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+								(myResponce, myError) = thisProcess.communicate()
+							
+								if thisProcess.returncode != 0:
+									raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to checksum it:\n%s" % ( thisFileName, myError )); # TODO: better errors
 								
 							self.setPackageType("dmg")
 							self.setStatus("Verified")
