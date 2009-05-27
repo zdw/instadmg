@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import getopt
+import Foundation
 from datetime import date
 
 #------------------------------SETTINGS------------------------------
@@ -833,16 +834,32 @@ class installerPackage:
 			
 			# TODO: re-integrate the package unloading for a 4 field type
 			
+			# help hdiutil by giving the temp file a .dmg ending
+			os.rename(tempFilePath, tempFilePath + '.dmg')
+			tempFilePath = tempFilePath + '.dmg'
+			
 			# checksum the dmg file, and then let hdiutil internally checksum it
 			if self.archiveChecksum: # if there is no checksum, just trust it
 				if not(self.checksum(tempFilePath, archiveOrPackage = "archive")):
 					raise Exception # TODO: improve error handling
-					
-			thisProcess = subprocess.Popen(["/usr/bin/hdiutil", "verify", tempFilePath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
-			(myResponce, myError) = thisProcess.communicate()
 			
-			if thisProcess.returncode != 0:
-				raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to checksum it:\n%s" % { 'fileName':tempFilePath, 'error':myError }); # TODO: better errors
+			# check with hdiutil to see if it should have a checksum
+			hdiutilProcess = subprocess.Popen(['/usr/bin/hdiutil', 'imageinfo', '-plist', tempFilePath] , stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+			if hdiutilProcess.wait() != 0:
+				raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to checksum it:\n%s" % ( tempFilePath, myError )); # TODO: better errors
+			
+			imageInfoString = hdiutilProcess.stdout.read()
+			imageInfoNSData = Foundation.NSString.stringWithString_(imageInfoString).dataUsingEncoding_(Foundation.NSUTF8StringEncoding)
+			imageInfo, format, error = Foundation.NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(imageInfoNSData, Foundation.NSPropertyListImmutable, None, None)
+			if error:
+				raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to get the image info:\n%s" % ( tempFilePath, myError )); # TODO: better errors
+			
+			if "Checksum Value" in imageInfo and imageInfo["Checksum Value"] != "":
+				thisProcess = subprocess.Popen(["/usr/bin/hdiutil", "verify", tempFilePath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+				(myResponce, myError) = thisProcess.communicate()
+				
+				if thisProcess.returncode != 0:
+					raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to checksum it:\n%s" % ( tempFilePath, myError )); # TODO: better errors
 			
 			# at this point we are as sure as we can be that this is the driod... er... dmg that we are looking for			
 			targetLocation =  os.path.join(cacheFolder, self.packageFileName)
@@ -856,9 +873,22 @@ class installerPackage:
 			return True
 			
 		elif fileExtension == "pkg":
-			# since we are here, it should be a flat-file pkg
-			self.archiveType = "flatfilepkg"
-			packageInArchiveLocation = tempFilePath
+			self.archiveType = "flatfilepkg" # this should be a flat-file pkg
+			
+			# checksum the dmg file, and then let hdiutil internally checksum it
+			if self.archiveChecksum: # if there is no checksum, just trust it
+				if not(self.checksum(tempFilePath, archiveOrPackage = "archive")):
+					raise Exception # TODO: improve error handling
+			
+			# move it to the appropriate spot
+			targetLocation =  os.path.join(cacheFolder, self.packageFileName)
+			shutil.copyfile(tempFilePath, targetLocation)
+			
+			subprocess.call(["/usr/bin/xattr", "-w", "com.apple.metadata:com_apple_backup_excludeItem", "com.apple.backupd", targetLocation])
+			
+			self.setStatus("Verified")
+			self.setPackageCacheLocation(targetLocation)
+			return True
 			
 		elif fileExtension == "zip":
 			# a pkg inside a zip file... this is a bit simplistic
