@@ -10,7 +10,7 @@
 #
 
 SVN_REVISION=`/bin/echo '$Revision$' | /usr/bin/awk '{ print $2 }'`
-VERSION="1.5rc2 (svn revision: $SVN_REVISION)"
+VERSION="1.5 (svn revision: $SVN_REVISION)"
 PROGRAM=$( (basename $0) )
 
 
@@ -58,7 +58,7 @@ CUSTOM_FOLDER="./InstallerFiles/CustomPKG"		# All other update pkg's
 ASR_FOLDER="./OutputFiles"						# Destination of the ASR images
 BASE_IMAGE_CACHE="./Caches/BaseImageCache"		# Cached images named by checksums
 LOG_FOLDER="./Logs"
-PACKAGE_DMG_MOUNT_LOCATION="/private/tmp"				# DMGs will be mounted at a location inside of this folder
+PACKAGE_DMG_MOUNT_LOCATION="/private/tmp"		# DMGs will be mounted at a location inside of this folder
 TESTING_TARGET_VOLUME=''						# setting this and the ENABLE_TESTING_VOLUME will erase that volume and write the image onto it
 
 # TODO: make sure that the cached images are not indexed
@@ -162,7 +162,7 @@ log() {
 	fi
 	
 	if [ "$LEVEL" == "error" ]; then
-		/usr/bin/printf "$SECTION_LOG_FORMAT" "$MESSAGE" | /usr/bin/tee "$LOG_FILE" "$PKG_LOG" 1>&2
+		/usr/bin/printf "$SECTION_LOG_FORMAT" "$MESSAGE" | /usr/bin/tee -a "$LOG_FILE" "$PKG_LOG" 1>&2
 	fi
 
 	if [ "$LEVEL" == "section" ]; then
@@ -338,16 +338,23 @@ unmount_dmg() {
 		exit 1
 	fi
 	
-	/usr/bin/hdiutil eject "$1" | (while read INPUT; do log "$INPUT " detail; done)
+	FEEDBACK=`/usr/bin/hdiutil eject "$1" 2>&1`
 	if [ ${?} -ne 0 ]; then
+		echo "$FEEBACK" | (while read INPUT; do log "$INPUT " detail; done)
 		# for some reason it did not un-mount, so we will try again with more force
 		log "The image did not eject cleanly, so I will force it" information
-		/usr/bin/hdiutil eject -force "$1" | (while read INPUT; do log "$INPUT " detail; done)
+		FEEBACK2=`/usr/bin/hdiutil eject -force "$1" 2>&1`
 		if [ ${?} -ne 0 ]; then
+			echo "$FEEBACK2" | (while read INPUT; do log "$INPUT " detail; done)
 			log "Failed to unmount the $2 image from $1, unable to continue" error
 			exit 1
+		else
+			echo "$FEEBACK2" | (while read INPUT; do log "$INPUT " detail; done)
 		fi
+	else
+		echo "$FEEBACK" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
+	
 	log "Unmounted the $2 image from $1" detail
 	
 	set -o nounset
@@ -407,8 +414,9 @@ startup() {
 	done
 	
 	# Create folder to enclose host mount points
+	
 	HOST_MOUNT_FOLDER=`/usr/bin/mktemp -d "$PACKAGE_DMG_MOUNT_LOCATION/$MOUNT_FOLDER_TEMPLATE"`
-	/bin/chmod og+x "$HOST_MOUNT_FOLDER" # allow the installer user thourgh
+	/bin/chmod og+x "$HOST_MOUNT_FOLDER" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
 	log "Host mount folder: $HOST_MOUNT_FOLDER" detail
 	
 	# Get the MacOS X version information.
@@ -481,6 +489,7 @@ mount_cached_image() {
 	
 	# Create mount point for the (read-only) target
 	TARGET_IMAGE_MOUNT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
+	/bin/chmod og+x "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
 	log "Current image mount point: $TARGET_IMAGE_MOUNT" detail
 	
 	# Decide the location for the shadow file to be attached to the target dmg
@@ -539,6 +548,7 @@ mount_os_install() {
 			if [ -z "$CURRENT_OS_INSTALL_MOUNT" ]; then
 				# mount the installer
 				CURRENT_OS_INSTALL_MOUNT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
+				/bin/chmod og+x "$CURRENT_OS_INSTALL_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
 				log "Mounting the main OS Installer Disk from: $IMAGE_FILE at: $CURRENT_OS_INSTALL_MOUNT" information
 				mount_dmg "$IMAGE_FILE" "$CURRENT_OS_INSTALL_MOUNT"
 				# NEXT_VERSION: put in paranoia levels
@@ -555,6 +565,7 @@ mount_os_install() {
 		else
 			# supporting disk
 			SUPPORT_MOUNT_POINT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
+			/bin/chmod og+x "$SUPPORT_MOUNT_POINT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
 			log "Mounting a support disk from $INSTALLER_FOLDER/$IMAGE_FILE at $SUPPORT_MOUNT_POINT" information
 			# note that we are allowing browsing of these files, so they will show up in the finder (and be found by the installer)
 			if [ $ENABLE_NON_PARINIOD_MODE == true ]; then
@@ -590,6 +601,7 @@ create_and_mount_image() {
 	
 	# Create mount point for the (read-only) target
 	TARGET_IMAGE_MOUNT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
+	/bin/chmod og+x "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
 	log "Current image mount point: $TARGET_IMAGE_MOUNT" detail
 	
 	# Decide the location for the shadow file to be attached to the target dmg
@@ -645,7 +657,7 @@ install_system() {
 		/usr/sbin/installer -verbose -dumplog -pkg "$OS_INSTALLER_PACKAGE" -target "$TARGET_IMAGE_MOUNT" -lang $ISO_CODE 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	else
 		log "Installing system from: $CURRENT_OS_INSTALL_MOUNT onto image at: $TARGET_IMAGE_MOUNT using InstallerChoices file: $INSTALLER_CHOICES_FILE and language code: $ISO_CODE" information
-		/usr/sbin/installer -verbose -dumplog -applyChoiceChangesXML "$INSTALLER_CHOICES_FILE" -pkg "$OS_INSTALLER_PACKAGE" -target "$TARGET_IMAGE_MOUNT" -lang "$ISO_CODE" | (while read INPUT; do log "$INPUT " detail; done)
+		/usr/sbin/installer -verbose -dumplog -applyChoiceChangesXML "$INSTALLER_CHOICES_FILE" -pkg "$OS_INSTALLER_PACKAGE" -target "$TARGET_IMAGE_MOUNT" -lang "$ISO_CODE" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 
 	if [ $? -ne 0 ]; then
@@ -693,13 +705,13 @@ save_cached_image()	{
 prepare_image() {
 	if [ $DISABLE_CHROOT == false ]; then
 		# create a folder inside the chroot with the same path as the mount point pointing at root to fix some installer bugs
-		/bin/mkdir -p "${TARGET_IMAGE_MOUNT}${TARGET_IMAGE_MOUNT}"
-		/bin/rmdir "${TARGET_IMAGE_MOUNT}${TARGET_IMAGE_MOUNT}"
-		/bin/ln -s / "${TARGET_IMAGE_MOUNT}${TARGET_IMAGE_MOUNT}"
+		/bin/mkdir -p "${TARGET_IMAGE_MOUNT}${TARGET_IMAGE_MOUNT}" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+		/bin/rmdir "${TARGET_IMAGE_MOUNT}${TARGET_IMAGE_MOUNT}" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+		/bin/ln -s / "${TARGET_IMAGE_MOUNT}${TARGET_IMAGE_MOUNT}" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 		
-		# make sure that the
-		TARGET_TEMP_FOLDER="${TARGET_IMAGE_MOUNT}${PACKAGE_DMG_MOUNT_LOCATION}"
-		/bin/mkdir -p "${TARGET_IMAGE_MOUNT}${PACKAGE_DMG_MOUNT_LOCATION}" # this should probably already exist
+		# make sure that the temp folder exists inside the image
+		TARGET_TEMP_FOLDER="${TARGET_IMAGE_MOUNT}/private/tmp"
+		/bin/mkdir -p "$TARGET_TEMP_FOLDER" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # this should probably already exist
 	fi
 }
 
@@ -727,12 +739,12 @@ install_packages_from_folder() {
 		log "Working on folder $ORDERED_FOLDER (`date '+%H:%M:%S'`)" information
 				
 		# first resolve any chain of symlinks
-		#while [ -h "$TARGET" ]; do
+		while [ -h "$TARGET" ]; do
 			# look into this being a dmg
-		#	NEW_LINK=`/usr/bin/readlink "$TARGET"`
-		#	BASE_LINK=`/usr/bin/dirname "$TARGET"`
-		#	TARGET="$BASE_LINK/$NEW_LINK"
-		#done
+			NEW_LINK=`/usr/bin/readlink "$TARGET"`
+			BASE_LINK=`/usr/bin/dirname "$TARGET"`
+			TARGET="$BASE_LINK/$NEW_LINK"
+		done
 		
 		# check for dmgs
 		if [ -f "$TARGET" ]; then
@@ -747,6 +759,7 @@ install_packages_from_folder() {
 				
 				# mount in the host mount folder
 				TARGET=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
+				/bin/chmod og+x "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
 				PACKAGE_DMG_MOUNT="$TARGET"
 				log "	Mounting the package dmg: $DMG_INTERNAL_NAME ($ORIGINAL_TARGET) at: $TARGET" information
 				mount_dmg "$PACKAGE_DMG_FILE" "$TARGET"
@@ -757,12 +770,12 @@ install_packages_from_folder() {
 		if [ $DISABLE_CHROOT == false ]; then
 			# create a folder inside /tmp on the target
 			
-			CHROOT_TARGET=( `cd "$TARGET_IMAGE_MOUNT"; /usr/bin/mktemp -d "tmp/$SOURCE_FOLDER_TEMPLATE"` )
+			CHROOT_TARGET=`cd "$TARGET_IMAGE_MOUNT"; /usr/bin/mktemp -d "private/tmp/$SOURCE_FOLDER_TEMPLATE"`
 			/bin/chmod og+x "$TARGET_IMAGE_MOUNT/$CHROOT_TARGET"
 			CHROOT_TARGET="/$CHROOT_TARGET"
 			
 			log "	Copying folder $TARGET into the target at $CHROOT_TARGET" information
-			/bin/cp -RH "$TARGET/" "${TARGET_IMAGE_MOUNT}${CHROOT_TARGET}/" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+			/bin/cp -RHL "$TARGET/" "${TARGET_IMAGE_MOUNT}${CHROOT_TARGET}/" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 			
 			TARGET_COPIED=true
 		fi
@@ -815,19 +828,19 @@ install_packages_from_folder() {
 				if [ $DISABLE_CHROOT == false ] && [ $PACKAGE_DISABLE_CHROOT == false ]; then
 					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER}) inside a chroot jail" information
 					
-					/usr/sbin/chroot "$TARGET_IMAGE_MOUNT" /usr/sbin/installer -verbose -dumplog -pkg "$CHROOT_TARGET/$TARGET_FILE_NAME" -target / 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+					( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verbose -dumplog -pkg "$CHROOT_TARGET/$TARGET_FILE_NAME" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				else
 					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER})" information
 					/usr/sbin/installer -verbose -dumplog -pkg "$TARGET/$TARGET_FILE_NAME" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				fi
 			else
 				if [ $DISABLE_CHROOT == false ] && [ $PACKAGE_DISABLE_CHROOT == false ]; then
-					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH}/${ORDERED_FOLDER} with XML Choices file: $CHOICES_FILE inside a chroot jail" information
+					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER}) with XML Choices file: $CHOICES_FILE inside a chroot jail" information
 					
-					/usr/sbin/chroot "$TARGET_IMAGE_MOUNT" /usr/sbin/installer -verbose -dumplog -applyChoiceChangesXML "/private/tmp/$CHOICES_FILE" -pkg "$TARGET/$TARGET_FILE_NAME" -target / 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+					( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verbose -dumplog -applyChoiceChangesXML "/private/tmp/$CHOICES_FILE" -pkg "$CHROOT_TARGET/$TARGET_FILE_NAME" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				else
-					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH}  (${ORDERED_FOLDER}) with XML Choices file: $CHOICES_FILE" information
-					/usr/sbin/installer -verbose -dumplog -applyChoiceChangesXML "$CHROOT_TARGET/$CHOICES_FILE" -pkg "$CHROOT_TARGET/$TARGET_FILE_NAME" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER}) with XML Choices file: $CHOICES_FILE" information
+					/usr/sbin/installer -verbose -dumplog -applyChoiceChangesXML "$TARGET/$CHOICES_FILE" -pkg "$TARGET/$TARGET_FILE_NAME" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				fi
 			fi
 		done
@@ -942,18 +955,18 @@ clean_up() {
 	log "Ejecting images" information
 	if [ ! -z "TARGET_IMAGE_MOUNT" ] && [ -d "$TARGET_IMAGE_MOUNT" ]; then
 		unmount_dmg "$TARGET_IMAGE_MOUNT" "Target Disk"
-		/bin/rmdir "$TARGET_IMAGE_MOUNT"
+		/bin/rmdir "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
 	# TODO: close this image earlier
 	if [ ! -z "$CURRENT_OS_INSTALL_MOUNT" ] && [ -d "$TARGET_IMAGE_MOUNT" ] && [ $CURRENT_OS_INSTALL_AUTOMOUNTED == true ]; then
 		unmount_dmg "$CURRENT_OS_INSTALL_MOUNT" "Primary OS install disk"
-		/bin/rmdir "$CURRENT_OS_INSTALL_MOUNT"
+		/bin/rmdir "$CURRENT_OS_INSTALL_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
 	if [ ! -z "$PACKAGE_DMG_MOUNT" ] && [ -d "$PACKAGE_DMG_MOUNT" ]; then
 		unmount_dmg "$PACKAGE_DMG_MOUNT" "Target Disk"
-		/bin/rmdir "$PACKAGE_DMG_MOUNT"
+		/bin/rmdir "$PACKAGE_DMG_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 		
 	log "Deleting scratch DMG" information
