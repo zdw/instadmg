@@ -890,20 +890,20 @@ clean_up_image() {
 	log "Deleting Extensions.mkext cache file" information
 	/bin/rm -vf "$TARGET_IMAGE_MOUNT/System/Library/Extensions.mkext" | (while read INPUT; do log "$INPUT " detail; done)
 	
-	# Delete items from /System/Caches and /Library/Caches
+	# Delete items from caches and temps
 	log "Deleting cache files created during installations" information
 	/bin/rm -vRf "$TARGET_IMAGE_MOUNT/System/Library/Caches/*" | (while read INPUT; do log "$INPUT " detail; done)
 	/bin/rm -vRf "$TARGET_IMAGE_MOUNT/Library/Caches/*" | (while read INPUT; do log "$INPUT " detail; done)
-	
-	# Make sure that /tmp is empty
+	/bin/rm -vRf "$TARGET_IMAGE_MOUNT/private/var/folders/*" | (while read INPUT; do log "$INPUT " detail; done)
 	/bin/rm -vRf "$TARGET_IMAGE_MOUNT/private/var/tmp/*" | (while read INPUT; do log "$INPUT " detail; done)
-	
+	/bin/rm -vRf "$TARGET_IMAGE_MOUNT/private/tmp/*" | (while read INPUT; do log "$INPUT " detail; done)
+
 }
 
 # close up the DMG, compress and scan for restore
 close_up_and_compress() {
 	log "Creating the deployment DMG and scanning for ASR" section
-		
+	
 	# We'll rename the newly installed system so that computers imaged with this will get the name
 	log "Rename the deployment volume: $ASR_FILESYSTEM_NAME" information
 	/usr/sbin/diskutil rename "$TARGET_IMAGE_MOUNT" "$ASR_FILESYSTEM_NAME" | (while read INPUT; do log "$INPUT " detail; done)

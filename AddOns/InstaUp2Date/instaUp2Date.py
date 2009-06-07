@@ -35,51 +35,56 @@ catalogFileExension			= ".catalog"
 
 cacheFolder					= "Caches/InstaUp2DateCache" # the location of the cache folder relative to the InstaDMG folder
 
-READ_CHUNK_SIZE = 1024; # how large a chucnk to grab while checksumming. changing this can affect performance
+READ_CHUNK_SIZE				= 1024; # how large a chunk to grab while checksumming. changing this can affect performance
 
-baseOSSectionName = "Base OS Disk"
+baseOSSectionName			= "Base OS Disk"
 
-allowedCatalogFileSettings = [ "ISO Language Code", "Output Volume Name", "Output File Name" ]
+allowedCatalogFileSettings	= [ "ISO Language Code", "Output Volume Name", "Output File Name" ]
 
 # these should be in the order they run in
-systemSectionTypes	= [ "OS Updates", "System Settings" ]
-addedSectionTypes	= [ "Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings" ]
+systemSectionTypes			= [ "OS Updates", "System Settings" ]
+addedSectionTypes			= [ "Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings" ]
 
-#-----------------------CHANGE TO PROPER DIRECTORY-------------------
+# these will be filled in by setup
+catalogFolder				= None
 
-# we have to cd to the proper directory (the one with InstaDMG in it)
-# by default the directory is two directories above the one containing the script
-
-os.chdir( os.path.join( os.path.dirname(sys.argv[0]), relativePathToInstaDMG ) ) # TODO: error handling
-
-if not(os.path.exists( instaDMGName )):
-	# TODO: use mdfind to find InstaDMG
-	raise Exception("Unable to locate InstaDMG") # TODO: improve error handling
-
-#-------------------------SETTINGS SANITY CHECK----------------------
-
-if not(os.path.exists(appleUpdatesFolder)) or not(os.path.isdir(appleUpdatesFolder)):
-	raise Exception() # TODO: improve error handling
-
-if not(os.path.exists(customPKGFolder)) or not(os.path.isdir(customPKGFolder)):
-	raise Exception() # TODO: improve error handling
-
-if not(os.path.exists(userSuppliedPKGFolder)) or not(os.path.isdir(userSuppliedPKGFolder)):
-	raise Exception() # TODO: improve error handling
-
-catalogFolder = os.path.join( relativePathFromInstaDMG, "CatalogFiles" )
-
-if not (os.path.exists(catalogFolder)) or not(os.path.isdir(catalogFolder)):
-	raise Exception() # TODO: improve error handling
-
-if not(os.path.exists(cacheFolder)):
-	# we will try to create this one if it does not exist
-	if not(os.path.isdir(cacheFolder)):
-		# something else there... bail
+def setup():
+	#-----------------------CHANGE TO PROPER DIRECTORY-------------------
+	
+	# we have to cd to the proper directory (the one with InstaDMG in it)
+	# by default the directory is two directories above the one containing the script
+	
+	os.chdir( os.path.join( os.path.dirname(sys.argv[0]), relativePathToInstaDMG ) ) # TODO: error handling
+	
+	if not(os.path.exists( instaDMGName )):
+		# TODO: use mdfind to find InstaDMG
+		raise Exception("Unable to locate InstaDMG") # TODO: improve error handling
+	
+	#-------------------------SETTINGS SANITY CHECK----------------------
+	
+	if not(os.path.exists(appleUpdatesFolder)) or not(os.path.isdir(appleUpdatesFolder)):
 		raise Exception() # TODO: improve error handling
-	os.makedirs(cacheFolder)
-if not(os.path.exists(cacheFolder)):
+	
+	if not(os.path.exists(customPKGFolder)) or not(os.path.isdir(customPKGFolder)):
 		raise Exception() # TODO: improve error handling
+	
+	if not(os.path.exists(userSuppliedPKGFolder)) or not(os.path.isdir(userSuppliedPKGFolder)):
+		raise Exception() # TODO: improve error handling
+	
+	global catalogFolder
+	catalogFolder = os.path.join( relativePathFromInstaDMG, "CatalogFiles" )
+	
+	if not (os.path.exists(catalogFolder)) or not(os.path.isdir(catalogFolder)):
+		raise Exception() # TODO: improve error handling
+	
+	if not(os.path.exists(cacheFolder)):
+		# we will try to create this one if it does not exist
+		if not(os.path.isdir(cacheFolder)):
+			# something else there... bail
+			raise Exception() # TODO: improve error handling
+		os.makedirs(cacheFolder)
+	if not(os.path.exists(cacheFolder)):
+			raise Exception() # TODO: improve error handling
 		
 #---------------------------HELPER METHODS---------------------------
 
@@ -920,7 +925,11 @@ class installerPackage:
 #--------------------------------MAIN--------------------------------
 
 def main ():
-
+	
+	setup()
+	
+	global catalogFolder
+	
 	# ------- defaults -------
 	processWithInstaDMG	= False
 	outputVolumeName	= "MacintoshHD"
@@ -969,4 +978,5 @@ def main ():
 		
 #------------------------------END MAIN------------------------------
 
-main()
+if __name__ == "__main__":
+    main()
