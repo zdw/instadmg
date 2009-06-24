@@ -464,7 +464,7 @@ mount_cached_image() {
 	# sanity check
 	if [ -z "$TARGET_IMAGE_CHECKSUM" ]; then
 		log "Unable to get checksum for image: $CURRENT_OS_INSTALL_FILE" error
-		return
+		exit 1
 	fi
 	
 	INSTALLER_CHOICES_FILE=''
