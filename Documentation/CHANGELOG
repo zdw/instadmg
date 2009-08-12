@@ -1,3 +1,10 @@
+Changes in instadmg 1.5rc1
+
+General:
+InstaDMG now supports running the pkgs in a chroot environment. This makes many difficult packages, such as the Cisco VPN installer, work without repackaging. Some dist based packages can somehow break out of the jail though, so use with caution. You can use the -r option to disable the chroot features.
+Lots of script cleanup.
+
+------------------------
 Changes in instadmg 1.4b4
 
 General:

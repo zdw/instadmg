@@ -31,4 +31,4 @@ If you are running on 10.5 it will try to apply any InstallerChoices.xml file it
 On 10.4 installs all packages in the OSInstall.mpkg will be installed. This is a limitation of the 10.4 installer.
 
 VERSION
-1.4b4
+1.5rc1
