@@ -1041,6 +1041,12 @@ fi
 
 prepare_image
 
+# disable image caching on 10.6
+if [ $OS_REV_MAJOR -eq 6 ]; then
+	log "Chroot jails do not currently work with 10.6, so disabling them" warning
+	DISABLE_CHROOT=true
+fi
+
 install_packages_from_folder "$UPDATE_FOLDER"
 install_packages_from_folder "$CUSTOM_FOLDER"
 
