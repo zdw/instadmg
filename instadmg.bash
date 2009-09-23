@@ -503,6 +503,15 @@ mount_cached_image() {
 	else
 		/usr/bin/hdiutil mount "$TARGET_IMAGE_FILE" -nobrowse -puppetstrings -owners on -mountpoint "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
+	
+	# Check that the host OS is the same dot version as the target, or newer
+	TARGET_OS_REV_MAJOR=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion | awk -F "." '{ print $2 }'`
+	if [ $OS_REV_MAJOR -lt $TARGET_OS_REV_MAJOR ]; then
+		# we can't install a newer os from an older os
+		log "Trying to install a newer os ($TARGET_OS_REV_MAJOR) while running on an older os ($OS_REV_MAJOR), this is not possible" error
+		exit 1
+	fi
+	
 	# TODO: check to see if there was a problem
 }
 
@@ -582,6 +591,14 @@ mount_os_install() {
 		log "No OS install disk or cached build was found" error
 		exit 1
 	fi
+	# Check that the host OS is the same dot version as the target, or newer
+	TARGET_OS_REV_MAJOR=`/usr/bin/defaults read "$CURRENT_OS_INSTALL_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion | awk -F "." '{ print $2 }'`
+	if [ $OS_REV_MAJOR -lt $TARGET_OS_REV_MAJOR ]; then
+		# we can't install a newer os from an older os
+		log "Trying to install a newer os ($TARGET_OS_REV_MAJOR) while running on an older os ($OS_REV_MAJOR), this is not possible" error
+		exit 1
+	fi
+	
 	
 	log "Mac OS X installer image mounted" information
 }
@@ -938,6 +955,7 @@ restore_image() {
 	/usr/sbin/asr --verbose --source "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" --target "$TESTING_TARGET_VOLUME" --erase --nocheck --noprompt | (while read INPUT; do log "$INPUT " detail; done)
 	if [ $? -ne 0 ]; then
 		log "Failed to restore image to: $TESTING_TARGET_VOLUME" error
+		clean_up
 		exit 1
 	fi
 }
