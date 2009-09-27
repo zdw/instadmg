@@ -79,12 +79,6 @@ ALLOWED_INSTALLER_DISK_NAMES=("Mac OS X Install Disc 1.dmg" "Mac OS X Install DV
 # Bundle identifier codes to exclude from the chroot system
 CHROOT_EXCLUDED_CODES=("edu.uc.daap.createuser.pkg")
 
-# Default log names. The PKG log is a more consise history of what was installed.
-DATE_STRING=`/bin/date +%y.%m.%d-%H.%M`
-LOG_FILE="${LOG_FOLDER}/${DATE_STRING}.debug.log"		# The debug log
-PKG_LOG="${LOG_FOLDER}/${DATE_STRING}.package.log"		# List of packages installed
-
-
 #<!-------------------- Working Variables ------------------>
 HOST_MOUNT_FOLDER=''					# Enclosing folder for the base image mount point, and othes if not using chroot
 TARGET_TEMP_FOLDER=''					# If using chroot packages will be copied into temp folders in here before install
@@ -1027,6 +1021,11 @@ do
 		\? ) usage;;
 	esac
 done
+
+# Setup log names. The PKG log is a more consise history of what was installed.
+DATE_STRING=`/bin/date +%y.%m.%d-%H.%M`
+LOG_FILE="${LOG_FOLDER}/${DATE_STRING}.debug.log"		# The debug log
+PKG_LOG="${LOG_FOLDER}/${DATE_STRING}.package.log"		# List of packages installed
 
 rootcheck
 
