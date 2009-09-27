@@ -123,7 +123,7 @@ PACKAGE_LOG_LEVEL=2
 #		detail		- verbose detail
 
 # everything will always be logged to the full log
-# depending on the second argument and the loggin levels for CONSOLE_LOG_LEVEL and PACKAGE_LOG_LEVEL the following will be logged
+# depending on the second argument and the logging levels for CONSOLE_LOG_LEVEL and PACKAGE_LOG_LEVEL the following will be logged
 
 # Detail 2 is lines that begin with "installer:" that don't match a couple of other criteria
 
@@ -261,7 +261,7 @@ Note:	This program must be run as root (sudo is acceptable)
 Options:
 	-b <folder path>	Look for the base image in this folder ($INSTALLER_FOLDER)
 	-c <folder path>	Look for custom pkgs in this folder ($CUSTOM_FOLDER)
-	-f			Enable non-parinoid mode (skip checking image checksumms)
+	-f			Enable non-paranoid mode (skip checking image checksumms)
 	-h			Print the useage information (this) and exit
 	-i <iso code>		Use <iso code> for the installer language ($ISO_CODE)
 	-l <folder path>	Set the folder to use as the log folder ($LOG_FOLDER)
@@ -581,7 +581,7 @@ mount_os_install() {
 		fi
 	done
 	
-	# check to make sure we are leaving something usefull
+	# check to make sure we are leaving something useful
 	if [ -z "$CURRENT_OS_INSTALL_MOUNT" ]; then
 		log "No OS install disk or cached build was found" error
 		exit 1
@@ -739,7 +739,7 @@ install_packages_from_folder() {
 	fi
 	
 	IFS=$'\n'
-	for ORDERED_FOLDER in $(/bin/ls -A1 "$SELECTED_FOLDER" | /usr/bin/awk "/^[[:digit:]]+$/"); do
+	for ORDERED_FOLDER in $(/bin/ls -A1 "$SELECTED_FOLDER" | /usr/bin/awk "/^[[:digit:]]+.*$/" | /usr/bin/sort -n); do
 		TARGET="$SELECTED_FOLDER/$ORDERED_FOLDER"
 		ORIGINAL_TARGET="$TARGET"
 		CHROOT_TARGET=''
