@@ -148,7 +148,7 @@ log() {
 		# there is nothing to log
 		return
 	else
-		MESSAGE="$1"
+		MESSAGE=`/bin/echo "$1" | /usr/bin/awk '{gsub("installer(\[[[:digit:]]+\])*\:", ""); print $0}'`
 	fi
 	
 	if [ -z "$2" ]; then
@@ -505,6 +505,7 @@ mount_cached_image() {
 	fi
 	
 	# Check that the host OS is the same dot version as the target, or newer
+	TARGET_OS_REV=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion`
 	TARGET_OS_REV_MAJOR=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion | awk -F "." '{ print $2 }'`
 	if [ $OS_REV_MAJOR -lt $TARGET_OS_REV_MAJOR ]; then
 		# we can't install a newer os from an older os
@@ -671,10 +672,10 @@ install_system() {
 	
 	if [ -z "$INSTALLER_CHOICES_FILE" ]; then
 		log "Installing system from: $CURRENT_OS_INSTALL_MOUNT onto image at: $TARGET_IMAGE_MOUNT using language code: $ISO_CODE" information
-		/usr/sbin/installer -verbose -dumplog -pkg "$OS_INSTALLER_PACKAGE" -target "$TARGET_IMAGE_MOUNT" -lang $ISO_CODE 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+		/usr/sbin/installer -verboseR -dumplog -pkg "$OS_INSTALLER_PACKAGE" -target "$TARGET_IMAGE_MOUNT" -lang $ISO_CODE 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	else
 		log "Installing system from: $CURRENT_OS_INSTALL_MOUNT onto image at: $TARGET_IMAGE_MOUNT using InstallerChoices file: $INSTALLER_CHOICES_FILE and language code: $ISO_CODE" information
-		/usr/sbin/installer -verbose -dumplog -applyChoiceChangesXML "$INSTALLER_CHOICES_FILE" -pkg "$OS_INSTALLER_PACKAGE" -target "$TARGET_IMAGE_MOUNT" -lang "$ISO_CODE" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+		/usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$INSTALLER_CHOICES_FILE" -pkg "$OS_INSTALLER_PACKAGE" -target "$TARGET_IMAGE_MOUNT" -lang "$ISO_CODE" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 
 	if [ $? -ne 0 ]; then
@@ -845,19 +846,19 @@ install_packages_from_folder() {
 				if [ $DISABLE_CHROOT == false ] && [ $PACKAGE_DISABLE_CHROOT == false ]; then
 					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER}) inside a chroot jail" information
 					
-					( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verbose -dumplog -pkg "$CHROOT_TARGET/$TARGET_FILE_NAME" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+					( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verboseR -dumplog -pkg "$CHROOT_TARGET/$TARGET_FILE_NAME" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				else
 					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER})" information
-					/usr/sbin/installer -verbose -dumplog -pkg "$TARGET/$TARGET_FILE_NAME" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+					/usr/sbin/installer -verboseR -dumplog -pkg "$TARGET/$TARGET_FILE_NAME" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				fi
 			else
 				if [ $DISABLE_CHROOT == false ] && [ $PACKAGE_DISABLE_CHROOT == false ]; then
 					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER}) with XML Choices file: $CHOICES_FILE inside a chroot jail" information
 					
-					( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verbose -dumplog -applyChoiceChangesXML "/private/tmp/$CHOICES_FILE" -pkg "$CHROOT_TARGET/$TARGET_FILE_NAME" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+					( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "/private/tmp/$CHOICES_FILE" -pkg "$CHROOT_TARGET/$TARGET_FILE_NAME" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				else
 					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER}) with XML Choices file: $CHOICES_FILE" information
-					/usr/sbin/installer -verbose -dumplog -applyChoiceChangesXML "$TARGET/$CHOICES_FILE" -pkg "$TARGET/$TARGET_FILE_NAME" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+					/usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$TARGET/$CHOICES_FILE" -pkg "$TARGET/$TARGET_FILE_NAME" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				fi
 			fi
 		done
@@ -955,7 +956,6 @@ restore_image() {
 	/usr/sbin/asr --verbose --source "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" --target "$TESTING_TARGET_VOLUME" --erase --nocheck --noprompt | (while read INPUT; do log "$INPUT " detail; done)
 	if [ $? -ne 0 ]; then
 		log "Failed to restore image to: $TESTING_TARGET_VOLUME" error
-		clean_up
 		exit 1
 	fi
 }
@@ -1032,6 +1032,7 @@ rootcheck
 
 log "InstaDMG build initiated" section
 log "InstaDMG version $VERSION" information
+log "Host OS version: `/usr/bin/sw_vers -productVersion`" information
 log "Output file name: $ASR_OUPUT_FILE_NAME" information
 log "Output disk name: $ASR_FILESYSTEM_NAME" information
 
@@ -1056,6 +1057,8 @@ if [ -z "$TARGET_IMAGE_MOUNT" ]; then
 		mount_cached_image
 	fi
 fi
+
+log "Target OS version: $TARGET_OS_REV" information
 
 prepare_image
 
