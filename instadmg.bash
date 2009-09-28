@@ -49,7 +49,7 @@ ISO_CODE="en"									# ISO code that installer will use for the install languag
 DISABLE_CHROOT=false							# Use a chroot jail while installing updates
 DISABLE_BASE_IMAGE_CACHING=false				# setting this to true turns off caching
 ENABLE_TESTING_VOLUME=false						# setting this and the TESTING_TARGET_VOLUME will erase that volume and write the image onto it
-ENABLE_NON_PARINIOD_MODE=false					# disable checking image checksums
+ENABLE_NON_PARANOID_MODE=false					# disable checking image checksums
 
 # Default folders
 INSTALLER_FOLDER="./InstallerFiles/BaseOS"		# Images of install DVDs
@@ -301,13 +301,13 @@ mount_dmg() {
 		log "Internal error: mount_dmg called with invalid mount point: $2" error
 	fi
 	
-	if [ $ENABLE_NON_PARINIOD_MODE == true ]; then
+	if [ $ENABLE_NON_PARANOID_MODE == true ]; then
 		/usr/bin/hdiutil mount "$1" -nobrowse -noautofsck -noverify -puppetstrings -owners on -mountpoint "$2" | (while read INPUT; do log "$INPUT " detail; done)
 	else
 		/usr/bin/hdiutil mount "$1" -nobrowse -puppetstrings -owners on -mountpoint "$2" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
-	if [ $ENABLE_NON_PARINIOD_MODE == true ]; then
+	if [ $ENABLE_NON_PARANOID_MODE == true ]; then
 		/usr/bin/hdiutil mount "$1" -nobrowse -noautofsck -noverify -puppetstrings -owners on -mountpoint "$2" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	else
 		/usr/bin/hdiutil mount "$1" -nobrowse -puppetstrings -owners on -mountpoint "$2" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
@@ -492,7 +492,7 @@ mount_cached_image() {
 	
 	# Mount the image and the shadow file
 	log "Mounting the shadow file ($SHADOW_FILE_LOCATION) onto the cached image ($TARGET_IMAGE_FILE)" information
-	if [ $ENABLE_NON_PARINIOD_MODE == true ]; then
+	if [ $ENABLE_NON_PARANOID_MODE == true ]; then
 		/usr/bin/hdiutil mount "$TARGET_IMAGE_FILE" -nobrowse -noautofsck -noverify -puppetstrings -owners on -mountpoint "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	else
 		/usr/bin/hdiutil mount "$TARGET_IMAGE_FILE" -nobrowse -puppetstrings -owners on -mountpoint "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
@@ -572,7 +572,7 @@ mount_os_install() {
 			/bin/chmod og+x "$SUPPORT_MOUNT_POINT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
 			log "Mounting a support disk from $INSTALLER_FOLDER/$IMAGE_FILE at $SUPPORT_MOUNT_POINT" information
 			# note that we are allowing browsing of these files, so they will show up in the finder (and be found by the installer)
-			if [ $ENABLE_NON_PARINIOD_MODE == true ]; then
+			if [ $ENABLE_NON_PARANOID_MODE == true ]; then
 				/usr/bin/hdiutil mount "$INSTALLER_FOLDER/$IMAGE_FILE" -readonly -noautofsck -noverify -puppetstrings -mountpoint "$SUPPORT_MOUNT_POINT" | (while read INPUT; do log $INPUT detail; done)
 			else
 				/usr/bin/hdiutil mount "$INSTALLER_FOLDER/$IMAGE_FILE" -readonly -puppetstrings -mountpoint "$SUPPORT_MOUNT_POINT" | (while read INPUT; do log $INPUT detail; done)
@@ -1003,7 +1003,7 @@ do
 		b ) INSTALLER_FOLDER="$OPTARG";;
 		c ) CUSTOM_FOLDER="$OPTARG";;
 		d ) CONSOLE_LOG_LEVEL="$OPTARG";;
-		f ) ENABLE_NON_PARINIOD_MODE=true;;
+		f ) ENABLE_NON_PARANOID_MODE=true;;
 		h ) usage 0;;
 		i ) ISO_CODE="$OPTARG";;
 		l ) LOG_FOLDER="$OPTARG";;
