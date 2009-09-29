@@ -815,7 +815,7 @@ class installerPackage:
 			parsedURL = self.fileLocationParser.search(self.archiveLocation)
 			if re.match("http", parsedURL.group("protocol"), re.I):
 				if REMOTEFILE.info().has_key("content-disposition"):
-					parsedHeader = self.contentDispostionParser(REMOTEFILE.info()["content-disposition"])
+					parsedHeader = self.contentDispostionParser.search(REMOTEFILE.info()["content-disposition"])
 					if parsedHeader != None:
 						parsedURL = self.fileLocationParser.search(parsedHeader.group(filename))
 	
@@ -826,7 +826,7 @@ class installerPackage:
 			REMOTEFILE.close()
 			OUTPUTFILE.close()
 			
-		except Exception, e:
+		except Exception as e:
 			# if there was a problem, we need to catch it, and clean up
 			if REMOTEFILE != None:
 				REMOTEFILE.close()
@@ -834,7 +834,7 @@ class installerPackage:
 				OUTPUTFILE.close()
 			if os.path.exists(tempFilePath):
 				os.unlink(tempFilePath)
-			raise e # pass it along
+			raise  # pass it along
 		
 		self.setStatus("Downloaded")
 		self.setSourceMessage("Downloaded from Archive");
