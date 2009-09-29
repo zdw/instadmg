@@ -794,8 +794,10 @@ install_packages_from_folder() {
 		
 		ABSOLUTE_TARGET_PATH=( `cd "$TARGET"; pwd -P` )
 		
-		IFS=$'\n'	
+		IFS=$'\n'
+		FOUND_PACKAGE=false
 		for UPDATE_PKG in $(/usr/bin/find -L "$ABSOLUTE_TARGET_PATH" -maxdepth 1 -iname '*pkg' | /usr/bin/awk 'tolower() ~ /\.(m)?pkg/ && !/\/\._/'); do
+			FOUND_PACKAGE=true
 			CHOICES_FILE=''
 			PACKAGE_DISABLE_CHROOT=false
 			
@@ -856,7 +858,38 @@ install_packages_from_folder() {
 				fi
 			fi
 		done
+		
+		# if there was no package here, look for a single naked .app
+		if [ $FOUND_PACKAGE == false ]; then
 			
+			COPY_SOURCE=""
+			
+			if [ $DISABLE_CHROOT == false ]; then
+				if [ 1 -eq `/bin/ls "$CHROOT_TARGET" | grep -c ".app$"` ]; then
+					COPY_SOURCE=`/bin/ls "$CHROOT_TARGET" | grep ".app$"`
+				fi
+			else
+				if [ 1 -eq `/bin/ls "$TARGET" | grep -c ".app$"` ]; then
+					COPY_SOURCE=`/bin/ls "$TARGET" | grep ".app$"`
+				fi
+			fi
+			
+			if [ ! -z $COPY_SOURCE ]; then
+				FOUND_PACKAGE=true
+			
+				log "Copying $COPY_SOURCE to the Applications folder on $TARGET_IMAGE_MOUNT" detail
+				/bin/cp -R "$TARGET/$COPY_SOURCE" "$TARGET_IMAGE_MOUNT/Applications" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+				
+				# Wipe the quarentine property away
+				/usr/bin/xattr -d -r "com.apple.quarantine" "$TARGET_IMAGE_MOUNT/Applications/$COPY_SOURCE" 2>/dev/null 1>/dev/null
+			fi
+		fi
+		
+		# if there was still nothing found, then report it
+		if [ $FOUND_PACKAGE == false ]; then
+			log "Nothing found to install in $ORIGINAL_TARGET (${ORDERED_FOLDER})" error
+		fi
+		
 		# cleanup
 		if [ ! -z "$PACKAGE_DMG_MOUNT" ]; then
 			unmount_dmg "$PACKAGE_DMG_MOUNT" "Package DMG"
@@ -894,7 +927,7 @@ clean_up_image() {
 		fi
 	done
 	
-	# make sure that we have not left any open files behind
+	# Close any open files on the target
 	log "Closing programs that have opened files on the disk" information
 	/usr/sbin/lsof | /usr/bin/grep "$TARGET_IMAGE_MOUNT/" | /usr/bin/awk '{ print $2 }' | /usr/bin/sort -u | /usr/bin/xargs /bin/kill 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	
