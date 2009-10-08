@@ -826,7 +826,7 @@ class installerPackage:
 			REMOTEFILE.close()
 			OUTPUTFILE.close()
 			
-		except Exception as e:
+		except Exception, e:
 			# if there was a problem, we need to catch it, and clean up
 			if REMOTEFILE != None:
 				REMOTEFILE.close()
