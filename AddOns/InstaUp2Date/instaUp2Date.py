@@ -834,7 +834,7 @@ class installerPackage:
 				OUTPUTFILE.close()
 			if os.path.exists(tempFilePath):
 				os.unlink(tempFilePath)
-			raise  # pass it along
+			raise e # pass it along
 		
 		self.setStatus("Downloaded")
 		self.setSourceMessage("Downloaded from Archive");
