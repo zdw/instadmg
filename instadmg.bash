@@ -108,6 +108,7 @@ CPU_TYPE=''
 TARGET_OS_REV=''
 TARGET_OS_REV_MAJOR=''
 TARGET_OS_REV_BUILD=''
+TARGET_OS_NAME=''
 
 SUPPORTING_DISKS=()
 MOUNTED_DMG_MOUNT_POINTS=()
@@ -605,6 +606,7 @@ mount_cached_image() {
 	TARGET_OS_REV=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion`
 	TARGET_OS_REV_MAJOR=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion | awk -F "." '{ print $2 }'`
 	TARGET_OS_REV_BUILD=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductBuildVersion`
+	TARGET_OS_NAME=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductName`
 	if [ $OS_REV_MAJOR -lt $TARGET_OS_REV_MAJOR ]; then
 		# we can't install a newer os from an older os
 		log "Trying to install a newer os ($TARGET_OS_REV_MAJOR) while running on an older os ($OS_REV_MAJOR), this is not possible" error
@@ -636,6 +638,7 @@ mount_os_install() {
 	TARGET_OS_REV=`/usr/bin/defaults read "$CURRENT_OS_INSTALL_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion`
 	TARGET_OS_REV_MAJOR=`/usr/bin/defaults read "$CURRENT_OS_INSTALL_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion | awk -F "." '{ print $2 }'`
 	TARGET_OS_REV_BUILD=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductBuildVersion`
+	TARGET_OS_NAME=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductName`
 	if [ $OS_REV_MAJOR -lt $TARGET_OS_REV_MAJOR ]; then
 		# we can't install a newer os from an older os
 		log "Trying to install a newer os ($TARGET_OS_REV_MAJOR) while running on an older os ($OS_REV_MAJOR), this does not work" error
@@ -1155,7 +1158,8 @@ rootcheck
 
 log "InstaDMG build initiated" section
 log "InstaDMG version $VERSION" information
-log "Host OS version: `/usr/bin/sw_vers -productVersion`" information
+log "Host OS: `/usr/bin/sw_vers -productName` `/usr/bin/sw_vers -productVersion`" information
+log "Host Hardware: `/usr/sbin/system_profiler SPHardwareDataType | /usr/bin/awk '/Model Identifier/ { print $3 }'`" information
 log "Output file name: $ASR_OUPUT_FILE_NAME" information
 log "Output disk name: $ASR_FILESYSTEM_NAME" information
 
@@ -1182,7 +1186,7 @@ if [ -z "$TARGET_IMAGE_MOUNT" ]; then
 	fi
 fi
 
-log "Target OS version: $TARGET_OS_REV ($TARGET_OS_REV_BUILD)" information
+log "Target OS: $TARGET_OS_NAME $TARGET_OS_REV ($TARGET_OS_REV_BUILD)" information
 
 prepare_image
 
