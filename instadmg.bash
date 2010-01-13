@@ -10,7 +10,7 @@
 #
 
 SVN_REVISION=`/bin/echo '$Revision$' | /usr/bin/awk '{ print $2 }'`
-VERSION="1.5 (svn revision: $SVN_REVISION)"
+VERSION="1.6b1 (svn revision: $SVN_REVISION)"
 PROGRAM=$( (basename $0) )
 
 
@@ -53,12 +53,17 @@ ENABLE_NON_PARANOID_MODE=false					# disable checking image checksums
 
 # Default folders
 INSTALLER_FOLDER="./InstallerFiles/BaseOS"		# Images of install DVDs
-UPDATE_FOLDER="./InstallerFiles/BaseUpdates"	# System update 0, numbered folders provide the ordering
+INSTALLER_DISK=''								# User-supplied path to a specific installer disk
+SUPPORTING_DISKS=''								# Array of user-supplied supporting disks to mount
+
+UPDATE_FOLDER="./InstallerFiles/BaseUpdates"	# Combo update first, followed by additional numbered folders
 CUSTOM_FOLDER="./InstallerFiles/CustomPKG"		# All other update pkg's
+UPDATE_FOLDERS=()								# Array of the folders to pull updates from in the order they should be installed
+
 ASR_FOLDER="./OutputFiles"						# Destination of the ASR images
 BASE_IMAGE_CACHE="./Caches/BaseImageCache"		# Cached images named by checksums
 LOG_FOLDER="./Logs"
-PACKAGE_DMG_MOUNT_LOCATION="/private/tmp"		# DMGs will be mounted at a location inside of this folder
+TEMPORARY_FOLDER="/private/tmp"		# DMGs will be mounted at a location inside of this folder
 TESTING_TARGET_VOLUME=''						# setting this and the ENABLE_TESTING_VOLUME will erase that volume and write the image onto it
 
 # TODO: make sure that the cached images are not indexed
@@ -66,7 +71,7 @@ TESTING_TARGET_VOLUME=''						# setting this and the ENABLE_TESTING_VOLUME will 
 # Default Names
 DMG_BASE_NAME=`/usr/bin/uuidgen`				# Name of the intermediary image
 
-MOUNT_FOLDER_TEMPLATE="mount_folder.XXXXXX"
+MOUNT_FOLDER_TEMPLATE="InstaDMG_temp_folder.XXXXXX"
 MOUNT_POINT_TEMPLATE="mount_point.XXXXXX"
 SOURCE_FOLDER_TEMPLATE="package.XXXXXX"
 
@@ -100,6 +105,14 @@ OS_REV_MAJOR=''
 OS_REV_MINOR=''
 CPU_TYPE=''
 
+TARGET_OS_REV=''
+TARGET_OS_REV_MAJOR=''
+TARGET_OS_REV_BUILD=''
+
+SUPPORTING_DISKS=()
+MOUNTED_DMG_MOUNT_POINTS=()
+
+LATEST_IMAGE_MOUNT=''					# back-channel to let the mount_dmg command communicate back auto-mounts
 
 #<!----------------------- Logging ------------------------->
 
@@ -270,12 +283,16 @@ Options:
 	-o <folder path>	Set the folder to use as the output folder ($ASR_FOLDER)
 	-q			Quiet: print only errors to the console
 	-r			Disable using chroot for package installs ($DISABLE_CHROOT)
-	-t <folder path>	Create a scratch space in this folder ($PACKAGE_DMG_MOUNT_LOCATION)
-	-u <folder path>	Use this folder as the BaseUpdates folder ($UPDATE_FOLDER)
+	-t <folder path>	Create a scratch space in this folder ($TEMPORARY_FOLDER)
+	-u <folder path>	Use folder as the BaseUpdates folder ($UPDATE_FOLDER)
 	-v			Print the version number and exit
 	-w <folder path>	Disk to erase and restore the new image to for testing
 	-y			Enable erase-and-restore of new image to testing volume
 	-z			Disable caching of the base image ($DISABLE_BASE_IMAGE_CACHING)
+	
+	-I <dmg path>		Use dmg at this path as the installer disk.
+	-J <dmg path>		Mount dmg at this path during installs.
+	-K <folder path>	Use folder as a source for updates, call multiple time in order for multiple folders.
 EOF
 	if [ -z $1 ]; then
 		exit 1;
@@ -285,7 +302,15 @@ EOF
 }
 
 mount_dmg() {
+	# input
+	#	$1 - path to file (manditory)
+	#	$2 - mount point (optional)
+	#	$3 - mount name (optional)
+	#	$4 - mount options (optional)
+	
 	set +o nounset
+	
+	LATEST_IMAGE_MOUNT=''
 	
 	if [ -z "$1" ]; then
 		log "Internal error: mount_dmg called without a source file" error
@@ -294,26 +319,62 @@ mount_dmg() {
 		log "Internal error: mount_dmg called with invalid source file: $1" error
 	fi
 	
+	# Get the absolute path to the image
+	DMG_PATH=$( cd $( dirname "$1" ); echo "`pwd`/`basename "$1"`" )
+	
+	# Test to see if the image is already mounted
+	IFS=$'\n'
+	MOUNTED_IMAGES=`/usr/bin/hdiutil info -plist | /usr/bin/awk '/<key>image-path<\/key>/ { getline; gsub(/[[:space:]]*\<\/?string>/,""); print }'`
+	IMAGE_MOUNT_POINTS=`/usr/bin/hdiutil info -plist | /usr/bin/awk '/<key>mount-point<\/key>/ { getline; gsub(/[[:space:]]*\<\/?string>/,""); print }'`
+	# convert to arrays
+	MOUNTED_IMAGES=( $MOUNTED_IMAGES )
+	IMAGE_MOUNT_POINTS=( $IMAGE_MOUNT_POINTS )
+	
+	for (( mountCounter = 0 ; mountCounter < ${#MOUNTED_IMAGES[@]} ; mountCounter++ )); do
+		if [ "$MOUNTED_IMAGES[$mountCounter]" == "$DMG_PATH" ]; then
+			# The image is already mounted
+			log "Disk image $DMG_PATH was already mounted at $TEMP_MOUNT_POINT" detail
+			LATEST_IMAGE_MOUNT=$IMAGE_MOUNT_POINTS[$mountCounter]
+			return 1
+		fi
+	done
+	
+	# We now know it is not currently mounted
+	
+	# If there was no mount point given, make a new one
 	if [ -z "$2" ]; then
-		log "Internal error: mount_dmg called without a mount point" error
-	fi
-	if [ ! -d "$2" ]; then
-		log "Internal error: mount_dmg called with invalid mount point: $2" error
+		# Create a new mount point in the shield directory
+		TEMP_MOUNT_POINT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
+	else
+		TEMP_MOUNT_POINT="$2"
 	fi
 	
-	if [ $ENABLE_NON_PARANOID_MODE == true ]; then
-		/usr/bin/hdiutil mount "$1" -nobrowse -noautofsck -noverify -puppetstrings -owners on -mountpoint "$2" | (while read INPUT; do log "$INPUT " detail; done)
-	else
-		/usr/bin/hdiutil mount "$1" -nobrowse -puppetstrings -owners on -mountpoint "$2" | (while read INPUT; do log "$INPUT " detail; done)
+	# Test the mount point
+	if [ ! -d "$TEMP_MOUNT_POINT" ]; then
+		log "Internal error: mount_dmg called with invalid mount point: $TEMP_MOUNT_POINT" error
 	fi
 	
-	if [ $ENABLE_NON_PARANOID_MODE == true ]; then
-		/usr/bin/hdiutil mount "$1" -nobrowse -noautofsck -noverify -puppetstrings -owners on -mountpoint "$2" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+	# Log the mount attempt
+	if [ -z $3 ]; then
+		log "Mounting disk image from $DMG_PATH at $TEMP_MOUNT_POINT" detail
 	else
-		/usr/bin/hdiutil mount "$1" -nobrowse -puppetstrings -owners on -mountpoint "$2" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+		log "Mounting $3 ($DMG_PATH) at $TEMP_MOUNT_POINT" detail
 	fi
+	
+	# Mount the image
+	if [ $ENABLE_NON_PARANOID_MODE == true ]; then
+		/usr/bin/hdiutil mount "$DMG_PATH" -nobrowse -noautofsck -noverify $4 -puppetstrings -owners on -mountpoint "$TEMP_MOUNT_POINT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+	else
+		/usr/bin/hdiutil mount "$DMG_PATH" -nobrowse $4 -puppetstrings -owners on -mountpoint "$TEMP_MOUNT_POINT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+	fi
+	
+	# Add the disk to the list of mount points
+	MOUNTED_DMG_MOUNT_POINTS[${#MOUNTED_DMG_MOUNT_POINTS[@]}]="$TEMP_MOUNT_POINT"
 	
 	set -o nounset
+	
+	LATEST_IMAGE_MOUNT="$TEMP_MOUNT_POINT"
+	return 0
 }
 
 unmount_dmg() {
@@ -321,35 +382,45 @@ unmount_dmg() {
 	
 	if [ -z "$1" ]; then
 		log "Internal error: tried to eject an image without a path" error
-		exit 1
+		return 1
 	fi
 	if [ ! -d "$1" ]; then
 		log "Internal error: tried to eject and image from $1 but that path is not a directory" error
-		exit 1
+		return 1
 	fi
-	if [ -z "$2" ]; then
-		log "Internal error: the unmount_dmg function requires the second parameter as a name" error
-		exit 1
-	fi
+	
+	
+	# ToDo: check to see that there is an image mounted here
 	
 	FEEDBACK=`/usr/bin/hdiutil eject "$1" 2>&1`
 	if [ ${?} -ne 0 ]; then
 		echo "$FEEBACK" | (while read INPUT; do log "$INPUT " detail; done)
 		# for some reason it did not un-mount, so we will try again with more force
 		log "The image did not eject cleanly, so I will force it" information
-		FEEBACK2=`/usr/bin/hdiutil eject -force "$1" 2>&1`
+		FEEDBACK=`/usr/bin/hdiutil eject -force "$1" 2>&1`
 		if [ ${?} -ne 0 ]; then
-			echo "$FEEBACK2" | (while read INPUT; do log "$INPUT " detail; done)
+			echo "$FEEDBACK" | (while read INPUT; do log "$INPUT " detail; done)
 			log "Failed to unmount the $2 image from $1, unable to continue" error
-			exit 1
+			return 1
 		else
-			echo "$FEEBACK2" | (while read INPUT; do log "$INPUT " detail; done)
+			echo "$FEEDBACK" | (while read INPUT; do log "$INPUT " detail; done)
 		fi
 	else
 		echo "$FEEBACK" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
-	log "Unmounted the $2 image from $1" detail
+	# Remove the disk from MOUNTED_DMG_MOUNT_POINTS 
+	for (( unmountDiskCount = 0 ; unmountDiskCount < ${#MOUNTED_DMG_MOUNT_POINTS[@]} ; unmountDiskCount++ )); do
+		if [ ! -z "${MOUNTED_DMG_MOUNT_POINTS[$unmountDiskCount]}" ] && [ "${MOUNTED_DMG_MOUNT_POINTS[$unmountDiskCount]}" == "$1" ]; then
+			unset MOUNTED_DMG_MOUNT_POINTS[$unmountDiskCount]
+		fi
+	done
+	
+	if [ -z "$2" ]; then
+		log "Unmounted image from $1" detail
+	else
+		log "Unmounted the $2 image from $1" detail
+	fi
 	
 	set -o nounset
 }
@@ -393,7 +464,15 @@ rootcheck() {
 
 startup() {	
 	IFS=' '
-	FOLDER_LIST="INSTALLER_FOLDER UPDATE_FOLDER CUSTOM_FOLDER ASR_FOLDER BASE_IMAGE_CACHE LOG_FOLDER PACKAGE_DMG_MOUNT_LOCATION"
+	
+	FOLDER_LIST="UPDATE_FOLDER CUSTOM_FOLDER ASR_FOLDER BASE_IMAGE_CACHE LOG_FOLDER TEMPORARY_FOLDER"
+	
+	if [ -z "$INSTALLER_DISK" ]; then
+		# We need to check the INSTALLER_FOLDER
+		FOLDER_LIST="$FOLDER_LIST INSTALLER_FOLDER"
+	fi
+	
+	
 	for FOLDER_ITEM in $FOLDER_LIST; do
 		# sanitise the folder paths to make sure that they don't end in /
 		if [ ${!FOLDER_ITEM: -1} == '/' ] && [ "${!FOLDER_ITEM}" != '/' ]; then
@@ -409,7 +488,7 @@ startup() {
 	
 	# Create folder to enclose host mount points
 	
-	HOST_MOUNT_FOLDER=`/usr/bin/mktemp -d "$PACKAGE_DMG_MOUNT_LOCATION/$MOUNT_FOLDER_TEMPLATE"`
+	HOST_MOUNT_FOLDER=`/usr/bin/mktemp -d "$TEMPORARY_FOLDER/$MOUNT_FOLDER_TEMPLATE"`
 	/bin/chmod og+x "$HOST_MOUNT_FOLDER" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
 	log "Host mount folder: $HOST_MOUNT_FOLDER" detail
 	
@@ -419,29 +498,53 @@ startup() {
 	CPU_TYPE=`/usr/bin/arch`
 }
 
-# Look for the baseOS disk
+# Look for the baseOS disk and supporting disks (if not provided)
 find_base_os() {
 	log "Finding main MacOS X installer disk" section
 	
-	INSTALLER_DISK_NAMES_ARRAY_LENGTH=${#ALLOWED_INSTALLER_DISK_NAMES[@]}
-	
-	IFS=$'\n'
-	for IMAGE_FILE in $(/usr/bin/find "$INSTALLER_FOLDER" -iname '*.dmg'); do
-		INDEX=0
-		while [ "$INDEX" -lt "$INSTALLER_DISK_NAMES_ARRAY_LENGTH" ]; do
-			if [ "$IMAGE_FILE" == "$INSTALLER_FOLDER/${ALLOWED_INSTALLER_DISK_NAMES[$INDEX]}" ]; then
-				CURRENT_OS_INSTALL_FILE="$IMAGE_FILE"
-				log "Found primary OS installer disk: $CURRENT_OS_INSTALL_FILE" information
-				break
+	if [ -z "$INSTALLER_DISK" ]; then
+		# use the old folder searching method
+		
+		if [ !-z "$SUPPORTING_DISKS" ]; then
+			log "If the -J flag is used, then the -I flag must also be used" error
+			exit 1
+		fi
+				
+		IFS=$'\n'
+		for IMAGE_FILE in $(/usr/bin/find "$INSTALLER_FOLDER" -iname '*.dmg'); do
+			FOUND_IMAGE_FILE=false
+			for (( namesCount = 0 ; namesCount < ${#ALLOWED_INSTALLER_DISK_NAMES[@]} ; namesCount++ )); do
+				if [ "$IMAGE_FILE" == "$INSTALLER_FOLDER/${ALLOWED_INSTALLER_DISK_NAMES[$namesCount]}" ]; then
+					CURRENT_OS_INSTALL_FILE="$INSTALLER_FOLDER/$IMAGE_FILE"
+					log "Found primary OS installer disk: $CURRENT_OS_INSTALL_FILE" information
+					FOUND_IMAGE_FILE=true
+					break
+				fi
+			done
+			
+			if [ $FOUND_IMAGE_FILE == false ]; then
+				# if it is not a primary disk, it must be a supporting one
+				SUPPORTING_DISKS[${#SUPPORTING_DISKS[*]}]="$INSTALLER_FOLDER/$IMAGE_FILE"
 			fi
-			let "INDEX = $INDEX + 1"
 		done
-	done
-	
+	else
+		# user should have suplpied us with everything we need
+		
+		# Check for the disk at the path supplied
+		if [ -f "$INSTALLER_DISK" ]; then
+			CURRENT_OS_INSTALL_FILE="$INSTALLER_DISK"
+		else
+			log "Unable to find installer disk at supplied path: $INSTALLER_DISK" error
+			exit 1
+		fi
+	fi
+		
 	if [ -z "$CURRENT_OS_INSTALL_FILE" ]; then
 		log "Unable to find primary installer disk" error
 		exit 1
 	fi
+	
+	log "Found the image at: $CURRENT_OS_INSTALL_FILE" information
 }
 
 # Look for and mount a cached image
@@ -501,6 +604,7 @@ mount_cached_image() {
 	# Check that the host OS is the same dot version as the target, or newer
 	TARGET_OS_REV=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion`
 	TARGET_OS_REV_MAJOR=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion | awk -F "." '{ print $2 }'`
+	TARGET_OS_REV_BUILD=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductBuildVersion`
 	if [ $OS_REV_MAJOR -lt $TARGET_OS_REV_MAJOR ]; then
 		# we can't install a newer os from an older os
 		log "Trying to install a newer os ($TARGET_OS_REV_MAJOR) while running on an older os ($OS_REV_MAJOR), this is not possible" error
@@ -512,90 +616,40 @@ mount_cached_image() {
 
 # Mount the OS source image and any supporting disks
 mount_os_install() {
-	log "Mounting Mac OS X installer image and supporting disks" section
+	log "Mounting Mac OS X installer image" section
 	
-	IFS=$'\n'
-	for IMAGE_FILE in $(/usr/bin/find "$INSTALLER_FOLDER" -iname '*.dmg'); do
-		if [ "$IMAGE_FILE" == "$CURRENT_OS_INSTALL_FILE" ]; then
-			# primary installer disk
-			
-			IMAGE_LOCATION=''
-			MOUNTED_IMAGES=''
-			
-			# make sure that it is not already mounted
-			IFS=$'\n'
-			for HDIUTIL_LINE in $(/usr/bin/hdiutil info); do								
-				if [ "$HDIUTIL_LINE" == '================================================' ]; then
-					# this is the marker for a new section, so we need to clear things out
-					
-					IMAGE_LOCATION=''
-					MOUNTED_IMAGES=''
-			
-				elif [ "`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk '/^image-path/'`" != "" ]; then
-					IMAGE_LOCATION=`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk 'sub("^image-path[[:space:]]+:[[:space:]]+", "")'`
-					
-					# check the inodes to see if we are pointing at the same file
-					if [ "`/bin/ls -Li "$IMAGE_LOCATION" 2>/dev/null | awk '{ print $1 }'`" != "`/bin/ls -Li "$IMAGE_FILE" | awk '{ print $1 }'`" ]; then
-						# this is not the droid we are looking for
-						IMAGE_LOCATION=""
-						
-						# if it is the same thing, then we let it through to get the mount point below
-					fi
-				elif [ "$IMAGE_LOCATION" != "" ] && [ "`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk '/\/dev\/.+[[:space:]]+Apple_HFS[[:space:]]+\//'`" != "" ]; then
-					# find the mount point
-					CURRENT_OS_INSTALL_MOUNT=`/bin/echo "$HDIUTIL_LINE" | /usr/bin/awk 'sub("/dev/.+[[:space:]]+Apple_HFS[[:space:]]+", "")'`
-					# Here we are done!
-					log "The main OS Installer Disk was already mounted at: $CURRENT_OS_INSTALL_MOUNT" warning
-				fi
-			done
-			
-			if [ -z "$CURRENT_OS_INSTALL_MOUNT" ]; then
-				# mount the installer
-				CURRENT_OS_INSTALL_MOUNT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
-				/bin/chmod og+x "$CURRENT_OS_INSTALL_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
-				log "Mounting the main OS Installer Disk from: $IMAGE_FILE at: $CURRENT_OS_INSTALL_MOUNT" information
-				mount_dmg "$IMAGE_FILE" "$CURRENT_OS_INSTALL_MOUNT"
-				# NEXT_VERSION: put in paranoia levels
-				CURRENT_OS_INSTALL_AUTOMOUNTED=true
-				# TODO: check to see if there was a problem
-			fi
-			
-			# check to see that the mount looks right
-			if [ ! -d "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages" ]; then
-				log "The main install disk was not sucessfully mounted!" error
-				exit 1
-			fi
+	mount_dmg "$CURRENT_OS_INSTALL_FILE"
+	if [ $? -ne 0 ]; then
+		log "Unable to mount the Instal Disc: $CURRENT_OS_INSTALL_FILE" error
+		exit 1
+	fi
+	
+	CURRENT_OS_INSTALL_MOUNT=$LATEST_IMAGE_MOUNT
 		
-		else
-			# supporting disk
-			SUPPORT_MOUNT_POINT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
-			/bin/chmod og+x "$SUPPORT_MOUNT_POINT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
-			log "Mounting a support disk from $INSTALLER_FOLDER/$IMAGE_FILE at $SUPPORT_MOUNT_POINT" information
-			# note that we are allowing browsing of these files, so they will show up in the finder (and be found by the installer)
-			if [ $ENABLE_NON_PARANOID_MODE == true ]; then
-				/usr/bin/hdiutil mount "$INSTALLER_FOLDER/$IMAGE_FILE" -readonly -noautofsck -noverify -puppetstrings -mountpoint "$SUPPORT_MOUNT_POINT" | (while read INPUT; do log $INPUT detail; done)
-			else
-				/usr/bin/hdiutil mount "$INSTALLER_FOLDER/$IMAGE_FILE" -readonly -puppetstrings -mountpoint "$SUPPORT_MOUNT_POINT" | (while read INPUT; do log $INPUT detail; done)
-			fi
-			# TODO: setup a system to unmount this
-		fi
-	done
-	
 	# check to make sure we are leaving something useful
 	if [ -z "$CURRENT_OS_INSTALL_MOUNT" ]; then
 		log "No OS install disk or cached build was found" error
 		exit 1
 	fi
+	
 	# Check that the host OS is the same dot version as the target, or newer
+	TARGET_OS_REV=`/usr/bin/defaults read "$CURRENT_OS_INSTALL_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion`
 	TARGET_OS_REV_MAJOR=`/usr/bin/defaults read "$CURRENT_OS_INSTALL_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion | awk -F "." '{ print $2 }'`
+	TARGET_OS_REV_BUILD=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductBuildVersion`
 	if [ $OS_REV_MAJOR -lt $TARGET_OS_REV_MAJOR ]; then
 		# we can't install a newer os from an older os
-		log "Trying to install a newer os ($TARGET_OS_REV_MAJOR) while running on an older os ($OS_REV_MAJOR), this is not possible" error
+		log "Trying to install a newer os ($TARGET_OS_REV_MAJOR) while running on an older os ($OS_REV_MAJOR), this does not work" error
 		exit 1
 	fi
 	
-	
 	log "Mac OS X installer image mounted" information
+	
+	if [ ${#SUPPORTING_DISKS[@]} -gt 0 ]; then
+		log "Mounting supporting disks" section
+		for (( diskCount = 0 ; diskCount < ${#SUPPORTING_DISKS[@]} ; diskCount++ )); do
+			mount_dmg "${SUPPORTING_DISKS[$diskCount]}"
+		done
+	fi
 }
 
 # setup and create the DMG.
@@ -612,7 +666,7 @@ create_and_mount_image() {
 	fi
 	
 	# Create mount point for the (read-only) target
-	TARGET_IMAGE_MOUNT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
+	TARGET_IMAGE_MOUNT=`/usr/bin/mktemp -d "/tmp/$MOUNT_POINT_TEMPLATE"` # note: we do not use the temp folder, as it blows up
 	/bin/chmod og+x "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
 	log "Current image mount point: $TARGET_IMAGE_MOUNT" detail
 	
@@ -626,7 +680,7 @@ create_and_mount_image() {
 		exit 1
 	fi
 	
-	# The create command appends a ".sparseimage"
+	# The create command appends a ".sparseimage" to what we give it
 	SHADOW_FILE_LOCATION="$SHADOW_FILE_LOCATION.sparseimage"
 	
 	/usr/bin/hdiutil mount "$SHADOW_FILE_LOCATION" -owners on -readwrite -noverify -nobrowse -mountpoint "$TARGET_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
@@ -693,7 +747,7 @@ save_cached_image()	{
 	log "Compacting and saving cached image to: $BASE_IMAGE_CACHE/$TARGET_IMAGE_CHECKSUM.dmg" information
 	
 	# unmount the image
-	unmount_dmg "$TARGET_IMAGE_MOUNT" "target image"
+	unmount_dmg "$TARGET_IMAGE_MOUNT" "target image" || exit 1
 	
 	# move the image to the cached folder with the appropriate name
 	TARGET_IMAGE_FILE="$BASE_IMAGE_CACHE/$TARGET_IMAGE_CHECKSUM.dmg"
@@ -980,7 +1034,7 @@ close_up_and_compress() {
 # restore DMG to test partition
 restore_image() {
 	log "Restoring ASR image to test partition" section
-	/usr/sbin/asr --verbose --source "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" --target "$TESTING_TARGET_VOLUME" --erase --nocheck --noprompt | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/sbin/asr restore --verbose --source "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" --target "$TESTING_TARGET_VOLUME" --erase --nocheck --noprompt | (while read INPUT; do log "$INPUT " detail; done)
 	if [ $? -ne 0 ]; then
 		log "Failed to restore image to: $TESTING_TARGET_VOLUME" error
 		exit 1
@@ -1003,6 +1057,14 @@ clean_up() {
 		/bin/rmdir "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
+	# Unmount everything that is still mounted
+	for (( workingMountCount = 0 ; workingMountCount < ${#MOUNTED_DMG_MOUNT_POINTS[@]} ; workingMountCount++ )); do
+		if [ ! -z ${MOUNTED_DMG_MOUNT_POINTS[$workingMountCount]} ]; then
+			unmount_dmg "${MOUNTED_DMG_MOUNT_POINTS[$workingMountCount]}" "Supporting Disk"
+		fi
+	done
+	
+	
 	# TODO: close this image earlier
 	if [ ! -z "$CURRENT_OS_INSTALL_MOUNT" ] && [ -d "$TARGET_IMAGE_MOUNT" ] && [ $CURRENT_OS_INSTALL_AUTOMOUNTED == true ]; then
 		unmount_dmg "$CURRENT_OS_INSTALL_MOUNT" "Primary OS install disk"
@@ -1013,13 +1075,21 @@ clean_up() {
 		unmount_dmg "$PACKAGE_DMG_MOUNT" "Target Disk"
 		/bin/rmdir "$PACKAGE_DMG_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	fi
-		
-	log "Deleting scratch DMG" information
+	
 	if [ ! -z "$SHADOW_FILE_LOCATION" ] && [ -e "$SHADOW_FILE_LOCATION" ]; then
+		log "Deleting scratch DMG" information
 		/bin/rm "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
 	# TODO: close out anything else in the mount directory
+	if [ ! -z "$TARGET_IMAGE_MOUNT" ] && [ -d "$TARGET_IMAGE_MOUNT" ]; then
+		/bin/rmdir "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+	fi
+	
+	if [ ! -z "$TARGET_TEMP_FOLDER" ] && [ -d "$TARGET_TEMP_FOLDER" ]; then
+		/bin/rmdir "$TARGET_TEMP_FOLDER" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+	fi
+	
 }
 
 # reboot the Mac
@@ -1030,8 +1100,7 @@ reboot() {
 
 #<!------------------------- Main -------------------------->
 
-while getopts "b:c:d:fhi:l:m:n:o:qrst:u:vw:yz" opt
-do
+while getopts "b:c:d:fhi:l:m:n:o:qrt:u:vw:yzI:J:K:" opt; do
 	case $opt in
 		b ) INSTALLER_FOLDER="$OPTARG";;
 		c ) CUSTOM_FOLDER="$OPTARG";;
@@ -1045,15 +1114,37 @@ do
 		o ) ASR_FOLDER="$OPTARG";;
 		q ) CONSOLE_LOG_LEVEL=0;;
 		r ) DISABLE_CHROOT=true;;
-		t ) PACKAGE_DMG_MOUNT_LOCATION="$OPTARG";;
+		t ) TEMPORARY_FOLDER="$OPTARG";;
 		u ) UPDATE_FOLDER="$OPTARG";;
 		v ) version;;
 		w ) TESTING_TARGET_VOLUME="$OPTARG";;
 		y ) ENABLE_TESTING_VOLUME=true;;
 		z ) DISABLE_BASE_IMAGE_CACHING=true;;
+		
+		I )	INSTALLER_DISK="$OPTARG";; # Set the installer disk
+		J )	# Add/set supporting disk(s)
+			if [ -z $SUPPORTING_DISKS ]; then
+				SUPPORTING_DISKS="$OPTARG"
+			else
+				SUPPORTING_DISKS=( ${SUPPORTING_DISKS[@]} "$OPTARG" )
+			fi;;
+		K ) # Add/set update folder(s)
+			if [ -z $UPDATE_FOLDERS ]; then
+				UPDATE_FOLDERS="$OPTARG"
+			else
+				UPDATE_FOLDERS[${#UPDATE_FOLDERS[@]}]="$OPTARG"
+			fi;;
+		
 		\? ) usage;;
 	esac
 done
+
+# Set the UPDATE_FOLDERS variable if not already initialized
+if [ ${#UPDATE_FOLDERS[@]} -eq 0 ]; then
+	UPDATE_FOLDERS[0]="$UPDATE_FOLDER"
+	UPDATE_FOLDERS[1]="$CUSTOM_FOLDER"
+fi
+
 
 # Setup log names. The PKG log is a more consise history of what was installed.
 DATE_STRING=`/bin/date +%y.%m.%d-%H.%M`
@@ -1076,6 +1167,7 @@ trap 'clean_up' INT TERM EXIT
 find_base_os
 
 if [ $DISABLE_BASE_IMAGE_CACHING == false ]; then
+	# Try a cached image
 	mount_cached_image
 fi
 
@@ -1090,7 +1182,7 @@ if [ -z "$TARGET_IMAGE_MOUNT" ]; then
 	fi
 fi
 
-log "Target OS version: $TARGET_OS_REV" information
+log "Target OS version: $TARGET_OS_REV ($TARGET_OS_REV_BUILD)" information
 
 prepare_image
 
@@ -1100,8 +1192,10 @@ if [ $OS_REV_MAJOR -eq 6 ]; then
 	DISABLE_CHROOT=true
 fi
 
-install_packages_from_folder "$UPDATE_FOLDER"
-install_packages_from_folder "$CUSTOM_FOLDER"
+# Install the updates from within the numbered folders inside the update folders
+for (( i = 0 ; i < ${#UPDATE_FOLDERS[@]} ; i++ )); do
+	install_packages_from_folder "${UPDATE_FOLDERS[$i]}"
+done
 
 clean_up_image
 close_up_and_compress
