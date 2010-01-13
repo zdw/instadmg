@@ -506,7 +506,7 @@ find_base_os() {
 	if [ -z "$INSTALLER_DISK" ]; then
 		# use the old folder searching method
 		
-		if [ !-z "$SUPPORTING_DISKS" ]; then
+		if [ ${#SUPPORTING_DISKS[@]} -eq 0 ]; then
 			log "If the -J flag is used, then the -I flag must also be used" error
 			exit 1
 		fi
@@ -525,7 +525,7 @@ find_base_os() {
 			
 			if [ $FOUND_IMAGE_FILE == false ]; then
 				# if it is not a primary disk, it must be a supporting one
-				SUPPORTING_DISKS[${#SUPPORTING_DISKS[*]}]="$INSTALLER_FOLDER/$IMAGE_FILE"
+				SUPPORTING_DISKS[${#SUPPORTING_DISKS[@]}]="$INSTALLER_FOLDER/$IMAGE_FILE"
 			fi
 		done
 	else
