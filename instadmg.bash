@@ -651,6 +651,7 @@ mount_os_install() {
 		log "Mounting supporting disks" section
 		for (( diskCount = 0 ; diskCount < ${#SUPPORTING_DISKS[@]} ; diskCount++ )); do
 			mount_dmg "${SUPPORTING_DISKS[$diskCount]}"
+			log "Mounted supporting disk ${SUPPORTING_DISKS[$diskCount]} at $LATEST_IMAGE_MOUNT" information
 		done
 	fi
 }
@@ -1125,18 +1126,8 @@ while getopts "b:c:d:fhi:l:m:n:o:qrt:u:vw:yzI:J:K:" opt; do
 		z ) DISABLE_BASE_IMAGE_CACHING=true;;
 		
 		I )	INSTALLER_DISK="$OPTARG";; # Set the installer disk
-		J )	# Add/set supporting disk(s)
-			if [ -z $SUPPORTING_DISKS ]; then
-				SUPPORTING_DISKS="$OPTARG"
-			else
-				SUPPORTING_DISKS=( ${SUPPORTING_DISKS[@]} "$OPTARG" )
-			fi;;
-		K ) # Add/set update folder(s)
-			if [ -z $UPDATE_FOLDERS ]; then
-				UPDATE_FOLDERS="$OPTARG"
-			else
-				UPDATE_FOLDERS[${#UPDATE_FOLDERS[@]}]="$OPTARG"
-			fi;;
+		J )	SUPPORTING_DISKS[${#SUPPORTING_DISKS[@]}]="$OPTARG";; # Add/set supporting disk(s)
+		K ) UPDATE_FOLDERS[${#UPDATE_FOLDERS[@]}]="$OPTARG";; # Add/set update folder(s)
 		
 		\? ) usage;;
 	esac
