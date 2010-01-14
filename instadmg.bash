@@ -506,7 +506,7 @@ find_base_os() {
 	if [ -z "$INSTALLER_DISK" ]; then
 		# use the old folder searching method
 		
-		if [ ${#SUPPORTING_DISKS[@]} -eq 0 ]; then
+		if [ ${#SUPPORTING_DISKS[@]} -gt 0 ]; then
 			log "If the -J flag is used, then the -I flag must also be used" error
 			exit 1
 		fi
@@ -516,7 +516,7 @@ find_base_os() {
 			FOUND_IMAGE_FILE=false
 			for (( namesCount = 0 ; namesCount < ${#ALLOWED_INSTALLER_DISK_NAMES[@]} ; namesCount++ )); do
 				if [ "$IMAGE_FILE" == "$INSTALLER_FOLDER/${ALLOWED_INSTALLER_DISK_NAMES[$namesCount]}" ]; then
-					CURRENT_OS_INSTALL_FILE="$INSTALLER_FOLDER/$IMAGE_FILE"
+					CURRENT_OS_INSTALL_FILE="$IMAGE_FILE"
 					log "Found primary OS installer disk: $CURRENT_OS_INSTALL_FILE" information
 					FOUND_IMAGE_FILE=true
 					break
