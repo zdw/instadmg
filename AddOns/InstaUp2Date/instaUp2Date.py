@@ -45,6 +45,10 @@ allowedCatalogFileSettings	= [ "ISO Language Code", "Output Volume Name", "Outpu
 systemSectionTypes			= [ "OS Updates", "System Settings" ]
 addedSectionTypes			= [ "Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings" ]
 
+
+#--------------------------RUNTIME VARIABLES-------------------------
+
+
 # these will be filled in by setup
 catalogFolder				= None
 
