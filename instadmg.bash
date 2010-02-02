@@ -719,7 +719,7 @@ install_system() {
 		exit 1
 	fi
 	
-	# Fix a bug in 'installer' on certian versions of the OS
+	# Fix a bug in 'installer' on certain versions of the OS
 	/bin/mkdir -p "$TARGET_IMAGE_MOUNT/Library/Caches"
 	
 	if [ -z "$INSTALLER_CHOICES_FILE" ]; then
@@ -988,6 +988,9 @@ clean_up_image() {
 	# Close any open files on the target
 	log "Closing programs that have opened files on the disk" information
 	/usr/sbin/lsof | /usr/bin/grep "$TARGET_IMAGE_MOUNT/" | /usr/bin/awk '{ print $2 }' | /usr/bin/sort -u | /usr/bin/xargs /bin/kill 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+	
+	# Fix Permissions
+	/usr/sbin/diskutil repairPermissions "$TARGET_IMAGE_MOUNT"
 	
 	# Delete Extensions.mkext
 	log "Deleting Extensions.mkext cache file" information
