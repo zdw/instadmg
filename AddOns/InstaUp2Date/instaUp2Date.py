@@ -4,16 +4,9 @@
 #
 #	This script parses one or more catalog files to fill in the 
 
-import re
-import hashlib
-import urllib2
-import tempfile
-import shutil
-import os
-import subprocess
-import sys
-import getopt
-import Foundation
+import os, sys, re, getopt
+import hashlib, urllib2, tempfile, shutil, subprocess
+import Foundation, checksum
 from datetime import date
 
 #------------------------------SETTINGS------------------------------
@@ -569,7 +562,7 @@ class installerPackage:
 		print "File:\t", self.name, "\n\tStatus:\t\t\t\t", self.status, "\n\tSource:\t\t\t\t", self.sourceMessage, archiveSection, "\n\tPackage\n\t\tFile Name:\t\t", self.packageFileName, "\n\t\tType:\t\t\t", self.packageType, "\n\t\tLocation:\t\t", self.packageLocation, "\n\t\tChecksum:\t\t", self.packageChecksum, "\n\t\tChecksum Type:\t\t", self.packageChecksumType, "\n\t\tChecksum Correct:\t", self.packageChecksumCorrect, "\n\t\tCache Location:\t\t", self.packageCacheLocation
 	
 	
-	def checksum(self, fileLocation = None, checksum = None, checksumType = None, archiveOrPackage = "package"):
+	def checksum(self, fileLocation = None, thisChecksum = None, checksumType = None, archiveOrPackage = "package"):
 		"This handles checksumming a local file: either a folder version or a single file"
 		
 		if self.packageType == "dmg":
@@ -583,11 +576,11 @@ class installerPackage:
 		if fileLocation == None:
 			fileLocation = self.cacheFolderName
 		
-		if checksum == None:
+		if thisChecksum == None:
 			if archiveOrPackage == "archive":
-				checksum = self.archiveChecksum
+				thisChecksum = self.archiveChecksum
 			else:
-				checksum = self.packageChecksum
+				thisChecksum = self.packageChecksum
 			
 		if checksumType == None:
 			if archiveOrPackage == "archive":
@@ -596,59 +589,18 @@ class installerPackage:
 				checksumType = self.packageChecksumType
 		
 		# we need to have all of these values, and fail without them
-		if fileLocation == None:
-			raise Exception() # TODO: better errors
+		
 		if checksum == None:
 			raise Exception() # TODO: better errors
-		if checksumType == None:
-			raise Exception() # TODO: better errors
 		
-		# now we check that the file exists:
-		if not(os.path.exists(fileLocation)):
-			raise Exception() # TODO: better errors
+		resultChecksum = checksum.checksum(fileLocation, checksumType)['checksum']
+		result = (thisChecksum == resultChecksum)
 		
-		hashGenerator = hashlib.new( checksumType )
-		foundAFile = False
-		
-		if os.path.isfile(fileLocation):
-			HASHFILE = open(fileLocation)
-			if HASHFILE == None:
-				raise Exception("Unable to open file for checksumming: %s" % folderLocation) # TODO: better errors
-			foundAFile = True
-			
-			chunksize = 5 * 1024 * 1024
-			thisChunkSize = 1
-			while thisChunkSize > 0:
-				thisChunk = HASHFILE.read(chunksize)
-				thisChunkSize = len(thisChunk)
-				hashGenerator.update(thisChunk)
-			HASHFILE.close()
-		
-		for thisFolder, subFolders, subFiles in os.walk(fileLocation):
-			for thisFile in subFiles:
-				thisFilePath = os.path.join(thisFolder, thisFile)
-				
-				if os.path.isfile(thisFilePath) and not(os.path.islink(thisFilePath) and thisFile == "InstallThisOneOnly"):
-					HASHFILE = open(thisFilePath)
-					if HASHFILE == None:
-						raise Exception("Unable to open file for checksumming: %s" % thisFilePath) # TODO: better errors
-					foundAFile = True
-					chunksize = 5 * 1024 * 1024
-					thisChunkSize = 1
-					while thisChunkSize > 0:
-						thisChunk = HASHFILE.read(chunksize)
-						thisChunkSize = len(thisChunk)
-						hashGenerator.update(thisChunk)
-					HASHFILE.close()
-		
-		if foundAFile == False:
-			raise Exception() # TODO: better errors
-		
-		result = hashGenerator.hexdigest() == checksum
 		if archiveOrPackage == "package":
 			self.setPackageChecksumCorrect(result)
 		else:
 			self.setArchiveChecksumCorrect(result)
+				
 		return result
 		
 	def setStatus(self, newStatus):
@@ -694,8 +646,8 @@ class installerPackage:
 				if thisFileName == self.packageFileName or (thisFileName + "/") == self.packageFileName: # TODO: allow for multiple files to be named the same thing (-1 -2, etc)
 				
 					thisFilePath = os.path.join(selectedFolder, thisFileName)
-					
-					if self.checksum(thisFilePath):
+										
+					if self.checksum(os.path.abspath(thisFilePath)):
 						if os.path.isdir(thisFilePath) and not( re.search("\.(m)?pkg$", thisFileName, re.I) ):
 							# a folder that is not a pkg or mpkg
 							#	the checksum was already correct, so we are probably safe,

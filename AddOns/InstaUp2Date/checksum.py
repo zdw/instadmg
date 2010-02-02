@@ -9,7 +9,7 @@ def cleanupTempFolder(tempFolder):
 		# ToDo: log this
 		shutil.rmtree(tempFolder, ignore_errors=True)
 
-def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expectedLength, chunkSize, copyToPath=None, reportProgress=False, reportStepPercentage=15):
+def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expectedLength, chunkSize, fileType="file", copyToPath=None, reportProgress=False, reportStepPercentage=15):
 	
 	# todo: sanity check the input
 	
@@ -27,11 +27,16 @@ def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expected
 	
 	# ToDo: log this better
 	if reportProgress == True:
+		
+		verb = "Checksumming"
+		if fileType == "download":
+			verb = "Downloading"
+		
 		if expectedLength == None:
-			sys.stderr.write("Downloading %s (unknown length) in chunks of %i bytes\n" % (targetFileName, chunkSize))
+			sys.stderr.write("%s %s (unknown length) in chunks of %i bytes\n" % (verb, targetFileName, chunkSize))
 			reportProgress = False
 		else:
-			sys.stderr.write("Downloading %s (%i bytes) in chunks of %i bytes: 0%%" % (targetFileName, expectedLength, chunkSize))
+			sys.stderr.write("%s %s (%i bytes) in chunks of %i bytes: 0%%" % (verb, targetFileName, expectedLength, chunkSize))
 		sys.stderr.flush()
 	
 	while thisChunkSize > 0:
@@ -61,10 +66,16 @@ def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expected
 def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", outputFolder=None, chunkSize=5*1024*1024, reportProgress=True, reportStepPercentage=15):
 	'''Return the checksum of a given file or folder'''
 	
-	# validate and resolve the path
+	
+	
+	
+	# validate input
 	if location == None:
 		raise Exception('Checksum called with a empty file location')
-		
+	if checksumType == None:
+		raise Exception('Checksum called with a empty checksum type')
+	
+	
 	# queue up the targets
 	targets = []
 	locationURL = urlparse.urlparse(location)
@@ -173,7 +184,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 		if tempFolder != None:
 			writeTarget = os.path.join(tempFolder, thisTarget['relativePath'])
 		
-		cheksumFileObject(hashGenerator, readFile, thisTarget['relativePath'], targetLength, chunkSize=1024*100, copyToPath=writeTarget, reportProgress=True, reportStepPercentage=reportStepPercentage)
+		cheksumFileObject(hashGenerator, readFile, thisTarget['relativePath'], targetLength, fileType="download", chunkSize=1024*100, copyToPath=writeTarget, reportProgress=True, reportStepPercentage=reportStepPercentage)
 		
 		readFile.close()
 	
@@ -184,11 +195,13 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 		if readFile == None:
 			raise Exception("Unable to open file for checksumming: %s" % thisTarget['sourceUrl'].path)
 		
+		targetLength = os.stat(thisTarget['sourceUrl'].path)[stat.ST_SIZE]
+		
 		writeTarget = None
 		if tempFolder != None:
 			writeTarget = os.path.join(tempFolder, thisTarget['relativePath'])
 		
-		cheksumFileObject(hashGenerator, readFile, os.path.basename(thisTarget['sourceUrl'].path), targetLength, chunkSize, copyToPath=writeTarget, reportProgress=True, reportStepPercentage=reportStepPercentage)			
+		cheksumFileObject(hashGenerator, readFile, os.path.basename(thisTarget['sourceUrl'].path), targetLength, chunkSize, fileType="file", copyToPath=writeTarget, reportProgress=True, reportStepPercentage=reportStepPercentage)			
 		readFile.close()
 	
 	elif overallType == "folder":
@@ -246,7 +259,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 	
 	
 	# return the checksum
-	return {'name':os.path.basename(location), 'checksum':checksumType + ":" + hashGenerator.hexdigest()}
+	return {'name':os.path.basename(location), 'checksum':hashGenerator.hexdigest(), 'checksumType':checksumType}
 
 	
 #------------------------------MAIN------------------------------
@@ -270,4 +283,4 @@ if __name__ == "__main__":
 			reportProgress=options.reportCheckSum,
 			reportStepPercentage=options.reportStepPercentage
 		)
-		print "\t".join(["", os.path.splitext(data['name'])[0], location, data['checksum']])
+		print "\t".join(["", os.path.splitext(data['name'])[0], location, data['checksumType'] + ":" + data['checksum']])
