@@ -725,72 +725,18 @@ class installerPackage:
 		
 	def retrieveFromArchive(self):
 		"This will look for a file in the location listed in archiveLocation"
-		
-		global READ_CHUNK_SIZE
-				
+						
 		if self.archiveLocation == None:
 			raise Exception(); # TODO: better errors
-
-		print "Downloading %s" % self.archiveLocation
 		
-		if self.archiveChecksumType:
-			hashGenerator = hashlib.new( self.archiveChecksumType )
+		checksumResult = checksum.checksum(self.archiveLocation, self.archiveChecksumType, returnCopy=True)
 		
-		# nicely urllib will happily open local files, so we will treat them the same
-		# TODO: it would probably be more efficent to seperate these cases
-		# "download" the archive it checksumming as you go
+		if self.archiveChecksum != checksumResult['checksum']:
+			raise Exception('The checksum on %s did not match! File was: %s:%s should have been: %s:%s' % (self.name, checksumResult['checksumType'], checksumResult['checksum'], self.archiveChecksumType, self.archiveChecksum) ) # TODO: improve error handling
 		
-		# we are surrounding this with a try block to close and kill files in case of problems
-		# TODO: evaluate moving to urlretrieve for this
-		try:
-			(fileDescriptor, tempFilePath) = tempfile.mkstemp(dir = "/tmp"); # would be nice to use the convience functions, but we need to move the file
-			OUTPUTFILE = os.fdopen(fileDescriptor, "w+b")
-			if OUTPUTFILE == None:
-				raise Exception(); # TODO: better errors
-			
-			REMOTEFILE = urllib2.urlopen( self.archiveLocation )
-			if REMOTEFILE == None:
-				raise Exception # TODO: improve error handling
-				
-			while 1:
-				thisChunk = REMOTEFILE.read(READ_CHUNK_SIZE) # TODO: ballance the read size automatically
-				if thisChunk == None or len(thisChunk) == 0: # TODO: check the length of the file
-					break;
+		tempFilePath = checksumResult["cacheLocation"]
 		
-				OUTPUTFILE.write(thisChunk)
-				if hashGenerator:
-					hashGenerator.update(thisChunk)
-				
-			if hashGenerator:		
-				if self.archiveChecksum != hashGenerator.hexdigest():
-					raise Exception('The checksum on the file %s (%s) did not match! File was: %s should have been: %s:%s' % (tempFilePath, self.name, hashGenerator.hexdigest(), self.archiveChecksumType, self.archiveChecksum) ) # TODO: improve error handling
-				self.setArchiveChecksumCorrect(True)
-			
-			
-			# see if we can get filename information from the download
-			parsedURL = self.fileLocationParser.search(self.archiveLocation)
-			if re.match("http", parsedURL.group("protocol"), re.I):
-				if REMOTEFILE.info().has_key("content-disposition"):
-					parsedHeader = self.contentDispostionParser.search(REMOTEFILE.info()["content-disposition"])
-					if parsedHeader != None:
-						parsedURL = self.fileLocationParser.search(parsedHeader.group(filename))
-	
-			fileExtension = parsedURL.group("extension").lower()
-			fileName = parsedURL.group("fileName")
-	
-			# now close out the files
-			REMOTEFILE.close()
-			OUTPUTFILE.close()
-			
-		except Exception, e:
-			# if there was a problem, we need to catch it, and clean up
-			if REMOTEFILE != None:
-				REMOTEFILE.close()
-			if OUTPUTFILE != None:
-				OUTPUTFILE.close()
-			if os.path.exists(tempFilePath):
-				os.unlink(tempFilePath)
-			raise e # pass it along
+		self.setArchiveChecksumCorrect(True)
 		
 		self.setStatus("Downloaded")
 		self.setSourceMessage("Downloaded from Archive");
@@ -800,16 +746,14 @@ class installerPackage:
 		
 		# TODO: allow for dmg's inside a zip, or tgz
 		
-		#	unfortunately "file" does not do a good job of figureing out dmg's, se we are going to have to trust the name
+		# unfortunately "file" does not do a good job of figureing out dmg's, se we are going to have to trust the name
 		
-		if fileExtension == "dmg": # we have already made sure that everything is lower case
+		if os.path.splitext(tempFilePath)[1].lower() == ".dmg": # we have already made sure that everything is lower case
 			self.archiveType = "dmg"
 			
 			# TODO: re-integrate the package unloading for a 4 field type
 			
 			# help hdiutil by giving the temp file a .dmg ending
-			os.rename(tempFilePath, tempFilePath + '.dmg')
-			tempFilePath = tempFilePath + '.dmg'
 			
 			# checksum the dmg file, and then let hdiutil internally checksum it
 			if self.archiveChecksum: # if there is no checksum, just trust it
@@ -845,7 +789,7 @@ class installerPackage:
 			self.setPackageCacheLocation(targetLocation)
 			return True
 			
-		elif fileExtension == "pkg":
+		elif os.path.splitext(tempFilePath)[1].lower() == ".pkg":
 			self.archiveType = "flatfilepkg" # this should be a flat-file pkg
 			
 			# checksum the dmg file, and then let hdiutil internally checksum it
@@ -863,14 +807,14 @@ class installerPackage:
 			self.setPackageCacheLocation(targetLocation)
 			return True
 			
-		elif fileExtension == "zip":
+		elif os.path.splitext(tempFilePath)[1].lower() == ".zip":
 			# a pkg inside a zip file... this is a bit simplistic
 			self.archiveType = "zip"			
 			raise Exception # TODO: the ZIP mechanics
 			
 		else:
 			# we don't know what type of file this is, so we bail
-			raise Exception # TODO: improve error handling
+			raise Exception("Unknown file type: %s" % tempFilePath) # TODO: improve error handling
 		
 		if os.path.exists(tempFilePath):
 			os.unlink(tempFilePath)

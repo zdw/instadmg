@@ -63,11 +63,8 @@ def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expected
 		writeFileObject.close()
 
 
-def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", outputFolder=None, chunkSize=5*1024*1024, reportProgress=True, reportStepPercentage=15):
+def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", outputFolder=None, returnCopy=False, chunkSize=5*1024*1024, reportProgress=True, reportStepPercentage=15):
 	'''Return the checksum of a given file or folder'''
-	
-	
-	
 	
 	# validate input
 	if location == None:
@@ -133,11 +130,13 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 	
 	# setup a temporary folder to house the downloads if we are bringing this down
 	tempFolder = None
-	if outputFolder != None:
+	cacheLocation = None
+	if returnCopy == True:
 		tempFolder = tempfile.mkdtemp(prefix=tempFolderPrefix, dir='/tmp') # note: the default tempdir would not go away in a reboot
 		if tempFolder == None:
 			raise Exception('Internal error: unable to create tempfolder')
 		atexit.register(cleanupTempFolder, tempFolder)
+		cacheLocation = tempFolder
 	
 	
 	# warm up the checksummer
@@ -183,6 +182,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 		writeTarget = None
 		if tempFolder != None:
 			writeTarget = os.path.join(tempFolder, thisTarget['relativePath'])
+			cacheLocation = writeTarget
 		
 		cheksumFileObject(hashGenerator, readFile, thisTarget['relativePath'], targetLength, fileType="download", chunkSize=1024*100, copyToPath=writeTarget, reportProgress=True, reportStepPercentage=reportStepPercentage)
 		
@@ -253,13 +253,14 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 					sys.stderr.write("  %i%%" % int(((itemsProcessed)* 100)/len(targets)))
 				sys.stderr.flush()
 	
-	# Move the temp files into place if we were asked to do so
-	if outputFolder != None:
-		pass # ToDo: impliment
 	
+	returnValues = {'name':os.path.basename(location), 'checksum':hashGenerator.hexdigest(), 'checksumType':checksumType}
 	
-	# return the checksum
-	return {'name':os.path.basename(location), 'checksum':hashGenerator.hexdigest(), 'checksumType':checksumType}
+	# Return the location of the local copy if we were asked to
+	if returnCopy == True and cacheLocation != None:
+		returnValues["cacheLocation"] = cacheLocation
+	
+	return returnValues
 
 	
 #------------------------------MAIN------------------------------
@@ -272,7 +273,7 @@ if __name__ == "__main__":
 	optionParser.add_option("-a", "--checksum-algorithm", default="sha1", action="store", dest="checksumAlgorithm", choices=allowedChecksumAlgorithms, help="Disable progress notifications")
 	optionParser.add_option("-d", "--disable-progress", default=True, action="store_false", dest="reportCheckSum", help="Disable progress notifications")
 	optionParser.add_option("-r", "--report-progress-step", default=15, action="store", type="int", dest="reportStepPercentage", help="Percent to wait before reporting progress")
-	optionParser.add_option("-s", "--chunk-size", default=5*1024*1024, action="store", type="int", dest="outputFolder", help="Folder to copy dat to")
+	optionParser.add_option("-s", "--chunk-size", default=5*1024*1024, action="store", type="int", dest="chunkSize", help="Folder to copy dat to")
 	optionParser.add_option("-t", "--output-folder", default=None, action="store", dest="outputFolder", type="string", help="Folder to copy dat to")
 	(options, args) = optionParser.parse_args()
 	
