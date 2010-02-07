@@ -278,9 +278,6 @@ def main():
 	
 	print('Creating image: "%s" from disc at: "%s"' % (chosenFileName, chosenMountPoint))
 	
-	print chosenFileName, outputFolder, options.legacyMode
-	sys.exit()
-	
 	diskFormat = 'UDZO' # default to zlib
 	if options.compressionType == "bzip2":
 		diskFormat = 'UDBZ'
