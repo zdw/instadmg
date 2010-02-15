@@ -6,19 +6,20 @@ Base OS Disk:
 	# this is not yet implimented
 
 OS Updates:
-	MacOSXUpdCombo10.5.8	http://support.apple.com/downloads/DL866/en_US/MacOSXUpdCombo10.5.8.dmg	sha1:6a3a744626503a807dd0158c41d0350aa37fe6c7
+	Mac OS X 10.5.8 Combo Update	http://support.apple.com/downloads/DL866/en_US/MacOSXUpdCombo10.5.8.dmg	sha1:6a3a744626503a807dd0158c41d0350aa37fe6c7
 
 Apple Updates:
-	iLifeSupport903	http://support.apple.com/downloads/DL842/en_US/iLifeSupport903.dmg	sha1:9673607401a55ab9a3d272b5a57e22e0fab9a6a6
-	AirPortClientUpdate2009001	http://support.apple.com/downloads/DL792/en_US/AirPortClientUpdate2009001.dmg	sha1:168065c8bf2e6530a3053899ac7a6a210e9397d7
-	FrontRowUpdate2.1.7	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5989.20090311.Foy67/FrontRowUpdate2.1.7.dmg	sha1:f25aaf2dd305c264ea3cca76b374fca1e7157303
-	AirPortUtility	http://support.apple.com/downloads/DL839/en_US/AirPortUtility.dmg	sha1:a7b16955b926b915fe3540b09b3d6c8c4374bc23
-	QuickTime764_Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-6738.20090909.tq764/QuickTime764_Leopard.dmg	sha1:f35a8f6f09ee884405ae10b1eca4b7c059f274f0
-	iTunes9.0.1	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes9/061-7191.20090922.P6uhj/iTunes9.0.1.dmg	sha1:eea9dbc34e395a44bfa821501827ea3c5b4c24a9
+	iLife Support 9.0.3	http://support.apple.com/downloads/DL842/en_US/iLifeSupport903.dmg	sha1:9673607401a55ab9a3d272b5a57e22e0fab9a6a6
+	AirPort Client Update 20090-01	http://support.apple.com/downloads/DL792/en_US/AirPortClientUpdate2009001.dmg	sha1:168065c8bf2e6530a3053899ac7a6a210e9397d7
+	FrontRow Update 2.1.7	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5989.20090311.Foy67/FrontRowUpdate2.1.7.dmg	sha1:f25aaf2dd305c264ea3cca76b374fca1e7157303
+	AirPort Utility	http://support.apple.com/downloads/DL839/en_US/AirPortUtility.dmg	sha1:a7b16955b926b915fe3540b09b3d6c8c4374bc23
+	QuickTime 7.6.4 for Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-6738.20090909.tq764/QuickTime764_Leopard.dmg	sha1:f35a8f6f09ee884405ae10b1eca4b7c059f274f0
+	iTunes 9.0.3	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes9/061-7752.20100201.Tz39N/iTunes9.0.3.dmg	sha1:980568d7429b1093eff092e8fe68115151c2bb22
 	Remote Desktop Client 3.3.1	http://support.apple.com/downloads/DL890/en_US/RemoteDesktopClient.dmg	sha1:6de225c29aa133c56f06563e7b7579478e36487f
-	JavaForMacOSX10.5Update5	http://support.apple.com/downloads/DL924/en_US/JavaForMacOSX10.5Update5.dmg	sha1:20dd590192fb81a8f164b73727295ed2ac4f1693
-	SecUpd2009-006	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-7313.20091109.KyhuJ/SecUpd2009-006.dmg	sha1:8eb0c42c84cf8eebe025d64114dbc861a99a67b0
-	Safari4.0.4Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/Safari4/061-7514.20091116.VgrPf/Safari4.0.4SnowLeopard.dmg	sha1:0aeb54208cdebcafb3206baf11d8649836273f33
+	Java For MacOS X 10.5 Update 5	http://support.apple.com/downloads/DL924/en_US/JavaForMacOSX10.5Update5.dmg	sha1:20dd590192fb81a8f164b73727295ed2ac4f1693
+	Security Update 2009-006 Client	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-7313.20091109.KyhuJ/SecUpd2009-006.dmg	sha1:8eb0c42c84cf8eebe025d64114dbc861a99a67b0
+	Safari 4.0.4 for Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/Safari4/061-7333.20091111.tgLpr/Safari4.0.4Leopard.dmg	sha1:0aeb54208cdebcafb3206baf11d8649836273f33
+	Digital Camera Raw Compatibility Update 3.0	http://support.apple.com/downloads/DL1001/en_US/RAWCameraUpdate3.dmsha1:99f043525994dc91204204150a865f52e6707204
 
 System Settings:
 
