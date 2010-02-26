@@ -6,7 +6,7 @@ Base OS Disk:
 	# this is not yet implimented
 
 OS Updates:
-	Mac OS X 10.5.8 Combo Update	http://support.apple.com/downloads/DL866/en_US/MacOSXUpdCombo10.5.8.dmg	sha1:6a3a744626503a807dd0158c41d0350aa37fe6c7
+	Mac OS X 10.5.8 Combo Update	http://support.apple.com/downloads/DL866/en_US/MacOSXUpdCombo10.5.8.dmg	sha1:0a88c9ecfbe08faf1a2307929c67f38b4822dfcb
 
 Apple Updates:
 	iLife Support 9.0.3	http://support.apple.com/downloads/DL842/en_US/iLifeSupport903.dmg	sha1:9673607401a55ab9a3d272b5a57e22e0fab9a6a6
@@ -19,7 +19,7 @@ Apple Updates:
 	Java For MacOS X 10.5 Update 5	http://support.apple.com/downloads/DL924/en_US/JavaForMacOSX10.5Update5.dmg	sha1:20dd590192fb81a8f164b73727295ed2ac4f1693
 	Security Update 2009-006 Client	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-7313.20091109.KyhuJ/SecUpd2009-006.dmg	sha1:8eb0c42c84cf8eebe025d64114dbc861a99a67b0
 	Safari 4.0.4 for Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/Safari4/061-7333.20091111.tgLpr/Safari4.0.4Leopard.dmg	sha1:0aeb54208cdebcafb3206baf11d8649836273f33
-	Digital Camera Raw Compatibility Update 3.0	http://support.apple.com/downloads/DL1001/en_US/RAWCameraUpdate3.dmg	sha1:99f043525994dc91204204150a865f52e6707204
+	Digital Camera Raw Compatibility Update 3.1	http://support.apple.com/downloads/DL1007/en_US/RAWCameraUpdate3.dmg	sha1:b3c02950aeebedf92836dcbc6e3e81bd79c188fd
 
 System Settings:
 
