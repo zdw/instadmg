@@ -63,8 +63,9 @@ UPDATE_FOLDERS=()								# Array of the folders to pull updates from in the orde
 ASR_FOLDER="./OutputFiles"						# Destination of the ASR images
 BASE_IMAGE_CACHE="./Caches/BaseImageCache"		# Cached images named by checksums
 LOG_FOLDER="./Logs"
-TEMPORARY_FOLDER="/private/tmp"		# DMGs will be mounted at a location inside of this folder
+TEMPORARY_FOLDER="/private/tmp"					# DMGs will be mounted at a location inside of this folder
 TESTING_TARGET_VOLUME=''						# setting this and the ENABLE_TESTING_VOLUME will erase that volume and write the image onto it
+TESTING_TARGET_VOLUME_DEV=''					# the mount point to be used when restoring, should look like /dev/disk0s4
 
 # TODO: make sure that the cached images are not indexed
 
@@ -1038,20 +1039,31 @@ close_up_and_compress() {
 
 }
 
-# restore DMG to test partition
-restore_image() {
+restore_to_volume() {
+	# restore DMG to test partition
 	log "Restoring ASR image to test partition" section
-	/usr/sbin/asr restore --verbose --source "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" --target "$TESTING_TARGET_VOLUME" --erase --nocheck --noprompt | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/sbin/asr restore --verbose --source "${ASR_FOLDER}/$ASR_OUPUT_FILE_NAME" --target "$TESTING_TARGET_VOLUME_DEV" --erase --noprompt | (while read INPUT; do log "$INPUT " detail; done)
 	if [ $? -ne 0 ]; then
-		log "Failed to restore image to: $TESTING_TARGET_VOLUME" error
+		log "Failed to restore image to: $TESTING_TARGET_VOLUME_DEV ($TESTING_TARGET_VOLUME)" error
 		exit 1
 	fi
-}
-
-# set test partition to be the boot partition
-set_boot_test() {
-	log "Blessing test partition: $TESTING_TARGET_VOLUME" section
-	/usr/sbin/bless --mount "$TESTING_TARGET_VOLUME" --setBoot | (while read INPUT; do log "$INPUT " detail; done)
+	
+	# set test partition to be the boot partition
+	log "Blessing test partition: $TESTING_TARGET_VOLUME_DEV ($TESTING_TARGET_VOLUME)" section
+	/usr/sbin/bless --device "$TESTING_TARGET_VOLUME_DEV" --label "$ASR_FILESYSTEM_NAME" --verbose | (while read INPUT; do log "$INPUT " detail; done)
+	if [ $? -ne 0 ]; then
+		log "Unable to bless test partition $TESTING_TARGET_VOLUME_DEV ($TESTING_TARGET_VOLUME)" error
+		exit 1
+	fi
+	/usr/sbin/bless --device "$TESTING_TARGET_VOLUME_DEV" --setBoot --verbose | (while read INPUT; do log "$INPUT " detail; done)
+	if [ $? -ne 0 ]; then
+		log "Unable to set boot to test partition $TESTING_TARGET_VOLUME_DEV ($TESTING_TARGET_VOLUME)" error
+		exit 1
+	fi
+	
+	# reboot the Mac
+	log "Setting computer to restart in one minute" info
+	/sbin/shutdown -r +1 | (while read INPUT; do log "$INPUT " detail; done)
 }
 
 # clean up
@@ -1099,12 +1111,6 @@ clean_up() {
 	
 }
 
-# reboot the Mac
-reboot() {
-	log "Restarting" section
-	/sbin/shutdown -r +1
-}
-
 #<!------------------------- Main -------------------------->
 
 while getopts "b:c:d:fhi:l:m:n:o:qrt:u:vw:yzI:J:K:" opt; do
@@ -1142,6 +1148,37 @@ if [ ${#UPDATE_FOLDERS[@]} -eq 0 ]; then
 	UPDATE_FOLDERS[1]="$CUSTOM_FOLDER"
 fi
 
+
+# if TESTING_TARGET_VOLUME is defined, make sure it exists and get the /dev entry
+if [ ! -z "$TESTING_TARGET_VOLUME" ]; then
+	
+	if [ -b "$TESTING_TARGET_VOLUME" ]; then
+		# this is a block device, it looks fine
+		
+		TESTING_TARGET_VOLUME_DEV="$TESTING_TARGET_VOLUME"
+	
+	elif [[ "$TESTING_TARGET_VOLUME" == disk*s* ]] && [ -b "/dev/$TESTING_TARGET_VOLUME" ]; then
+		# check if they have given a "naked" disk marker like disk0s4
+		
+		TESTING_TARGET_VOLUME_DEV="/dev/$TESTING_TARGET_VOLUME"
+	else
+		# maybe it is a path to a mount point, let diskutil try and figure it out
+		TESTING_TARGET_VOLUME_DEV=`/usr/sbin/diskutil info "$TESTING_TARGET_VOLUME" | /usr/bin/awk '/Device Node:/ { print $3 }'`
+	fi
+	
+	if [ -z "$TESTING_TARGET_VOLUME_DEV" ] || [ ! -b "$TESTING_TARGET_VOLUME_DEV" ]; then
+		log "Unable to figure out the /dev/ entry for the Testing Target Volume: $TESTING_TARGET_VOLUME" error
+		exit 1
+	fi
+	
+	# make sure that this is not the boot volume
+	if [ "/" == `/usr/sbin/diskutil info "$TESTING_TARGET_VOLUME_DEV" | /usr/bin/awk '/Mount Point:/ { for ( i = 3; i <= NF; i++) if ( i < NF) printf ("%s ", $i); else print $i }'` ]; then
+		log "The selected testing target volume is the root volume: $TESTING_TARGET_VOLUME" error
+		exit 1
+	fi
+	
+	log "Testing target volume set to: $TESTING_TARGET_VOLUME_DEV ($TESTING_TARGET_VOLUME)" info
+fi
 
 # Setup log names. The PKG log is a more consise history of what was installed.
 DATE_STRING=`/bin/date +%y.%m.%d-%H.%M`
@@ -1198,16 +1235,13 @@ done
 clean_up_image
 close_up_and_compress
 
-# cleanup will be called through the the trap
-
-# Automated restore options. Be careful as these can destroy data.
-if [ $ENABLE_TESTING_VOLUME == true ] && [ ! -z "$TESTING_TARGET_VOLUME" ] && [ -d "$TESTING_TARGET_VOLUME" ]; then
-	log "InstaDMG build initiated" section
-	restore_image
-	set_boot_test
-	reboot
+# Automated restore option. Be careful as this will destroy all data on the volume selected!
+if [ $ENABLE_TESTING_VOLUME == true ] && [ ! -z "$TESTING_TARGET_VOLUME_DEV" ] && [ -b "$TESTING_TARGET_VOLUME_DEV" ]; then
+	restore_to_volume
 fi
 
 log "InstaDMG Complete" section
+
+# cleanup will be called through the the trap
 
 exit 0
