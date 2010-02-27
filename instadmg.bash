@@ -991,7 +991,7 @@ clean_up_image() {
 	/usr/sbin/lsof | /usr/bin/grep "$TARGET_IMAGE_MOUNT/" | /usr/bin/awk '{ print $2 }' | /usr/bin/sort -u | /usr/bin/xargs /bin/kill 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	
 	# Fix Permissions
-	/usr/sbin/diskutil repairPermissions "$TARGET_IMAGE_MOUNT"
+	/usr/sbin/diskutil repairPermissions "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	
 	# Delete Extensions.mkext
 	log "Deleting Extensions.mkext cache file" information
