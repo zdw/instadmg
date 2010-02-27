@@ -236,7 +236,7 @@ if [ $admin -eq 1 ]; then
 fi
 
 if [ $hide_user -eq 1 ]; then
-	/usr/bin/defaults write "${TARGET_DIR}/Library/Preferences/com.apple.loginwindow" HiddenUsersList -array $shortname
+	/usr/bin/defaults write "${TARGET_DIR}/Library/Preferences/com.apple.loginwindow" HiddenUsersList -array-add $shortname
 fi
 
 exit 0
