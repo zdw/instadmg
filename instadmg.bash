@@ -10,7 +10,7 @@
 #
 
 SVN_REVISION=`/bin/echo '$Revision$' | /usr/bin/awk '{ print $2 }'`
-VERSION="1.6b1 (svn revision: $SVN_REVISION)"
+VERSION="1.6b2 (svn revision: $SVN_REVISION)"
 PROGRAM=$( (basename $0) )
 
 
@@ -47,6 +47,7 @@ CREATE_DATE=`/bin/date +%y-%m-%d`
 DMG_SIZE=300g									# Size of the sparce image, this shoud be large enough
 ISO_CODE="en"									# ISO code that installer will use for the install language
 DISABLE_CHROOT=false							# Use a chroot jail while installing updates
+DISABLE_INSTALLD_CHROOT=false					# replace roots installd daemon with a chrooted version
 DISABLE_BASE_IMAGE_CACHING=false				# setting this to true turns off caching
 ENABLE_TESTING_VOLUME=false						# setting this and the TESTING_TARGET_VOLUME will erase that volume and write the image onto it
 ENABLE_NON_PARANOID_MODE=false					# disable checking image checksums
@@ -285,6 +286,7 @@ Options:
 	-o <folder path>	Set the folder to use as the output folder ($ASR_FOLDER)
 	-q			Quiet: print only errors to the console
 	-r			Disable using chroot for package installs ($DISABLE_CHROOT)
+	-s			Do not replace the installd daemon with a chrooted version ($DISABLE_INSTALLD_CHROOT)
 	-t <folder path>	Create a scratch space in this folder ($TEMPORARY_FOLDER)
 	-u <folder path>	Use folder as the BaseUpdates folder ($UPDATE_FOLDER)
 	-v			Print the version number and exit
@@ -387,7 +389,7 @@ unmount_dmg() {
 		return 1
 	fi
 	if [ ! -d "$1" ]; then
-		log "Internal error: tried to eject and image from $1 but that path is not a directory" error
+		log "Internal error: tried to eject an image from $1 but that path is not a directory" error
 		return 1
 	fi
 	
@@ -425,6 +427,48 @@ unmount_dmg() {
 	fi
 	
 	set -o nounset
+}
+
+jail_installd() {
+	# create a modified vesion of the com.apple.installd.plist and launch it in replacement
+	log "Encasing installd daemon in a chroot jail" information
+	
+	# make sure that installd is not running already
+	if [ ! -z `/bin/ps -axww -c -o "comm" | /usr/bin/awk '/^installd$/'` ]; then
+		echo "Error: There is already an installer process running!" 1>&2
+		exit 1
+	fi
+	
+	MODIFIED_INSTALLD_PLIST_FOLDER=`/usr/bin/mktemp -d -t "modified.com.apple.installd"` # note: this will be cleaned up by jailbreak_installd
+	# copy the normal launchdaemon
+	/bin/cp "/System/Library/LaunchDaemons/com.apple.installd.plist" "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.com.apple.installd.plist" | (while read INPUT; do log "$INPUT " detail; done)
+	
+	# modify the copied file
+	/usr/bin/defaults write "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.com.apple.installd" RootDirectory "$TARGET_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/bin/defaults write "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.com.apple.installd" Label "com.apple.installd.modified" | (while read INPUT; do log "$INPUT " detail; done)
+	
+	# disable the normal service and bring up our modified service
+	/bin/launchctl unload "/System/Library/LaunchDaemons/com.apple.installd.plist"
+	if [ $? -ne 0 ]; then
+		log "Unable to unload system installd daemon" error
+		exit 1
+	fi
+	/bin/launchctl load "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.com.apple.installd.plist"
+	if [ $? -ne 0 ]; then
+		log "Unable to load modified installd daemon" error
+		exit 1
+	fi
+}
+
+jailbreak_installd() {
+	if [ ! -z "$MODIFIED_INSTALLD_PLIST_FOLDER" ] && [ -d "$MODIFIED_INSTALLD_PLIST_FOLDER" ]; then
+		log "Restoring normal installd daemon" information
+		
+		/bin/launchctl unload "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.com.apple.installd.plist" | (while read INPUT; do log "$INPUT " detail; done)
+		/bin/launchctl load "/System/Library/LaunchDaemons/com.apple.installd.plist" | (while read INPUT; do log "$INPUT " detail; done)
+		
+		/bin/rm -rf "$MODIFIED_INSTALLD_PLIST_FOLDER"
+	fi
 }
 
 #<!------------------------ Phases ------------------------->
@@ -1070,6 +1114,10 @@ restore_to_volume() {
 clean_up() {
 	log "Cleaning up" section
 	
+	if [ $DISABLE_INSTALLD_CHROOT == false ]; then
+		jailbreak_installd
+	fi
+	
 	log "Ejecting images" information
 	if [ ! -z "TARGET_IMAGE_MOUNT" ] && [ -d "$TARGET_IMAGE_MOUNT" ]; then
 		unmount_dmg "$TARGET_IMAGE_MOUNT" "Target Disk"
@@ -1082,7 +1130,6 @@ clean_up() {
 			unmount_dmg "${MOUNTED_DMG_MOUNT_POINTS[$workingMountCount]}" "Supporting Disk"
 		fi
 	done
-	
 	
 	# TODO: close this image earlier
 	if [ ! -z "$CURRENT_OS_INSTALL_MOUNT" ] && [ -d "$TARGET_IMAGE_MOUNT" ] && [ $CURRENT_OS_INSTALL_AUTOMOUNTED == true ]; then
@@ -1113,7 +1160,7 @@ clean_up() {
 
 #<!------------------------- Main -------------------------->
 
-while getopts "b:c:d:fhi:l:m:n:o:qrt:u:vw:yzI:J:K:" opt; do
+while getopts "b:c:d:fhi:l:m:n:o:qrst:u:vw:yzI:J:K:" opt; do
 	case $opt in
 		b ) INSTALLER_FOLDER="$OPTARG";;
 		c ) CUSTOM_FOLDER="$OPTARG";;
@@ -1127,6 +1174,7 @@ while getopts "b:c:d:fhi:l:m:n:o:qrt:u:vw:yzI:J:K:" opt; do
 		o ) ASR_FOLDER="$OPTARG";;
 		q ) CONSOLE_LOG_LEVEL=0;;
 		r ) DISABLE_CHROOT=true;;
+		s ) DISABLE_INSTALLD_CHROOT=true;;
 		t ) TEMPORARY_FOLDER="$OPTARG";;
 		u ) UPDATE_FOLDER="$OPTARG";;
 		v ) version;;
@@ -1227,10 +1275,18 @@ if [ $OS_REV_MAJOR -eq 6 ]; then
 	DISABLE_CHROOT=true
 fi
 
+if [ $DISABLE_INSTALLD_CHROOT == false ]; then
+	jail_installd
+fi
+
 # Install the updates from within the numbered folders inside the update folders
 for (( i = 0 ; i < ${#UPDATE_FOLDERS[@]} ; i++ )); do
 	install_packages_from_folder "${UPDATE_FOLDERS[$i]}"
 done
+
+if [ $DISABLE_INSTALLD_CHROOT == false ]; then
+	jailbreak_installd
+fi
 
 clean_up_image
 close_up_and_compress
