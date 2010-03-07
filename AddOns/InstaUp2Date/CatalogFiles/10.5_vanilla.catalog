@@ -7,18 +7,18 @@ Base OS Disk:
 
 OS Updates:
 	Mac OS X 10.5.8 Combo Update	http://support.apple.com/downloads/DL866/en_US/MacOSXUpdCombo10.5.8.dmg	sha1:0a88c9ecfbe08faf1a2307929c67f38b4822dfcb
+	QuickTime 7.6.4 for Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-6738.20090909.tq764/QuickTime764_Leopard.dmg	sha1:f35a8f6f09ee884405ae10b1eca4b7c059f274f0
+	AirPort Utility 5.3.2 Leopard	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4614.20080611.vbh98/AirPortUtility_Leopard.dmsha1:f5105d0c5353a2838d191e04454e77280c0a8c81
+	AirPort Utility 5.4.2	http://support.apple.com/downloads/DL839/en_US/AirPortUtility.dmg	sha1:a7b16955b926b915fe3540b09b3d6c8c4374bc23
+	Front Row Update 2.1.7	http://support.apple.com/downloads/DL796/en_US/FrontRowUpdate2.1.7.dmg	sha1:f25aaf2dd305c264ea3cca76b374fca1e7157303
+	Remote Desktop Client 3.3.2	http://support.apple.com/downloads/DL986/en_US/RemoteDesktopClient.dmg	sha1:707812be781a5e3635c552bef24382c1eced93cf
+	Java For MacOS X 10.5 Update 5	http://support.apple.com/downloads/DL924/en_US/JavaForMacOSX10.5Update5.dmg	sha1:20dd590192fb81a8f164b73727295ed2ac4f1693
+	Java For MacOS X 10.5 Update 6	http://support.apple.com/downloads/DL971/en_US/JavaForMacOSX10.5Update6.dmg	sha1:04d4d028aa60f0a855c5393f81a6ea0d1af475bc
 
 Apple Updates:
-	iLife Support 9.0.4	http://support.apple.com/downloads/DL1009/en_US/iLifeSupport904.dmg	sha1:7cda1492d1bab91383b5738a7cda2cde24f72d2c
-	AirPort Client Update 20090-01	http://support.apple.com/downloads/DL792/en_US/AirPortClientUpdate2009001.dmg	sha1:168065c8bf2e6530a3053899ac7a6a210e9397d7
-	FrontRow Update 2.1.7	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5989.20090311.Foy67/FrontRowUpdate2.1.7.dmg	sha1:f25aaf2dd305c264ea3cca76b374fca1e7157303
-	AirPort Utility	http://support.apple.com/downloads/DL839/en_US/AirPortUtility.dmg	sha1:a7b16955b926b915fe3540b09b3d6c8c4374bc23
-	QuickTime 7.6.4 for Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-6738.20090909.tq764/QuickTime764_Leopard.dmg	sha1:f35a8f6f09ee884405ae10b1eca4b7c059f274f0
 	iTunes 9.0.3	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes9/061-7752.20100201.Tz39N/iTunes9.0.3.dmg	sha1:980568d7429b1093eff092e8fe68115151c2bb22
-	Remote Desktop Client 3.3.1	http://support.apple.com/downloads/DL890/en_US/RemoteDesktopClient.dmg	sha1:6de225c29aa133c56f06563e7b7579478e36487f
-	Java For MacOS X 10.5 Update 5	http://support.apple.com/downloads/DL924/en_US/JavaForMacOSX10.5Update5.dmg	sha1:20dd590192fb81a8f164b73727295ed2ac4f1693
-	Security Update 2009-006 Client	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-7313.20091109.KyhuJ/SecUpd2009-006.dmg	sha1:8eb0c42c84cf8eebe025d64114dbc861a99a67b0
 	Safari 4.0.4 for Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/Safari4/061-7333.20091111.tgLpr/Safari4.0.4Leopard.dmg	sha1:0aeb54208cdebcafb3206baf11d8649836273f33
+	iLife Support 9.0.4	http://support.apple.com/downloads/DL1009/en_US/iLifeSupport904.dmg	sha1:7cda1492d1bab91383b5738a7cda2cde24f72d2c
 	Digital Camera Raw Compatibility Update 3.1	http://support.apple.com/downloads/DL1007/en_US/RAWCameraUpdate3.dmg	sha1:b3c02950aeebedf92836dcbc6e3e81bd79c188fd
 
 System Settings:
