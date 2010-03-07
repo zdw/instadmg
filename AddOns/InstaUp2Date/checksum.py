@@ -153,15 +153,16 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 	
 	if overallType == "url":
 		thisTarget = targets[0]
-		readFile = urllib2.urlopen(thisTarget['sourceUrl'].geturl())
-		
+		try:
+			readFile = urllib2.urlopen(thisTarget['sourceUrl'].geturl())
+		except IOError, error:
+			if hasattr(error, 'reason'):
+				raise Exception('Unable to connect to remote url: %s got error: %s' % (thisTarget['sourceUrl'].geturl(), error.reason))
+			elif hasattr(error, 'code'):
+				raise Exception('Got status code: %s while trying to connect to remote url: %s' % (str(error.code), thisTarget['sourceUrl'].geturl()))
+        
 		if readFile == None:
 			raise Exception("Unable to open file for checksumming: %s" % thisTarget['sourceUrl'].getURL())
-		
-		# check that we have a good responce
-		httpCode = readFile.getcode()
-		if not httpCode in (200, 302):
-			raise Exception('Got status code:%s while trying to connect to remote url: %s' % (httpCode, thisTarget['sourceUrl'].geturl()))
 		
 		# default the filename to the last bit of path of the url
 		thisTarget['relativePath'] = os.path.basename(thisTarget['sourceUrl'].path)

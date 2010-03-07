@@ -276,7 +276,7 @@ def main():
 			print("Canceling")
 			sys.exit()
 	
-	print('Creating image: "%s" from disc at: "%s"' % (chosenFileName, chosenMountPoint))
+	print('Creating image: "%s" from disc at: "%s"' % (targetPath, chosenMountPoint))
 	
 	diskFormat = 'UDZO' # default to zlib
 	if options.compressionType == "bzip2":
