@@ -115,6 +115,9 @@ TARGET_OS_NAME=''
 SUPPORTING_DISKS=()
 MOUNTED_DMG_MOUNT_POINTS=()
 
+MODIFIED_INSTALLD_PLIST_FOLDER=''
+MODIFIED_INSTALLD_PLISTS=()
+
 LATEST_IMAGE_MOUNT=''					# back-channel to let the mount_dmg command communicate back auto-mounts
 
 #<!----------------------- Logging ------------------------->
@@ -429,9 +432,9 @@ unmount_dmg() {
 	set -o nounset
 }
 
-jail_installd() {
+jail_installer_daemons() {
 	# create a modified vesion of the com.apple.installd.plist and launch it in replacement
-	log "Encasing installd daemon in a chroot jail" information
+	log "Encasing instaler daemon in a chroot jail" information
 	
 	# make sure that installd is not running already
 	if [ ! -z `/bin/ps -axww -c -o "comm" | /usr/bin/awk '/^installd$/'` ]; then
@@ -439,36 +442,55 @@ jail_installd() {
 		exit 1
 	fi
 	
-	MODIFIED_INSTALLD_PLIST_FOLDER=`/usr/bin/mktemp -d -t "modified.com.apple.installd"` # note: this will be cleaned up by jailbreak_installd
-	# copy the normal launchdaemon
-	/bin/cp "/System/Library/LaunchDaemons/com.apple.installd.plist" "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.com.apple.installd.plist" | (while read INPUT; do log "$INPUT " detail; done)
+	# create a folder to hold the modified launchdaemons
+	MODIFIED_INSTALLD_PLIST_FOLDER=`/usr/bin/mktemp -d -t "modified.com.apple.installd"` # note: this will be cleaned up by jailbreak_installer_daemons
 	
-	# modify the copied file
-	/usr/bin/defaults write "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.com.apple.installd" RootDirectory "$TARGET_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
-	/usr/bin/defaults write "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.com.apple.installd" Label "com.apple.installd.modified" | (while read INPUT; do log "$INPUT " detail; done)
-	
-	# disable the normal service and bring up our modified service
-	/bin/launchctl unload "/System/Library/LaunchDaemons/com.apple.installd.plist"
-	if [ $? -ne 0 ]; then
-		log "Unable to unload system installd daemon" error
-		exit 1
-	fi
-	/bin/launchctl load "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.com.apple.installd.plist"
-	if [ $? -ne 0 ]; then
-		log "Unable to load modified installd daemon" error
-		exit 1
-	fi
+	# all the daemons for 10.5 and 10.6
+	POSSIBLE_DAEMONS=("com.apple.installd" "com.apple.docsetinstalld" "com.apple.installdb.system")
+	for THIS_DAEMON in "${POSSIBLE_DAEMONS[@]}"; do
+		if [ -e "/System/Library/LaunchDaemons/${THIS_DAEMON}.plist" ] && [ "`defaults read /System/Library/LaunchDaemons/${THIS_DAEMON} Disabled 2>/dev/null`" != "1" ]; then
+			log "	Chrooting $THIS_DAEMON daemon" information
+			
+			# copy the normal launchdaemon
+			/bin/cp "/System/Library/LaunchDaemons/${THIS_DAEMON}.plist" "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.${THIS_DAEMON}.plist" | (while read INPUT; do log "$INPUT " detail; done)
+			
+			# modify the copied file
+			/usr/bin/defaults write "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.${THIS_DAEMON}" RootDirectory "$TARGET_IMAGE_MOUNT" | (while read INPUT; do log "$INPUT " detail; done)
+			/usr/bin/defaults write "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.${THIS_DAEMON}" Label "modified.${THIS_DAEMON}" | (while read INPUT; do log "$INPUT " detail; done)
+			
+			# disable the normal service and bring up our modified service
+			/bin/launchctl unload "/System/Library/LaunchDaemons/${THIS_DAEMON}.plist"
+			if [ $? -ne 0 ]; then
+				log "Unable to unload system ${THIS_DAEMON} daemon" error
+				exit 1
+			fi
+			/bin/launchctl load "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.${THIS_DAEMON}.plist"
+			if [ $? -ne 0 ]; then
+				defaults read "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.${THIS_DAEMON}"
+				log "Unable to load modified ${THIS_DAEMON} daemon" error
+				exit 1
+			fi
+			
+			MODIFIED_INSTALLD_PLISTS[${#MODIFIED_INSTALLD_PLISTS[@]}]="${THIS_DAEMON}"
+		fi
+	done
 }
 
-jailbreak_installd() {
+jailbreak_installer_daemons() {
+	log "Restoring normal installd daemon" information
+	
 	if [ ! -z "$MODIFIED_INSTALLD_PLIST_FOLDER" ] && [ -d "$MODIFIED_INSTALLD_PLIST_FOLDER" ]; then
-		log "Restoring normal installd daemon" information
-		
-		/bin/launchctl unload "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.com.apple.installd.plist" | (while read INPUT; do log "$INPUT " detail; done)
-		/bin/launchctl load "/System/Library/LaunchDaemons/com.apple.installd.plist" | (while read INPUT; do log "$INPUT " detail; done)
-		
-		/bin/rm -rf "$MODIFIED_INSTALLD_PLIST_FOLDER"
+		for THIS_DAEMON in "${MODIFIED_INSTALLD_PLISTS[@]}"; do
+			if [ -e "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.${THIS_DAEMON}.plist" ]; then
+				log "	Restoring $THIS_DAEMON daemon" information
+				
+				/bin/launchctl unload "${MODIFIED_INSTALLD_PLIST_FOLDER}/modified.${THIS_DAEMON}.plist" | (while read INPUT; do log "$INPUT " detail; done)
+				/bin/launchctl load "/System/Library/LaunchDaemons/${THIS_DAEMON}.plist" | (while read INPUT; do log "$INPUT " detail; done)
+			fi
+		done
 	fi
+	
+	/bin/rm -rf "$MODIFIED_INSTALLD_PLIST_FOLDER"
 }
 
 #<!------------------------ Phases ------------------------->
@@ -1007,7 +1029,7 @@ install_packages_from_folder() {
 			/bin/rm -Rf "${TARGET_IMAGE_MOUNT}${CHROOT_TARGET}" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 		fi
 		
-		log "Folder $ORDERED_FOLDER done (`date '+%H:%M:%S'`)" information
+		log "	Folder $ORDERED_FOLDER done (`date '+%H:%M:%S'`)" information
 	done
 }
 
@@ -1115,7 +1137,7 @@ clean_up() {
 	log "Cleaning up" section
 	
 	if [ $DISABLE_INSTALLD_CHROOT == false ]; then
-		jailbreak_installd
+		jailbreak_installer_daemons
 	fi
 	
 	log "Ejecting images" information
@@ -1276,7 +1298,7 @@ if [ $OS_REV_MAJOR -eq 6 ]; then
 fi
 
 if [ $DISABLE_INSTALLD_CHROOT == false ]; then
-	jail_installd
+	jail_installer_daemons
 fi
 
 # Install the updates from within the numbered folders inside the update folders
@@ -1285,7 +1307,7 @@ for (( i = 0 ; i < ${#UPDATE_FOLDERS[@]} ; i++ )); do
 done
 
 if [ $DISABLE_INSTALLD_CHROOT == false ]; then
-	jailbreak_installd
+	jailbreak_installer_daemons
 fi
 
 clean_up_image
