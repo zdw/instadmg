@@ -3,7 +3,7 @@ Output File Name = 10.6.2 Vanilla
 
 Base OS Disk:
 	# the first one should be disk 1 of an installer disk
-	# this is not yet implimented
+	# this is not yet implemented
 
 OS Updates:
 	MacOS X 10.6.2.Combo Update	http://support.apple.com/downloads/DL959/en_US/MacOSXUpdCombo10.6.2.dmg	sha1:adbe2e8a81e227c1903dd049b6a3ea5f60b6ea49
