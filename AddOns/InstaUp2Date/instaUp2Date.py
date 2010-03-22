@@ -32,7 +32,7 @@ READ_CHUNK_SIZE				= 1024; # how large a chunk to grab while checksumming. chang
 
 baseOSSectionName			= "Base OS Disk"
 
-allowedCatalogFileSettings	= [ "ISO Language Code", "Output Volume Name", "Output File Name" ]
+allowedCatalogFileSettings	= [ "ISO Language Code", "Output Volume Name", "Output File Name", "Path to Scratch Space", "Path to Created ASR Image" ]
 
 # these should be in the order they run in
 systemSectionTypes			= [ "OS Updates", "System Settings" ]
@@ -86,7 +86,7 @@ def setup():
 #---------------------------HELPER METHODS---------------------------
 
 def usage (exitLevel=0):
-	print "useage: \n\n There really should be more here" # TODO: create useage message
+	print "usage: \n\n There really should be more here" # TODO: create usage message
 	sys.exit(exitLevel)
 
 #-------------------------------CLASSES------------------------------
@@ -326,6 +326,8 @@ class instaUpToDate:
 		chosenLanguage			= "en"
 		asrFileSystemNameOption	= []
 		asrOutputFileNameOption	= []
+		temporaryFolder			= []
+		asrFolder				= []
 		
 		if self.catalogFileSettings.has_key("ISO Language Code"):
 			chosenLanguage = self.catalogFileSettings["ISO Language Code"]
@@ -333,16 +335,22 @@ class instaUpToDate:
 			
 		if self.catalogFileSettings.has_key("Output Volume Name"):
 			asrFileSystemNameOption = ["-n", self.catalogFileSettings["Output Volume Name"]]
-			
+	
 		if self.catalogFileSettings.has_key("Output File Name"):
 			asrOutputFileNameOption = ["-m", self.catalogFileSettings["Output File Name"]]
+
+		if self.catalogFileSettings.has_key("Path to Scratch Space"):
+			temporaryFolder = ["-t", self.catalogFileSettings["Path to Scratch Space"]]
+
+		if self.catalogFileSettings.has_key("Path to Created ASR Image"):
+			asrFolder = ["-o", self.catalogFileSettings["Path to Created ASR Image"]]
 		
 		print "Running InstaDMG:\n\n"
 		# we should be in the same directory as InstaDMG
 		
-		thisProcess = subprocess.Popen([os.path.join(os.getcwd(),instaDMGName), '-f'] + ["-i", chosenLanguage] + asrFileSystemNameOption + asrOutputFileNameOption)
+		thisProcess = subprocess.Popen([os.path.join(os.getcwd(),instaDMGName), '-f'] + ["-i", chosenLanguage] + asrFileSystemNameOption + asrOutputFileNameOption + temporaryFolder + asrFolder)
 		thisProcess.communicate()
-		# TODO: a lot of improvementes in handling of InstaDMG
+		# TODO: a lot of improvements in handling of InstaDMG
 
 class installerPackage:
 	"This class represents a .pkg installer, and does much of the work."
@@ -508,7 +516,7 @@ class installerPackage:
 					(httpHeaders, myError) = thisProcess.communicate()
 					
 					if thisProcess.returncode != 0:
-						# TODO: show some error here, we can't get the package name from the interenet
+						# TODO: show some error here, we can't get the package name from the internet
 						raise Exception('Unable to get the name of package: %s\n%s\n%s' % ( self.archiveLocation, httpHeaders, myError) ); # TODO: better errors
 
 					contentDisposition = contentDispositionRegex.search(httpHeaders.split("HTTP/1")[-1])
@@ -545,7 +553,7 @@ class installerPackage:
 			self.setStatus("Invalid")
 			raise Exception('Unable to find package: %s' % self.name) # TODO: better errors
 			
-		# since it is not in our cache, we need to retieve it from the archive
+		# since it is not in our cache, we need to retrieve it from the archive
 		if self.retrieveFromArchive():
 			return
 			
@@ -633,7 +641,7 @@ class installerPackage:
 		self.sourceMessage = newMessage
 	
 	def checkCacheForPackage(self):
-		"This goes through the cache  and userSuppliedPKGFolder folders, looking for a package with the name of this package (and the correct checksum, if there is one). If it finds one, it will return true, otherwise false"
+		"This goes through the cache and userSuppliedPKGFolder folders, looking for a package with the name of this package (and the correct checksum, if there is one). If it finds one, it will return true, otherwise false"
 		
 		global cacheFolder
 		global userSuppliedPKGFolder
@@ -651,7 +659,7 @@ class installerPackage:
 						if os.path.isdir(thisFilePath) and not( re.search("\.(m)?pkg$", thisFileName, re.I) ):
 							# a folder that is not a pkg or mpkg
 							#	the checksum was already correct, so we are probably safe,
-							#	but we will be paranoind and make sure that there is a pkg or mpkg inside
+							#	but we will be paranoid and make sure that there is a pkg or mpkg inside
 							
 							foundIt = False
 							for innerFileName in os.listdir(thisFilePath):
@@ -689,7 +697,7 @@ class installerPackage:
 						
 						elif re.search("\.dmg$", thisFileName, re.I):
 							# since the checksum is correct on the file (not referring to the internal one) this is probably ok
-							#	but being paridoid... we will have hdiutil cheksum it at well
+							#	but being paranoid... we will have hdiutil cheksum it at well
 							
 							# check with hdiutil to see if it should have a checksum
 							hdiutilProcess = subprocess.Popen(['/usr/bin/hdiutil', 'imageinfo', '-plist', thisFilePath] , stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
@@ -746,7 +754,7 @@ class installerPackage:
 		
 		# TODO: allow for dmg's inside a zip, or tgz
 		
-		# unfortunately "file" does not do a good job of figureing out dmg's, se we are going to have to trust the name
+		# unfortunately "file" does not do a good job of figuring out dmg's, se we are going to have to trust the name
 		
 		if os.path.splitext(tempFilePath)[1].lower() == ".dmg": # we have already made sure that everything is lower case
 			self.archiveType = "dmg"
