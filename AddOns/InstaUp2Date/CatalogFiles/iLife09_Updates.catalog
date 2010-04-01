@@ -1,8 +1,8 @@
-# iLife '09 Updates.
+# iLife '09 Updates as of 4/1/2010
 
 Base OS Disk:
 	# the first one should be disk 1 of an installer disk
-	# this is not yet implimented
+	# this is not yet implemented
 
 OS Updates:
 
@@ -12,6 +12,7 @@ System Settings:
 
 Third Party Software:
 	iPhoto_81	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-6710.20090818.Cwe4R/iPhoto_81.dmg	sha1:e6b1bf494881ba3b357f7d023e2c434e8caf06c8
+	iPhoto812	http://support.apple.com/downloads/DL970/en_US/iPhoto812.dmg	sha1:b7cdf308a45a2ce5b8e1cbf3a78cbaa17dc62c28
 	GarageBand51	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-6633.20090803.fr0Pp/GarageBand51.dmg	sha1:7c771583c826c8c70e5c5f01d925e28636d0364d
 	iDVD704	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-6153.20090604.FqicZ/iDVD704.dmg	sha1:d9b6fd4b1a4c8f875dc1a8ca3c8dd31ebae5e1c0
 	iLifeSupport903	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-5905.20090604.tvwi0/iLifeSupport903.dmg	sha1:9673607401a55ab9a3d272b5a57e22e0fab9a6a6

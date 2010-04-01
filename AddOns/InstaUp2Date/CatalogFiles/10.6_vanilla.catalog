@@ -1,24 +1,22 @@
 Output Volume Name = Macintosh HD
-Output File Name = 10.6.2 Vanilla
+Output File Name = 10.6.3 Vanilla(as of 4/1/2010)
+# Path to Scratch Space = /Volumes/stripedRAID0
+# Path to Created ASR Image = /Volumes/stripedRAID0
 
 Base OS Disk:
 	# the first one should be disk 1 of an installer disk
 	# this is not yet implemented
 
 OS Updates:
-	MacOS X 10.6.2.Combo Update	http://support.apple.com/downloads/DL959/en_US/MacOSXUpdCombo10.6.2.dmg	sha1:adbe2e8a81e227c1903dd049b6a3ea5f60b6ea49
-	Remote Desktop Client 3.3.2	http://support.apple.com/downloads/DL986/en_US/RemoteDesktopClient.dmg	sha1:707812be781a5e3635c552bef24382c1eced93cf
-	Java For MacOS X 10.6 Update 1	http://support.apple.com/downloads/DL972/en_US/JavaForMacOSX10.6Update1.dmg	sha1:e31791c61b56c7db104baffb00971fad88feb8e4
-	AirPort Client Update 2009-002	http://support.apple.com/downloads/DL973/en_US/AirPortClientUpdate2009002.dmg	sha1:577b75cf09a51dc30bd0d5b73f66722415e081e0
-	SnowLeopard Security Update 2010-001	http://support.apple.com/downloads/DL994/en_US/SecUpd2010-001Snow.dmg	sha1:8c1f0a08edf557d9242974e925ff58deb5e5dbf2
+	MacOS X 10.6.3.Combo Update	http://support.apple.com/downloads/DL1017/en_US/MacOSXUpdCombo10.6.3.dmg	sha1:72c12635cf83ab6fe028ddf81b0af7357853f736
 
 Apple Updates:
+	Remote Desktop Client 3.3.2	http://support.apple.com/downloads/DL986/en_US/RemoteDesktopClient.dmg	sha1:707812be781a5e3635c552bef24382c1eced93cf
 	iLife Support 9.0.4	http://support.apple.com/downloads/DL1009/en_US/iLifeSupport904.dmg	sha1:7cda1492d1bab91383b5738a7cda2cde24f72d2c
-	iTunes 9.0.3	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes9/061-7752.20100201.Tz39N/iTunes9.0.3.dmg	sha1:980568d7429b1093eff092e8fe68115151c2bb22
-	Wireless Mouse Software	http://support.apple.com/downloads/DL950/en_US/WirelessMouseSoftware.dmg	sha1:159954dfdddeef5352da27ebfd3cbd7773a7861e
+	iTunes 9.1	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes9/061-7203.20100330.XswP8/iTunes9.1.dmg	sha1:cbfe7da9ccc2934395e27ee99ab400c3fdea0595
 	Safari4.0.5 for SnowLeopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/Safari4/061-7783.20100311.sfrew/Safari4.0.5SnowLeopard.dmg	sha1:b1b0c3510acf7144a6358b6e5667fb43aaa8a6b9
-	Digital Camera Raw Compatibility Update 3.1	http://support.apple.com/downloads/DL1007/en_US/RAWCameraUpdate3.dmg	sha1:b3c02950aeebedf92836dcbc6e3e81bd79c188fd
-	Aperture SlideShow Support Update 1.0	http://support.apple.com/downloads/DL1000/en_US/ApertureSlideShowUpdate1.dmg	sha1:fdbc5ba5e6190842cad0300012fd6a98a53f0e95
+	Java For MacOS X 10.6 Update 1	http://support.apple.com/downloads/DL972/en_US/JavaForMacOSX10.6Update1.dmg	sha1:e31791c61b56c7db104baffb00971fad88feb8e4
+	AirPortUtility551	http://support.apple.com/downloads/DL955/en_US/AirPortUtility551.dmg	sha1:542636fb7d538795cf18db6aa4453c4bcb570c19
 
 System Settings:
 
