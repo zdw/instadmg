@@ -10,11 +10,11 @@ TARGET_DIR="$3"
 
 check_os()
 {
-	LEOPARD=1
+	LEOPARD=1 #also equals snow since uses dslocal
 	TIGER=1
 
 	HOST_SW_VERS=`/usr/bin/defaults read "/System/Library/CoreServices/SystemVersion" ProductVersion`
-	if ( echo $HOST_SW_VERS | grep "^10.5">/dev/null ); then
+	if ( echo $HOST_SW_VERS | grep "^10.[56]">/dev/null ); then
 		HOST_LEOPARD=0
 		HOST_TIGER=1
 	elif ( echo $HOST_SW_VERS | grep "^10.4">/dev/null ); then
@@ -26,7 +26,7 @@ check_os()
 	fi
 	
 	TARGET_SW_VERS=`/usr/bin/defaults read "${TARGET_DIR}/System/Library/CoreServices/SystemVersion" ProductVersion`
-	if ( echo $TARGET_SW_VERS | grep "^10.5">/dev/null ); then
+	if ( echo $TARGET_SW_VERS | grep "^10.[56]">/dev/null ); then
 		LEOPARD=0
 		TIGER=1
 	elif ( echo $TARGET_SW_VERS | grep "^10.4">/dev/null ); then
@@ -236,7 +236,10 @@ if [ $admin -eq 1 ]; then
 fi
 
 if [ $hide_user -eq 1 ]; then
-	/usr/bin/defaults write "${TARGET_DIR}/Library/Preferences/com.apple.loginwindow" HiddenUsersList -array-add $shortname
+	/usr/bin/defaults write "${TARGET_DIR}/Library/Preferences/com.apple.loginwindow" HiddenUsersList -array $shortname
 fi
+
+#use the 'kickstart' function of the apple remote desktop agent to turn access on for the just-created user
+#/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate -configure -access -on -users $shortname -privs -all -restart -agent -target "$3"
 
 exit 0

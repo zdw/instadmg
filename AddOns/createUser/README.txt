@@ -30,7 +30,11 @@ From Terminal:
 
 This will generate a file named password_hash that is ready to be used for the package. FYI: The password_hash file distributed with this package is set to "password" by default.
 
-You can also include the password as clear text in the USERDATA folder, but this is STRONGLY DISCOURAGED as this will be readable by anyone, and the file tends to stay in /Library/Receipts afterward. Seriously don't do it.
+You can also include the password as clear text in the USERDATA file, but this is STRONGLY DISCOURAGED as this will be readable by anyone, and the file tends to stay in /Library/Receipts afterward. Seriously don't do it.
+_That Being Said_
+If you choose this method, you MUST delete the "password_hash" file in the package as the script will use it first if it is there regardless of what you put in the USERDATA file.
+
+Seriously, ask for assistance on a mailing list or the AFP548 forums if the "password_hash" doesn't work for you, we're more than happy to help out.
 
 That's it! Once you have set up the package, you can then insert it into your build train for InstaDMG, and also distribute it using ARD
 
@@ -43,5 +47,8 @@ Pete Akins. pete.akins@uc.edu
 
 History:
 
+This version, bundled with InstaDMG 1.6b2, includes additional(although commented-out) functionality to initiate ARD access for the newly-created user
+version 1.0.3: August 25, 2009 - Updated script to handle 10.6 and clarified documentation. Thanks to Reed Stoner for contributions.
+version 1.0.2: May 8, 2008 - Fixed a bug with parsing the shortname
 version 1.0.1: May 2, 2008 - Added options for home folder location and ability to hide user from loginwindow
 version 1.0: April 2, 2008 - Initial Release
