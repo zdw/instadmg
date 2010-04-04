@@ -4,7 +4,7 @@
 #
 #	This script parses one or more catalog files to fill in the 
 
-import os, sys, re, getopt
+import os, sys, re
 import hashlib, urllib2, tempfile, shutil, subprocess
 import Foundation, checksum
 from datetime import date
@@ -32,7 +32,7 @@ READ_CHUNK_SIZE				= 1024; # how large a chunk to grab while checksumming. chang
 
 baseOSSectionName			= "Base OS Disk"
 
-allowedCatalogFileSettings	= [ "ISO Language Code", "Output Volume Name", "Output File Name", "Path to Scratch Space", "Path to Created ASR Image" ]
+allowedCatalogFileSettings	= [ "ISO Language Code", "Output Volume Name", "Output File Name" ]
 
 # these should be in the order they run in
 systemSectionTypes			= [ "OS Updates", "System Settings" ]
@@ -85,9 +85,9 @@ def setup():
 		
 #---------------------------HELPER METHODS---------------------------
 
-def usage (exitLevel=0):
-	print "usage: \n\n There really should be more here" # TODO: create usage message
-	sys.exit(exitLevel)
+def print_version(option, opt, value, parser):
+	print "InstaUp2Date version %s" % versionString
+	sys.exit(0)
 
 #-------------------------------CLASSES------------------------------
 
@@ -319,37 +319,33 @@ class instaUpToDate:
 					
 				os.rmdir(thisFolder)
 	
-	def runInstaDMG(self):
+	def runInstaDMG(self, scratchFolder=None, outputFolder=None):
 		global instaDMGName
-	
-		# defaults
-		chosenLanguage			= "en"
-		asrFileSystemNameOption	= []
-		asrOutputFileNameOption	= []
-		temporaryFolder			= []
-		asrFolder				= []
+		
+		instaDMGCommand			= [ os.path.join( os.getcwd(), instaDMGName ), "-f" ]
 		
 		if self.catalogFileSettings.has_key("ISO Language Code"):
-			chosenLanguage = self.catalogFileSettings["ISO Language Code"]
+			instaDMGCommand += ["-i", self.catalogFileSettings["ISO Language Code"]]
 			# TODO: check with installer to see if it will accept this language code
-			
+		
 		if self.catalogFileSettings.has_key("Output Volume Name"):
-			asrFileSystemNameOption = ["-n", self.catalogFileSettings["Output Volume Name"]]
-	
+			instaDMGCommand += ["-n", self.catalogFileSettings["Output Volume Name"]]
+		
 		if self.catalogFileSettings.has_key("Output File Name"):
-			asrOutputFileNameOption = ["-m", self.catalogFileSettings["Output File Name"]]
+			instaDMGCommand += ["-m", self.catalogFileSettings["Output File Name"]]
+		
+		
+		if scratchFolder != None:
+			instaDMGCommand += ["-t", scratchFolder]
+		
+		if outputFolder != None:
+			instaDMGCommand += ["-o", outputFolder]
 
-		if self.catalogFileSettings.has_key("Path to Scratch Space"):
-			temporaryFolder = ["-t", self.catalogFileSettings["Path to Scratch Space"]]
-
-		if self.catalogFileSettings.has_key("Path to Created ASR Image"):
-			asrFolder = ["-o", self.catalogFileSettings["Path to Created ASR Image"]]
 		
 		print "Running InstaDMG:\n\n"
 		# we should be in the same directory as InstaDMG
 		
-		thisProcess = subprocess.Popen([os.path.join(os.getcwd(),instaDMGName), '-f'] + ["-i", chosenLanguage] + asrFileSystemNameOption + asrOutputFileNameOption + temporaryFolder + asrFolder)
-		thisProcess.communicate()
+		subprocess.call(instaDMGCommand)
 		# TODO: a lot of improvements in handling of InstaDMG
 
 class installerPackage:
@@ -839,49 +835,44 @@ def main ():
 	global catalogFolder
 	
 	# ------- defaults -------
-	processWithInstaDMG	= False
+	
 	outputVolumeName	= "MacintoshHD"
 	outputFileName		= str(date.today().month) + "-" + str(date.today().day) + "-" + str(date.today().year)
 	
-	# ------- options -------
-	try:
-		options, filesToTry = getopt.gnu_getopt(sys.argv[1:], "hpv", ["help", "process", "version"])
-	except getopt.GetoptError, err:
-		print str(err) # TODO: cusomize the error message
-		usage()
-		sys.exit(2)
+	# ---- parse options ----
 	
-	for option, argument in options:
-		if option in ("-h", "--help"):
-			usage()
-						
-		elif option in ("-p", "--process"): # process with InstaDMG after a sucessfull result
-			processWithInstaDMG = True
-	
-		elif option in ("-v", "--version"): 
-			print "InstaUp2Date version %s" % versionString
-			sys.exit(0)
+	import optparse
+	optionsParser = optparse.OptionParser("%prog [options] catalogFile1 [catalogFile2 ...]" )
+	optionsParser.add_option("-p", "--process", action="store_true", default=True, dest="processWithInstaDMG", help="Run InstaDMG for each catalog file processed")
+	optionsParser.add_option("-v", "--version", action="callback", callback=print_version, help="Print the version number and quit")
+	optionsParser.add_option("", "--instadmg-scratch-folder", action="store", dest="instadmgScratchFolder", default=None, type="string", metavar="FOLDER_PATH", help="Tell InstaDMG to use FOLDER_PATH as the scratch folder")
+	optionsParser.add_option("", "--instadmg-output-folder", action="store", dest="instadmgOutputFolder", default=None, type="string", metavar="FOLDER_PATH", help="Tell InstaDMG to place the output image in FOLDER_PATH")
+	options, catalogFiles = optionsParser.parse_args()
 			
 	# --- police options ----
 	
-	# when there are options, they will be cleaned here
+	if len(catalogFiles) < 1:
+		optionsParser.error("At least one catalog file is required")
+	
+	if (options.instadmgScratchFolder != None or options.instadmgOutputFolder != None) and options.processWithInstaDMG == False:
+		optionsParser.error("The instadmg-scratch-folder and instadmg-output-folder options require the -p/--process option to also be enabled")
+	
+	if options.instadmgScratchFolder != None and not os.path.isdir(options.instadmgScratchFolder):
+		optionsParser.error("The instadmg-scratch-folder option requires a valid folder path, but got: %s" % options.instadmgScratchFolder)
+	
+	if options.instadmgOutputFolder != None and not os.path.isdir(options.instadmgOutputFolder):
+		optionsParser.error("The instadmg-output-folder option requires a valid folder path, but got: %s" % options.instadmgOutputFolder)
 	
 	# ------- process -------
 	
-	global cacheFolderName
-	global customPKGFolder
-		
-	if len(filesToTry) < 1:
-		raise Exception("No files were supplied!") # TODO: improve error handling
-	
 	thisController = instaUpToDate()
 	
-	for inputFilePath in filesToTry:	
-		thisController.parseFile(inputFilePath, topLevel=True)
+	for catalogFilePath in catalogFiles:	
+		thisController.parseFile(catalogFilePath, topLevel=True)
 		
-		if thisController.arrangeFolders() and processWithInstaDMG:
+		if thisController.arrangeFolders() and options.processWithInstaDMG == True:
 			# the run succeded, and it has been requested to run InstaDMG
-			thisController.runInstaDMG()
+			thisController.runInstaDMG(scratchFolder=options.instadmgScratchFolder, outputFolder=options.instadmgOutputFolder)
 		
 		
 #------------------------------END MAIN------------------------------

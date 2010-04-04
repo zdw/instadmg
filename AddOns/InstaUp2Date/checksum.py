@@ -141,7 +141,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 	
 	# warm up the checksummer
 	hashGenerator = hashlib.new(checksumType)
-		
+	
 	if overallType == "folder" and reportProgress == True:
 		sys.stderr.write("Processing %i items: 0%%" % len(targets))
 		sys.stderr.flush()
@@ -160,7 +160,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 				raise Exception('Unable to connect to remote url: %s got error: %s' % (thisTarget['sourceUrl'].geturl(), error.reason))
 			elif hasattr(error, 'code'):
 				raise Exception('Got status code: %s while trying to connect to remote url: %s' % (str(error.code), thisTarget['sourceUrl'].geturl()))
-        
+		
 		if readFile == None:
 			raise Exception("Unable to open file for checksumming: %s" % thisTarget['sourceUrl'].getURL())
 		

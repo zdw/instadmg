@@ -1,7 +1,5 @@
 Output Volume Name = Macintosh HD
-Output File Name = 10.6.3 Vanilla(as of 4/1/2010)
-# Path to Scratch Space = /Volumes/stripedRAID0
-# Path to Created ASR Image = /Volumes/stripedRAID0
+Output File Name = 10.6.3 Vanilla
 
 Base OS Disk:
 	# the first one should be disk 1 of an installer disk
