@@ -5,14 +5,14 @@
 #	This script parses one or more catalog files to fill in the 
 
 import os, sys, re
-import hashlib, urllib2, tempfile, shutil, subprocess
+import hashlib, urlparse, urllib, urllib2, tempfile, shutil, subprocess
 import Foundation, checksum
 from datetime import date
 
 #------------------------------SETTINGS------------------------------
 
 svnRevision					= int('$Revision$'.split(" ")[1])
-versionString				= "0.4b (svn revision: %i)" % svnRevision
+versionString				= "0.5b (svn revision: %i)" % svnRevision
 
 relativePathToInstaDMG		= "../../" # the relative path between InstaUp2date and InstaDMG
 relativePathFromInstaDMG	= "AddOns/InstaUp2Date/"
@@ -36,157 +36,156 @@ allowedCatalogFileSettings	= [ "ISO Language Code", "Output Volume Name", "Outpu
 
 # these should be in the order they run in
 systemSectionTypes			= [ "OS Updates", "System Settings" ]
-addedSectionTypes			= [ "Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings" ]
+addedSectionTypes			= [ "Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings" ]	
 
+#------------------------RUNTIME ADJUSTMENTS-------------------------
 
-#--------------------------RUNTIME VARIABLES-------------------------
+absPathToInstaDMGFolder		= os.path.normpath(os.path.join( os.path.dirname(sys.argv[0]), relativePathToInstaDMG ))
 
+appleUpdatesFolderPath		= os.path.join(absPathToInstaDMGFolder, appleUpdatesFolder)
+customPKGFolderPath			= os.path.join(absPathToInstaDMGFolder, customPKGFolder)
 
-# these will be filled in by setup
-catalogFolder				= None
+userSuppliedPKGFolderPath	= os.path.join(absPathToInstaDMGFolder, userSuppliedPKGFolder)
+cacheFolderPath				= os.path.join(absPathToInstaDMGFolder, cacheFolder)
 
-def setup():
-	#-----------------------CHANGE TO PROPER DIRECTORY-------------------
-	
-	# we have to cd to the proper directory (the one with InstaDMG in it)
-	# by default the directory is two directories above the one containing the script
-	
-	os.chdir( os.path.join( os.path.dirname(sys.argv[0]), relativePathToInstaDMG ) ) # TODO: error handling
-	
-	if not(os.path.exists( instaDMGName )):
-		# TODO: use mdfind to find InstaDMG
-		raise Exception("Unable to locate InstaDMG") # TODO: improve error handling
-	
-	#-------------------------SETTINGS SANITY CHECK----------------------
-	
-	if not(os.path.exists(appleUpdatesFolder)) or not(os.path.isdir(appleUpdatesFolder)):
-		raise Exception() # TODO: improve error handling
-	
-	if not(os.path.exists(customPKGFolder)) or not(os.path.isdir(customPKGFolder)):
-		raise Exception() # TODO: improve error handling
-	
-	if not(os.path.exists(userSuppliedPKGFolder)) or not(os.path.isdir(userSuppliedPKGFolder)):
-		raise Exception() # TODO: improve error handling
-	
-	global catalogFolder
-	catalogFolder = os.path.join( relativePathFromInstaDMG, "CatalogFiles" )
-	
-	if not (os.path.exists(catalogFolder)) or not(os.path.isdir(catalogFolder)):
-		raise Exception() # TODO: improve error handling
-	
-	if not(os.path.exists(cacheFolder)):
-		# we will try to create this one if it does not exist
-		if not(os.path.isdir(cacheFolder)):
-			# something else there... bail
-			raise Exception() # TODO: improve error handling
-		os.makedirs(cacheFolder)
-	if not(os.path.exists(cacheFolder)):
-			raise Exception() # TODO: improve error handling
-		
-#---------------------------HELPER METHODS---------------------------
-
-def print_version(option, opt, value, parser):
-	print "InstaUp2Date version %s" % versionString
-	sys.exit(0)
+catalogFolderPath			= os.path.join(os.path.dirname(sys.argv[0]), catalogFolderName)
 
 #-------------------------------CLASSES------------------------------
 
+class CatalogNotFoundException(Exception):
+	pass
+
+class FileNotFoundException(Exception):
+	pass
+
 class instaUpToDate:
-	"This is the central class that will manage the process. It should probably be a singleton object"
-	
-	global catalogFileExension
-	
+	"The central class to manage the process"
+		
 	#---------------------Class Variables-----------------------------
 	
 	sectionStartParser	= re.compile('^(?P<sectionName>[^\t]+):\s*(#.*)?$')
-	packageLineParser	= re.compile('^\t(?P<prettyName>[^\t]*)\t(?P<archiveLocation>[^\t]+)\t(?P<archiveChecksum>\S+)(\t(?P<packageLocation>[^\t]+)\t(?P<packageChecksum>\S+))?\s*(#.*)?$')
+	packageLineParser	= re.compile('^\t(?P<displayName>[^\t]*)\t(?P<fileLocation>[^\t]+)\t(?P<fileChecksum>\S+)\s*(#.*)?$')
 	emptyLineParser		= re.compile('^\s*(?P<comment>#.*)?$')
 	settingLineParser	= re.compile('^(?P<variableName>[^=]+) = (?P<variableValue>.*)')
-	includeLineParser = re.compile('^\s*include-file:\s+(?P<location>.*)(\s*#.*)?$')
-	
-	catalogExtensionReplacer = re.compile( catalogFileExension + '$')
-	
-	suportedRemoteProtocols	= { "http":1, "https":1 }
-	fileLocationParser  	= re.compile("^((?P<protocol>[^:]+)://(?P<server>[^/]+)/)?(?P<fullPath>(?P<path>.*?/)?(?P<fileName>[^/]*?(\.(?P<extension>[^\.]+?)?)))(?(1)\?(?P<queryString>.+))?$")
+	includeLineParser	= re.compile('^\s*include-file:\s+(?P<location>.*)(\s*#.*)?$')
 	
 	#--------------------Instance Variables---------------------------
 
-	packageGroups 			= {} # this will be init-ed in cleanInstaDMGFolders
-	parsedFiles 			= {} # for loop checking
+	packageGroups 			= None	# an Array, init-ed in cleanInstaDMGFolders
+	parsedFiles 			= None	# an Array, for loop checking
+	
+	absPathToInstaDMGFolder	= None
 	
 	# defaults
 	outputVolumeNameDefault = "MacintoshHD"
 	
 	# things below this line will usually come from the first catalog file (top) that sets them
-	catalogFileSettings		= {}
+	catalogFileSettings		= None	# a hash
+
+	#---------------------Class Functions-----------------------------
 	
-	topLevelCatalogFileName = None
-
-	#------------------------Functions--------------------------------
-
-	def parseFile(self, fileLocation, topLevel=False):
+	@classmethod
+	def getCatalogFullPath(myClass, catalogFileInput):
+		'''Classmethod to translate input to a abs-path from one of the accepted formats (checked in this order):
+	- ToDo: http or https reference (will be downloaded and temporary filepath returned)
+	- absolute path to a file
+	- catalog file name within the CatalogFiles folder, with or without the .catalog extension
+	- relative path from CatalogFiles folder, with or without the .catalog extension
+	- relative path from the pwd, with or without the .catalog extension
+'''
+		global catalogFolderName, catalogFileExension
 		
-		global catalogFolder
+		absPathToCatalogFilesFolder = os.path.abspath( os.path.join(os.path.dirname(sys.argv[0]), catalogFolderName) )
+		
+		# http/https url
+		if urlparse.urlparse(catalogFileInput).scheme in ["http", "https"]:
+			raise Exception("URL catalog files are not done yet")
+			# ToDo: download the files, then return the path
+		
+		# ToDo: rework this for better url handling
+		
+		# absolute path to a file
+		elif os.path.isabs(catalogFileInput):
+			return catalogFileInput
+		
+		# file name in the CatalogFiles folder, or relative path
+		elif os.path.isfile(os.path.join(absPathToCatalogFilesFolder, catalogFileInput)) or os.path.isfile(os.path.join(absPathToCatalogFilesFolder, catalogFileInput + catalogFileExension)):
+			if catalogFileInput.lower().endswith(catalogFileExension):
+				return os.path.join(absPathToCatalogFilesFolder, catalogFileInput)
+			else:
+				return os.path.join(absPathToCatalogFilesFolder, catalogFileInput + catalogFileExension)
+		
+		# file path relative to pwd
+		elif os.path.isfile(catalogFileInput) or os.path.isfile(catalogFileInput + catalogFileExension):
+			if catalogFileInput.lower().endswith(catalogFileExension):
+				return os.path.abspath(catalogFileInput)
+			else:
+				return os.path.abspath(catalogFileInput + catalogFileExension)
+		
+		else:
+			raise CatalogNotFoundException("The file input is not one that getCatalogFullPath understands, or can find: %s" % catalogFileInput)
+		
+	#------------------------Functions--------------------------------
+	
+	def runtimeChecks(self, runStyle="classic"):
+		'''Some sanity checks to make sure that things are not going to fail later'''
+		
+		#global relativePathToInstaDMG, catalogFolderName, cacheFolder, userSuppliedPKGFolder
+		#global appleUpdatesFolder, customPKGFolder
+		
+		# Note on runStyle:
+		#	"classic": use the "BaseUpdates" and "CustomPKG" folders
+		#	"tempFolder": use a temporary to hold all of the update links, deleted at close
+		
+		# --- generic checks ----
+		
+		assert os.path.isfile( os.path.join(absPathToInstaDMGFolder, instaDMGName) ), "InstaDMG was not where it was expected to be: %s" % os.path.join(absPathToInstaDMGFolder, instaDMGName)
+		assert os.path.isdir(catalogFolderPath), "The catalog files folder was not where it was expected to be: %s" % catalogFolderPath
+		assert os.path.isdir(userSuppliedPKGFolderPath), "The catalog files folder was not where it was expected to be: %s" % userSuppliedPKGFolderPath
+		assert os.path.isdir(cacheFolderPath), "The instaDMG cache folder was not where it was expected to be: %s" % cacheFolderPath
+		
+		# --- classic checks ----
+		if runStyle == "classic":
+			assert os.path.isdir(appleUpdatesFolderPath), "The BaseUpdates folder was not where it was expected to be: %s" % appleUpdatesFolderPath
+			assert os.path.isdir(customPKGFolderPath), "The CustomPKGs folder was not where it was expected to be: %s" % customPKGFolderPath
+		
+		# -- tempFolder checks --
+		elif runStyle == "tempFolder":
+			pass
+		
+	
+	def parseFile(self, fileLocation):
+		
 		global catalogFileExension
 		global allowedCatalogFileSettings
-		
-		# top-level catalog file need to do two things: clean out the InstaDMG folders, and set the outputFileName
-		if topLevel == True:
-			self.catalogFileSettings		= {}
-			self.parsedFiles 				= {}
-			self.cleanInstaDMGFolders()
-			self.topLevelCatalogFileName	= self.catalogExtensionReplacer.sub( '', os.path.basename(fileLocation) )
 					
 		# the file passed could be an absolute path, a relative path, or a catalog file name
 		#	the first two are handled without a special section, but the name needs some work
 		
-		if os.path.exists( os.path.join(catalogFolder, fileLocation) ):
-			fileLocation = os.path.join(catalogFolder, fileLocation)
-		elif os.path.exists( os.path.join(catalogFolder, fileLocation + catalogFileExension) ):
-			fileLocation = os.path.join(catalogFolder, fileLocation + catalogFileExension)
-	
-		if self.parsedFiles.has_key(fileLocation):
-			raise Exception('Loop detected in catalog files: %s' % fileLocation) # TODO: improve error handling
-		self.parsedFiles[fileLocation] = 1
+		fileLocation = self.getCatalogFullPath(fileLocation) # there should not be an error here, since we have already validated it
+		# note: this last will have taken care of downloading any remote files
 		
-		fileLocationParsed = self.fileLocationParser.search( fileLocation )
-		if fileLocationParsed == None:
-			raise Exception('Unable to parse input file: %s' % fileLocation) # TODO: improve error handling
-			
-		if self.suportedRemoteProtocols.has_key( fileLocationParsed.group("protocol") ):
-			# a web file that we need to process
-			print "need to do something"
-			
-		elif fileLocationParsed.group("protocol") == None or fileLocationParsed.group("protocol").lower() == "file":
-			# a local file refernce
+		assert os.path.isfile(fileLocation), "There was no file where it was expected to be: %s" % fileLocation
 		
-			if fileLocationParsed.group("protocol") != None:
-				# this is a file url, and we need to swizzle it into a regular file reference
-				if fileLocationParsed.group("server"):
-					fileLocation = os.path.join( fileLocationParsed.group("server"), fileLocationParsed.group("fullPath") )
-				else:
-					fileLocation = fileLocationParsed.group("fullPath")
-					
-			INPUTFILE = open(fileLocation, "r")
-			
-			
-		else:
-			# this is not a recognized file type
-			raise Exception() # TODO: improve error handling
-				
-		if INPUTFILE == None:
+		# check to make sure we are not in a loop
+		assert fileLocation not in self.parsedFiles, 'Loop detected in catalog files: %s' % fileLocation
+		self.parsedFiles.append(fileLocation)
+		
+		inputfile = open(fileLocation, "r")
+		if inputfile == None:
 				raise Exception('Unable to open input file: %s' % inputFilePath) # TODO: improve error handling
 			
 		currentSection = None;
 		lineNumber = 0
 		
 		# parse through the file
-		for line in INPUTFILE.readlines():
+		for line in inputfile.readlines():
 			lineNumber += 1
 			
 			if self.emptyLineParser.search(line):
 				continue
 			
+			# ------- settings lines -------
 			settingLineMatch = self.settingLineParser.search(line)
 			if settingLineMatch:
 				try:
@@ -200,31 +199,38 @@ class instaUpToDate:
 					
 				continue
 			
+			
+			# ----- file includes lines ----
 			includeLineMatch = self.includeLineParser.search(line)
 			if includeLineMatch:
-				self.parseFile( includeLineMatch.group("location") )
+				self.parseFile( self.getCatalogFullPath(includeLineMatch.group("location")) )
 				continue
 			
+			# ------- section lines --------
 			sectionTitleMatch = self.sectionStartParser.search(line)
 			if sectionTitleMatch:
-				if not(sectionTitleMatch.group("sectionName")):
-					raise Exception('Bad line in input file: %s line number: %i\n%s' % (fileLocation, lineNumber, line)) # TODO: improve error handling
-							
-				if not(self.packageGroups.has_key(sectionTitleMatch.group("sectionName"))) and sectionTitleMatch.group("sectionName") != baseOSSectionName:
-					raise Exception('Unknown section title: %s on line: %i of file: %s\n%s' % (sectionTitleMatch.group("sectionName"), lineNumber, fileLocation, line) ) # TODO: improve error handling
+				if sectionTitleMatch.group("sectionName") not in self.packageGroups and sectionTitleMatch.group("sectionName") != baseOSSectionName:
+					raise Exception('Unknown section title: "%s" on line: %i of file: %s\n%s' % (sectionTitleMatch.group("sectionName"), lineNumber, fileLocation, line) ) # TODO: improve error handling
 				
 				currentSection = sectionTitleMatch.group("sectionName")
 				continue
-				
-			simpleLineMatch = self.packageLineParser.search(line)
-			if simpleLineMatch:
+			
+			# --------- item lines ---------
+			packageLineMatch = self.packageLineParser.search(line)
+			if packageLineMatch:
 				if currentSection == None:
 					# we have to have a place to put this
 					raise Exception() # TODO: improve error handling
-					
-				thisPackage = installerPackage( simpleLineMatch.group("prettyName"), simpleLineMatch.group("archiveLocation"), simpleLineMatch.group("archiveChecksum"), simpleLineMatch.group("packageLocation"), simpleLineMatch.group("packageChecksum") )
+				
+				thisPackage = installerPackage(
+					displayName = packageLineMatch.group("displayName"),
+					sourceLocation = packageLineMatch.group("fileLocation"),
+					checksumString = packageLineMatch.group("fileChecksum"),
+					mainCacheFolder = cacheFolderPath,
+					additionalCacheFolders = userSuppliedPKGFolderPath
+				)
 		
-				thisPackage.printPackageInformation()
+				thisPackage.printPackageInformation(tabsToPrefix=1)
 				
 				self.packageGroups[currentSection].append(thisPackage)
 				
@@ -233,68 +239,50 @@ class instaUpToDate:
 			# if we got here, the line was not good
 			raise Exception('Error in config file: %s line number: %i\n%s' % (fileLocation, lineNumber, line)) # TODO: improve error handling
 			
-		INPUTFILE.close()
+		inputfile.close()
 		
 	def arrangeFolders(self):
 		"Create the folder structure in the InstaDMG areas, and pop in soft-links to the items in the cache folder"
-	
-		global appleUpdatesFolder
-		global customPKGFolder 
 		
-		# TODO: combine these two into a loop
+		import math
 		
-		groupings = [ [systemSectionTypes, appleUpdatesFolder], [addedSectionTypes, customPKGFolder] ]
+		groupings = [ [systemSectionTypes, appleUpdatesFolderPath], [addedSectionTypes, customPKGFolderPath] ]
 		for sectionTypes, updateFolder in groupings:
-			folderCounter = 1
 			
-			orderOfMagnitude = 1
-			packageCounter = 0
+			itemsToProcess = []
 			for thisSection in sectionTypes:
-				packageCounter += len(self.packageGroups[thisSection])
+				itemsToProcess += self.packageGroups[thisSection]
+			
+			# Get the number of leading 0s we need
+			leadingZeroes = int(math.log10(len(itemsToProcess)))
+			fileNameFormat = '%0' + str(leadingZeroes) + "d %s"
+			
+			# Create symlinks for all of the items
+			itemCounter = 1
+			for thisItem in itemsToProcess:
 				
-			while packageCounter >= pow(10, orderOfMagnitude):
-				orderOfMagnitude += 1
-							
-			for thisSection in sectionTypes:
+				targetFileName = fileNameFormat % (itemCounter, thisItem.displayName)
+				targetFilePath = os.path.join(updateFolder, targetFileName)
+				pathFromTargetToSource = os.path.relpath(thisItem.filePath, os.path.dirname(targetFilePath))
 				
-				# there has got to be a better way of doing this
+				os.symlink(pathFromTargetToSource, targetFilePath)
+				# ToDo: capture and better explain any errors here
 				
-				for thisPackage in self.packageGroups[thisSection]:
-					numberFormatString = '%0' + str(orderOfMagnitude) + 'd'
-					newFolderPath = os.path.join(updateFolder, numberFormatString % folderCounter)
-					
-					if thisPackage.packageType == "folder":
-						os.symlink( os.path.join("../..", thisPackage.packageCacheLocation), newFolderPath )
-						# TODO: make this less dependent on the path
-	
-					elif thisPackage.archiveType == "dmg" and ( thisPackage.packageType == None or thisPackage.packageType == "dmg"):
-						os.symlink( os.path.join("../..", thisPackage.packageCacheLocation), newFolderPath )
-						# TODO: make this less dependent on the path
-					
-					else:
-						os.mkdir(newFolderPath)
-						os.symlink( os.path.join("../../..", thisPackage.packageCacheLocation), os.path.join(newFolderPath, thisPackage.packageFileName) )
-						# TODO: make this less dependent on the path
-						
-					folderCounter = folderCounter + 1
+				assert os.path.exists(targetFilePath), "Something went wrong linking from %s to %s" % (targetFilePath, pathFromTargetToSource) # this should catch bad links
+				
+				itemCounter += 1
 				
 		return True
 
 	def cleanInstaDMGFolders(self):
 		"This will go through and clean out the InstaDMG folders. It will choke on any real files in the hirarchy (it expects soft-links). It also cleans and sets-up instance variables for a new run."
 		
-		global appleUpdatesFolder
-		global customPKGFolder
-		global validSectionTypes
-		
 		# clean out the instance variables
 		self.packageGroups = {}
 		for group in systemSectionTypes + addedSectionTypes:
 			self.packageGroups[group] = []
-			
-		parsedFiles = {}
-		
-		for instaDMGFolder in [appleUpdatesFolder, customPKGFolder]:
+				
+		for instaDMGFolder in [appleUpdatesFolderPath, customPKGFolderPath]: # these should be abspaths
 			for subFolder in os.listdir(instaDMGFolder):
 				thisFolder = os.path.join(instaDMGFolder, subFolder)
 				
@@ -342,7 +330,7 @@ class instaUpToDate:
 			instaDMGCommand += ["-o", outputFolder]
 
 		
-		print "Running InstaDMG:\n\n"
+		print("Running InstaDMG:\n\n")
 		# we should be in the same directory as InstaDMG
 		
 		subprocess.call(instaDMGCommand)
@@ -352,485 +340,216 @@ class installerPackage:
 	"This class represents a .pkg installer, and does much of the work."
 		
 	#---------------------Class Variables-----------------------------
-		
-	suportedRemoteProtocols	= { "http":1, "https":1 }
 	
-	checksumParser			= re.compile("^(?P<checksumType>[^:]+):(?P<checksum>\S+)")
-	fileLocationParser  	= re.compile("^((?P<protocol>[^:]+)://(?P<server>[^/]+)/)?(?P<fullPath>(?P<path>.*?/)?(?P<fileName>[^/]*?(\.(?P<extension>[^\.]+?)?)?))(?(1)\?(?P<queryString>.+))?$")
-	
-	contentDispostionParser	= re.compile("^Content-Disposition:.*filename\s*=\s*\"(?P<filename>[^\"]+)\"", re.I)
 	
 	#--------------------Instance Variables---------------------------
 	
-	name					= None		# arbitrary text string for display	
-	status					= "Needed"	# this can be "Needed", "Downloaded", "Verified", or "Invalid" - later: "Downloading" and "Verifying"
-	statusMessage			= None		# for messages regarding the status - for later use
-	sourceMessage			= None		# where the package was found
-		
-	archiveType				= None		# this can be "flatfilepkg", "zip", or "dmg"
-	archiveLocation			= None		# can be a http(s): location or an absolute reference
-	archiveChecksum			= None
-	archiveChecksumType		= None
-	archiveChecksumCorrect	= None		# once it has been checksummed this should be True or False
+	displayName			= None		# arbitrary text string for display	
 	
-	packageType				= None		# this can be "flatfilepkg", "folder", "folderpkg", or "dmg"
-	packageLocation			= None		# this should be the path to the .pkg inside a archive or a name that will be searched for in the archive directory
-	packageFileName			= None		# the name of the .pkg file
-	packageCacheLocation	= None		# the path to the package in the cache folder relative to the InstaDMG folder
-	packageChecksum			= None
-	packageChecksumType		= None
-	packageChecksumCorrect	= None		# once it has been checksummed this should be True or False
+	checksum			= None
+	checksumType		= None
 	
-	cacheFolderName			= None		# this is the location of the file in the cache
-	instaDMGLocation		= None		# this is the relative location in the InstaDMG folder hierarchy
+	source				= None
+	filePath			= None		# a local location to link to
 	
 	#------------------------Functions--------------------------------
 	
-	def __init__(self, name, location, locationChecksumString, packageLocation = None, packageChecksumString = None):	
-		self.name = name
+	def __init__(self, displayName, sourceLocation, checksumString, mainCacheFolder, additionalCacheFolders=None):	
 		
-		if location == None:
-			# TODO: a bit better job of checking the location
-			raise Exception(); # TODO: better errors
-			
-		if locationChecksumString == None:
-			# TODO: a bit better job of checking the checksum format
-			raise Exception(); # TODO: better errors
-			
-		if locationChecksumString == "?":
-			locationChecksum = None;
-			locationChecksumType = None;
+		assert isinstance(displayName, str), "Recieved an empty or invalid name"
+		assert sourceLocation is not None, "Recieved an empty location"
+		assert isinstance(checksumString, str) is not None, "Recieved an empty or invalid checksum string"
+		assert additionalCacheFolders is None or isinstance(additionalCacheFolders, str) or isinstance(additionalCacheFolders, list)
+		
+		assert checksumString.count(":") > 0, "Checksum string is not of the right format"
+		checksumType, checksumValue = checksumString.split(":", 1)
+		assert checksumType is not None, "There was no checksum type"
+		assert checksumValue is not None, "There was no checksum"
+		
+		# confirm that hashlib supports the hash type:
+		try:
+			hashlib.new(checksumType)
+		except ValueError:
+			raise Exception("Hash type: %s is not supported by hashlib" % checksumType)
+		
+		# set basic values
+		self.source = sourceLocation
+		self.displayName = displayName
+		self.checksum = checksumValue
+		self.checksumType = checksumType
+		
+		# put together the list of cache folders
+		cacheFolders = [mainCacheFolder]
+		if isinstance(additionalCacheFolders, str):
+			cacheFolders.append(additionalCacheFolders)
+		elif isinstance(additionalCacheFolders, list):
+			cacheFolders += additionalCacheFolders
+		
+		# values we need to find or create
+		cacheFilePath = None
+		
+		print("Looking for %s" % displayName)
+		
+		# check the caches for an item with this checksum
+		cacheFilePath = self.checkCacheForItem(None, checksumType, checksumValue, cacheFolders)
+		if cacheFilePath is not None:
+			print("	Found in cache folder by checksum")
+		
 		else:
-			# if the checksum is a "?" that means the user does not want checksumming
-			thisTemp = self.checksumParser.search(locationChecksumString)
-			if thisTemp == None:
-				raise Exception(); # TODO: better errors
-			locationChecksum = thisTemp.group("checksum")
-			locationChecksumType = thisTemp.group("checksumType")
-		
-			if locationChecksum == None:
-				raise Exception(); # TODO: better errors
-			if locationChecksumType == None:
-				raise Exception(); # TODO: better errors
-		
-		# first we need to sort out the location... and package... information that we already have
-		if packageLocation == None:
-			# a local file, a remote flat-file pkg, a local folder, or a local dmg. We need to tell those cases apart
+			# parse the location information
+			parsedSourceLocationURL = urlparse.urlparse(sourceLocation)
 			
-			# but first we can set the checksum information
-			self.packageChecksum		= locationChecksum
-			self.packageChecksumType	= locationChecksumType
-			
-			scannerResult = self.fileLocationParser.search(location)
+			if parsedSourceLocationURL.scheme in [None, "file", ""]:
+				
+				assert parsedSourceLocationURL.params is "", "Unexpected url params in location: %s" % sourceLocation
+				assert parsedSourceLocationURL.query is "", "Unexpected url query in location: %s" % sourceLocation
+				assert parsedSourceLocationURL.fragment is "", "Unexpected url fragment in location: %s" % sourceLocation
+				
+				filePath = parsedSourceLocationURL.netloc + parsedSourceLocationURL.path
+				
+				# if this is a name (ie: not a path), look in the caches for the name
+				if filePath.count("/") == 0:
+					filePath = self.checkCacheForItem(filePath, checksumType, checksumValue, cacheFolders)
+					
+				# try this as a relative path from cwd
+				elif not os.path.isabs(filePath) and os.path.exists(filePath):
+					filePath = os.path.abspath(filePath)
+				
+				# try this path in each of the cache folders
+				elif not os.path.isabs(filePath):
+					
+					for cacheFolder in cacheFolders:
 						
-			if scannerResult.group("protocol") == None or scannerResult.group("protocol").lower() == "file":
-				# this means a local file of some sort
+						if os.path.exists( os.path.join(cacheFolder, filePath) ):
+							filePath = os.path.abspath(os.path.join(cacheFolder, filePath))
+							break
 				
-				# if this is a file:// url, then we might need to re-glue the <<server>> section on
-				if scannerResult.group("protocol") and scannerResult.group("protocol").lower() == "file" and scannerResult.group("server"):
-					thisFileLocation = os.path.join( scannerResult.group("server"), scannerResult.group("fullPath") )
-				else:
-					thisFileLocation = scannerResult.group("fullPath")
+				# final check to make sure the file exists
+				if not os.path.exists(filePath):
+					raise FileNotFoundException("The referenced file/folder does not exist: %s" % filePath)
 				
-				if re.match(thisFileLocation, "/"): # absolute path, so this is the archive Location
-					self.archiveLocation		= thisFileLocation
-					self.archiveChecksum		= locationChecksum
-					self.archiveChecksumType	= locationChecksumType
-					
-				# remote or not, is the file is a .pkg, then we have the file name
-				if scannerResult.group("extension") and (scannerResult.group("extension").lower() == "pkg" or scannerResult.group("extension").lower() == "mpkg"):
-					self.packageFileName = scannerResult.group("fileName")
-					
-				elif re.search( "/$", scannerResult.group("fullPath") ):
-					# we have a folder
-					self.packageFileName = scannerResult.group("fullPath")
-					
-				elif re.search( "\.dmg", scannerResult.group("fullPath"), re.I ):
-					# this is a local dmg
-					self.archiveLocation		= location
-					self.archiveChecksum		= locationChecksum
-					self.archiveChecksumType	= locationChecksumType
-					
-					self.packageFileName = scannerResult.group("fileName")
-					
-				else:
-					if self.archiveLocation == None:
-						# we have a non-pkg file as our package
-						raise Exception(); # TODO: better errors
-
-			elif self.suportedRemoteProtocols.has_key(scannerResult.group("protocol").lower()):
-				# here we just need to slide the information into the archive section
-				self.archiveLocation		= location
-				self.archiveChecksum		= locationChecksum
-				self.archiveChecksumType	= locationChecksumType
+				print("	Found at the provided path")
 				
-			else:
-				# TODO: it would be good to be able to process ftp, afp, and smb locations
-				# we don't know how to get to the file, so lets bail
-				raise Exception(); # TODO: better errors
+				cacheFilePath = filePath
 				
-			self.packageLocation		= location
-			
-		else:
-			# if they gave us all 4 items
-						
-			self.archiveLocation		= location
-			self.archiveChecksum		= locationChecksum
-			self.archiveChecksumType	= locationChecksumType
-			
-			scannerResult = self.fileLocationParser.search(packageLocation)
-			if scannerResult.group("protocol") != None or scannerResult.group("fullPath") != scannerResult.group("fileName"):
-				# note that we are not accepting file:// locations
-				# and we are not accepting anything that is not a simple file name
-				raise Exception(); # TODO: better errors
-			self.packageFileName		= scannerResult.group("fileName")
-			self.packageLocation		= scannerResult.group("fullPath")
-			
-			if packageChecksumString == None:
-				raise Exception(); # TODO: better errors
+			elif parsedSourceLocationURL.scheme in ["http", "https"]:
+				# url to download
 				
-			if packageChecksumString != "?":
-				thisTemp = self.checksumParser.search(packageChecksumString)
-				self.packageChecksum		= thisTemp.group("checksum")
-				self.packageChecksumType	= thisTemp.group("checksumType")
-		
-		# if we don't have a package name, lets see if we can figure it out from the archive name
-		if self.packageFileName == None:
-			if self.archiveLocation != None:
-				scannerResult = self.fileLocationParser.search(self.archiveLocation)
-				if scannerResult == None: # it does not parse as a location
-					raise Exception(); # TODO: better errors
-					
-				if self.suportedRemoteProtocols.has_key(scannerResult.group("protocol").lower()):
-					# get the filename by starting a download and seeing if it is in the headers
-					#	if not, then we default to the name of file in the url
-					
-					contentDispositionRegex = re.compile('^Content-Disposition:.*filename="?(?P<fileName>[^"]+)"?$', re.M)
-					
-					# this is a silly hack, but it is what I have. TODO: do this in python
-					thisProcess = subprocess.Popen(["/usr/bin/curl", "-I", "-L", self.archiveLocation], stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
-					(httpHeaders, myError) = thisProcess.communicate()
-					
-					if thisProcess.returncode != 0:
-						# TODO: show some error here, we can't get the package name from the internet
-						raise Exception('Unable to get the name of package: %s\n%s\n%s' % ( self.archiveLocation, httpHeaders, myError) ); # TODO: better errors
-
-					contentDisposition = contentDispositionRegex.search(httpHeaders.split("HTTP/1")[-1])
-					if contentDisposition:
-						self.packageFileName = contentDispositionRegex.group('fileName')
-					
-					else:
-						self.packageFileName = scannerResult.group('fileName')
-										
-				elif scannerResult.group("protocol") != None: # remember we have taken care of the "file://" case already
-					# this isn't something we are supporting
-					raise Exception(); # TODO: better errors
+				# guess the name from the URL
+				cacheFilePath = self.checkCacheForItem(os.path.basename(parsedSourceLocationURL.path), checksumType, checksumValue, cacheFolders)
+				if cacheFilePath is not None:
+					print("	Found using name in URL")
 					
 				else:
-					# this should all be absolute-path files
-					print "do more here"
-		
-		# we need to guess what the file type is based on the name
-		
-		fileExtension = self.fileLocationParser.search(self.packageFileName).group("extension").lower()
-		if fileExtension == "dmg":
-			self.packageType = "dmg"
-			self.archiveType = "dmg"
-		
-		# see if we already have the package file in our cache
-		#	if so, checksum it
-		#		if correct setup and return
-		
-		if self.checkCacheForPackage():
-			return
-		
-		# no local cached file, so if there is no archive location we have to bomb out
-		if self.archiveLocation == None:
-			self.setStatus("Invalid")
-			raise Exception('Unable to find package: %s' % self.name) # TODO: better errors
-			
-		# since it is not in our cache, we need to retrieve it from the archive
-		if self.retrieveFromArchive():
-			return
-			
-		# since it is not in the cache, and we could not get it from the archive, we need to bomb out 
-		raise Exception() # TODO: better errors
-	
-	def printPackageInformation(self):
-		
-		if re.search("cache", self.sourceMessage, re.I):
-			archiveSection = ""
-		else:
-			archiveSection = "".join(["\n\tArchive:\n\t\tType:\t\t\t", str(self.archiveType), "\n\t\tLocation:\t\t", str(self.archiveLocation), "\n\t\tChecksum:\t\t", str(self.archiveChecksum), "\n\t\tChecksum Type:\t\t", str(self.archiveChecksumType), "\n\t\tChecksum Correct:\t", str(self.archiveChecksumCorrect)])
-		
-		print "File:\t", self.name, "\n\tStatus:\t\t\t\t", self.status, "\n\tSource:\t\t\t\t", self.sourceMessage, archiveSection, "\n\tPackage\n\t\tFile Name:\t\t", self.packageFileName, "\n\t\tType:\t\t\t", self.packageType, "\n\t\tLocation:\t\t", self.packageLocation, "\n\t\tChecksum:\t\t", self.packageChecksum, "\n\t\tChecksum Type:\t\t", self.packageChecksumType, "\n\t\tChecksum Correct:\t", self.packageChecksumCorrect, "\n\t\tCache Location:\t\t", self.packageCacheLocation
-	
-	
-	def checksum(self, fileLocation = None, thisChecksum = None, checksumType = None, archiveOrPackage = "package"):
-		"This handles checksumming a local file: either a folder version or a single file"
-		
-		if self.packageType == "dmg":
-			archiveOrPackage = "archive"
-		
-		if ( archiveOrPackage == "archive" and self.archiveChecksumType == None ) or ( archiveOrPackage == "package" and self.packageChecksumType == None ):
-			self.setPackageChecksumCorrect(True)
-			return True
-		
-		# if this is called without options, then it defaults to the package values
-		if fileLocation == None:
-			fileLocation = self.cacheFolderName
-		
-		if thisChecksum == None:
-			if archiveOrPackage == "archive":
-				thisChecksum = self.archiveChecksum
-			else:
-				thisChecksum = self.packageChecksum
-			
-		if checksumType == None:
-			if archiveOrPackage == "archive":
-				checksumType = self.archiveChecksumType
-			else:
-				checksumType = self.packageChecksumType
-		
-		# we need to have all of these values, and fail without them
-		
-		if checksum == None:
-			raise Exception() # TODO: better errors
-		
-		resultChecksum = checksum.checksum(fileLocation, checksumType)['checksum']
-		result = (thisChecksum == resultChecksum)
-		
-		if archiveOrPackage == "package":
-			self.setPackageChecksumCorrect(result)
-		else:
-			self.setArchiveChecksumCorrect(result)
-				
-		return result
-		
-	def setStatus(self, newStatus):
-		# TODO: check newStatus
-		self.status = newStatus
-		
-	def setPackageChecksumCorrect(self, newStatus):
-		if newStatus != True and newStatus != False:
-			raise Exception(); # TODO: better errors
-		self.packageChecksumCorrect = newStatus
-		
-	def setPackageType(self, newType):
-		if newType != "flatfilepkg" and newType != "folderpkg" and newType != "folder" and newType != "dmg":
-			raise Exception(); # TODO: better errors
-		self.packageType = newType
-		
-	def setArchiveChecksumCorrect(self, newStatus):
-		if newStatus == True or newStatus == False:
-			self.archiveChecksumCorrect = newStatus
-			return
-		raise Exception(); # TODO: better errors
-	
-	def setPackageCacheLocation(self, newLocation):
-		if os.path.exists(newLocation):
-			self.packageCacheLocation = newLocation
-			return
-		raise Exception(); # TODO: better errors
-		
-	def setSourceMessage(self, newMessage):
-		self.sourceMessage = newMessage
-	
-	def checkCacheForPackage(self):
-		"This goes through the cache and userSuppliedPKGFolder folders, looking for a package with the name of this package (and the correct checksum, if there is one). If it finds one, it will return true, otherwise false"
-		
-		global cacheFolder
-		global userSuppliedPKGFolder
-		
-		print "Looking for %s in cache folder" % self.packageFileName
-		
-		for selectedFolder in (userSuppliedPKGFolder, cacheFolder): 
-		
-			for thisFileName in os.listdir(selectedFolder):
-				if thisFileName == self.packageFileName or (thisFileName + "/") == self.packageFileName: # TODO: allow for multiple files to be named the same thing (-1 -2, etc)
-				
-					thisFilePath = os.path.join(selectedFolder, thisFileName)
-										
-					if self.checksum(os.path.abspath(thisFilePath)):
-						if os.path.isdir(thisFilePath) and not( re.search("\.(m)?pkg$", thisFileName, re.I) ):
-							# a folder that is not a pkg or mpkg
-							#	the checksum was already correct, so we are probably safe,
-							#	but we will be paranoid and make sure that there is a pkg or mpkg inside
-							
-							foundIt = False
-							for innerFileName in os.listdir(thisFilePath):
-								if re.search("\.(m)?pkg$", innerFileName, re.I):
-									foundIt = True
-									break
-							if not(foundIt):
-								continue
-							
-							self.packageCacheLocation = thisFilePath + "/" # this is just in case things ever get more complicated
-							self.setStatus("Verified")
-							self.setPackageType("folder")
-							self.setSourceMessage("Found in Cache");
-							
-							print "Found %s in archive" % self.packageFileName
-							return True
-							
-						elif re.search("\.(m)?pkg$", thisFileName, re.I):
-							# a pkg or a mpkg by itself
-							
-							self.packageCacheLocation = thisFilePath # this is just in case things ever get more complicated
-							self.setStatus("Verified")
-							
-							if os.path.isfile(thisFilePath):
-								self.setPackageType("flatfilepkg") 
-							elif os.path.isdir(thisFilePath):
-								self.setPackageType("folderpkg") 
-							else: # TODO: should probably support links
-								raise Exception(); # TODO: better errors
-							
-							self.setSourceMessage("Found in Cache");
-							
-							print "Found %s in archive" % self.packageFileName
-							return True
+					# open a connection get a file name
+					try:
+						readFile = urllib2.urlopen(sourceLocation)
+					except IOError, error:
+						if hasattr(error, 'reason'):
+							raise Exception('Unable to connect to remote url: %s got error: %s' % (sourceLocation, error.reason))
+						elif hasattr(error, 'code'):
+							raise Exception('Got status code: %s while trying to connect to remote url: %s' % (str(error.code), sourceLocation))
+					
+					if readFile is None:
+						raise Exception("Unable to open file for checksumming: %s" % sourceLocation)
 						
-						elif re.search("\.dmg$", thisFileName, re.I):
-							# since the checksum is correct on the file (not referring to the internal one) this is probably ok
-							#	but being paranoid... we will have hdiutil cheksum it at well
-							
-							# check with hdiutil to see if it should have a checksum
-							hdiutilProcess = subprocess.Popen(['/usr/bin/hdiutil', 'imageinfo', '-plist', thisFilePath] , stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
-							if hdiutilProcess.wait() != 0:
-								raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to checksum it:\n%s" % ( thisFilePath, myError )); # TODO: better errors
-							
-							imageInfoString = hdiutilProcess.stdout.read()
-							imageInfoNSData = Foundation.NSString.stringWithString_(imageInfoString).dataUsingEncoding_(Foundation.NSUTF8StringEncoding)
-							imageInfo, format, error = Foundation.NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(imageInfoNSData, Foundation.NSPropertyListImmutable, None, None)
-							if error:
-								raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to get the image info:\n%s" % ( tempFilePath, myError )); # TODO: better errors
-							
-							if "Checksum Value" in imageInfo and imageInfo["Checksum Value"] != "":
-								thisProcess = subprocess.Popen(["/usr/bin/hdiutil", "verify", thisFilePath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
-								(myResponce, myError) = thisProcess.communicate()
-							
-								if thisProcess.returncode != 0:
-									raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to checksum it:\n%s" % ( thisFileName, myError )); # TODO: better errors
-								
-							self.setPackageType("dmg")
-							self.setStatus("Verified")
-							self.packageCacheLocation = thisFilePath
-							self.setSourceMessage("Found in Cache");
-							return True
-	
-						else:
-							# not something we can deal with
-							raise Exception("Unable to process package named: %s" % thisFileName); # TODO: better errors
-		
-		# otherwise we will just continue on
-		print "Did not find %s in archive" % self.packageFileName
-		return False
-		
-	def retrieveFromArchive(self):
-		"This will look for a file in the location listed in archiveLocation"
+					# default the filename to the last bit of path of the url
+					fileName = os.path.basename( urllib.unquote(urlparse.urlparse(readFile.geturl()).path) )
+					expectedLength = None
+					
+					# grab the name of the file and its length from the http headers if avalible
+					httpHeader = readFile.info()
+					if httpHeader.has_key("content-length"):
+						try:
+							expectedLength = int(httpHeader.getheader("content-length"))
+						except:
+							pass # 
+					
+					if httpHeader.has_key("content-disposition"):
+						fileName = httpHeader.getheader("content-disposition").strip()
+					
+					# check to see if we already have a file with this name and checksum
+					cacheFilePath = self.checkCacheForItem(fileName, checksumType, checksumValue, cacheFolders)
+					
+					if cacheFilePath is not None:
+						print("	Found using name in a redirected URL or content disposition header")
+					
+					if cacheFilePath is None:
+						# continue downloading into the main cache folder
+						hashGenerator = hashlib.new(checksumType)
 						
-		if self.archiveLocation == None:
-			raise Exception(); # TODO: better errors
-		
-		checksumResult = checksum.checksum(self.archiveLocation, self.archiveChecksumType, returnCopy=True)
-		
-		if self.archiveChecksum != checksumResult['checksum']:
-			raise Exception('The checksum on %s did not match! File was: %s:%s should have been: %s:%s' % (self.name, checksumResult['checksumType'], checksumResult['checksum'], self.archiveChecksumType, self.archiveChecksum) ) # TODO: improve error handling
-		
-		tempFilePath = checksumResult["cacheLocation"]
-		
-		self.setArchiveChecksumCorrect(True)
-		
-		self.setStatus("Downloaded")
-		self.setSourceMessage("Downloaded from Archive");
-		
-		# determine the type of file, and open it as appropriate
-		# then checksum it, and move it to the cache folder
-		
-		# TODO: allow for dmg's inside a zip, or tgz
-		
-		# unfortunately "file" does not do a good job of figuring out dmg's, se we are going to have to trust the name
-		
-		if os.path.splitext(tempFilePath)[1].lower() == ".dmg": # we have already made sure that everything is lower case
-			self.archiveType = "dmg"
-			
-			# TODO: re-integrate the package unloading for a 4 field type
-			
-			# help hdiutil by giving the temp file a .dmg ending
-			
-			# checksum the dmg file, and then let hdiutil internally checksum it
-			if self.archiveChecksum: # if there is no checksum, just trust it
-				if not(self.checksum(tempFilePath, archiveOrPackage = "archive")):
-					raise Exception # TODO: improve error handling
-			
-			# check with hdiutil to see if it should have a checksum
-			hdiutilProcess = subprocess.Popen(['/usr/bin/hdiutil', 'imageinfo', '-plist', tempFilePath] , stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
-			if hdiutilProcess.wait() != 0:
-				raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to checksum it:\n%s" % ( tempFilePath, myError )); # TODO: better errors
-			
-			imageInfoString = hdiutilProcess.stdout.read()
-			imageInfoNSData = Foundation.NSString.stringWithString_(imageInfoString).dataUsingEncoding_(Foundation.NSUTF8StringEncoding)
-			imageInfo, format, error = Foundation.NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(imageInfoNSData, Foundation.NSPropertyListImmutable, None, None)
-			if error:
-				raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to get the image info:\n%s" % ( tempFilePath, myError )); # TODO: better errors
-			
-			if "Checksum Value" in imageInfo and imageInfo["Checksum Value"] != "":
-				thisProcess = subprocess.Popen(["/usr/bin/hdiutil", "verify", tempFilePath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
-				(myResponce, myError) = thisProcess.communicate()
+						targetFilePath = os.path.join(mainCacheFolder, os.path.splitext(fileName)[0] + " " + checksumType + "-" + checksumValue + os.path.splitext(fileName)[1])
+						
+						checksum.cheksumFileObject(hashGenerator, readFile, fileName, expectedLength, chunkSize=1024*100, fileType="download", copyToPath=targetFilePath, reportProgress=True, tabsToPrefix=1)
+						
+						if hashGenerator.hexdigest() != checksumValue:
+							os.unlink(targetFilePath)
+							raise Exception("Downloaded file did not match checksum: %s" % sourceLocation)
+						
+						cacheFilePath = targetFilePath
+						print("	Downloaded and verified")
+							
+					readFile.close()
 				
-				if thisProcess.returncode != 0:
-					raise Exception("There is something internally wrong with package: %s.\nhdiutil returned this when trying to checksum it:\n%s" % ( tempFilePath, myError )); # TODO: better errors
-			
-			# at this point we are as sure as we can be that this is the driod... er... dmg that we are looking for			
-			targetLocation =  os.path.join(cacheFolder, self.packageFileName)
-			shutil.copyfile(tempFilePath, targetLocation)
-			
-			# set flags on the file so that TimeMachine does not backup the file
-			subprocess.call(["/usr/bin/xattr", "-w", "com.apple.metadata:com_apple_backup_excludeItem", "com.apple.backupd", targetLocation])
-			
-			self.setStatus("Verified")
-			self.setPackageCacheLocation(targetLocation)
-			return True
-			
-		elif os.path.splitext(tempFilePath)[1].lower() == ".pkg":
-			self.archiveType = "flatfilepkg" # this should be a flat-file pkg
-			
-			# checksum the dmg file, and then let hdiutil internally checksum it
-			if self.archiveChecksum: # if there is no checksum, just trust it
-				if not(self.checksum(tempFilePath, archiveOrPackage = "archive")):
-					raise Exception # TODO: improve error handling
-			
-			# move it to the appropriate spot
-			targetLocation =  os.path.join(cacheFolder, self.packageFileName)
-			shutil.copyfile(tempFilePath, targetLocation)
-			
-			subprocess.call(["/usr/bin/xattr", "-w", "com.apple.metadata:com_apple_backup_excludeItem", "com.apple.backupd", targetLocation])
-			
-			self.setStatus("Verified")
-			self.setPackageCacheLocation(targetLocation)
-			return True
-			
-		elif os.path.splitext(tempFilePath)[1].lower() == ".zip":
-			# a pkg inside a zip file... this is a bit simplistic
-			self.archiveType = "zip"			
-			raise Exception # TODO: the ZIP mechanics
-			
+			else:
+				raise Exception("Unknown or unsupported source location type: %s" % sourceLocation)
+		
+		# at this point we know that we have a file at cacheFilePath
+		self.filePath = cacheFilePath
+	
+	def printPackageInformation(self, tabsToPrefix=0):
+		
+		print('''%(tabPrefix)sDisplay Name: %(displayName)s
+%(tabPrefix)sChecksum:	%(checksumType)s:%(checksum)s
+%(tabPrefix)sSource:		%(source)s
+%(tabPrefix)sCache:		%(cacheLocation)s
+''' % { "tabPrefix":"\t" * tabsToPrefix, "displayName":self.displayName, "checksum":self.checksum, "checksumType":self.checksumType, "source":self.source, "cacheLocation":self.filePath })
+	
+	@classmethod
+	def checkCacheForItem(myClass, itemName, checksumType, checksumValue, cacheFolders):
+		'''Look through the caches for this file'''
+		
+		assert checksumType is not None, "Checksum Type is required"
+		assert checksumValue is not None, "Checksum is required"
+		assert cacheFolders is not None, "Cache folders required"
+		
+		if isinstance(cacheFolders, str):
+			cacheFolders = [cacheFolders]
+		elif isinstance(cacheFolders, list):
+			pass # in the right format
 		else:
-			# we don't know what type of file this is, so we bail
-			raise Exception("Unknown file type: %s" % tempFilePath) # TODO: improve error handling
+			raise Exception("cacheFolders is not the right format: %s" % cacheFolders)
 		
-		if os.path.exists(tempFilePath):
-			os.unlink(tempFilePath)
-
-		return False
+		# ToDo: put in logging of this event
 		
+		# create a list of cache folder to check
 		
+		for thisCacheFolder in cacheFolders:
+			assert os.path.isdir(thisCacheFolder), "The cache folder does not exist or is not a folder: %s" % thisCacheFolder
+			
+			# ToDo: think through the idea of having nested folders
+			for thisItemName in os.listdir(thisCacheFolder):
+				
+				# check for an item with the same name
+				if itemName is not None and thisItemName == itemName:
+					if checksumValue == checksum.checksum(os.path.join(thisCacheFolder, thisItemName), checksumType, tabsToPrefix=1)['checksum']:
+						return os.path.join(thisCacheFolder, thisItemName)
+				
+				# check to see if the last "word" of the item name is the checksum string and is the same
+				itemNameStriped = os.path.splitext(thisItemName)[0]
+				if itemNameStriped.split(" ")[-1] == checksumType + "-" + checksumValue:
+					if checksumValue == checksum.checksum(os.path.join(thisCacheFolder, thisItemName), checksumType, tabsToPrefix=1)['checksum']:
+						return os.path.join(thisCacheFolder, thisItemName)
+		
+		return None
+	
 #--------------------------------MAIN--------------------------------
 
+def print_version(option, opt, value, parser):
+	print("InstaUp2Date version %s" % versionString)
+	sys.exit(0)
+
 def main ():
-	
-	setup()
 	
 	global catalogFolder
 	
@@ -843,12 +562,13 @@ def main ():
 	
 	import optparse
 	optionsParser = optparse.OptionParser("%prog [options] catalogFile1 [catalogFile2 ...]" )
-	optionsParser.add_option("-p", "--process", action="store_true", default=True, dest="processWithInstaDMG", help="Run InstaDMG for each catalog file processed")
+	optionsParser.add_option("-a", "--add-catalog", action="append", type="string", dest="addOnCatalogFiles", help="Add the items in this catalog file to all catalog files processed. Can be called multiple times", metavar="FILE_PATH")
+	optionsParser.add_option("-p", "--process", action="store_true", default=False, dest="processWithInstaDMG", help="Run InstaDMG for each catalog file processed")
 	optionsParser.add_option("-v", "--version", action="callback", callback=print_version, help="Print the version number and quit")
 	optionsParser.add_option("", "--instadmg-scratch-folder", action="store", dest="instadmgScratchFolder", default=None, type="string", metavar="FOLDER_PATH", help="Tell InstaDMG to use FOLDER_PATH as the scratch folder")
 	optionsParser.add_option("", "--instadmg-output-folder", action="store", dest="instadmgOutputFolder", default=None, type="string", metavar="FOLDER_PATH", help="Tell InstaDMG to place the output image in FOLDER_PATH")
 	options, catalogFiles = optionsParser.parse_args()
-			
+		
 	# --- police options ----
 	
 	if len(catalogFiles) < 1:
@@ -863,14 +583,48 @@ def main ():
 	if options.instadmgOutputFolder != None and not os.path.isdir(options.instadmgOutputFolder):
 		optionsParser.error("The instadmg-output-folder option requires a valid folder path, but got: %s" % options.instadmgOutputFolder)
 	
+	baseCatalogFiles = []
+	for thisCatalogFile in catalogFiles:
+		try:
+			baseCatalogFiles.append(instaUpToDate.getCatalogFullPath(thisCatalogFile))
+			
+		except CatalogNotFoundException:
+			optionsParser.error("There does not seem to be a catalog file at: %s" % thisCatalogFile)
+	
+	addOnCatalogFiles = []
+	if options.addOnCatalogFiles is not None:
+		for thisCatalogFile in options.addOnCatalogFiles:
+			try:
+				addOnCatalogFiles.append(instaUpToDate.getCatalogFullPath(thisCatalogFile))
+			
+			except CatalogNotFoundException:
+				optionsParser.error("There does not seem to be a catalog file at: %s" % thisCatalogFile)
+	
 	# ------- process -------
 	
 	thisController = instaUpToDate()
+	thisController.runtimeChecks()
 	
-	for catalogFilePath in catalogFiles:	
-		thisController.parseFile(catalogFilePath, topLevel=True)
+	os.chdir(absPathToInstaDMGFolder) # ToDo: remove the necessity of this
+	
+	for catalogFilePath in baseCatalogFiles:
 		
-		if thisController.arrangeFolders() and options.processWithInstaDMG == True:
+		# setup for the run
+		thisController.cleanInstaDMGFolders()
+		thisController.catalogFileSettings = {}
+		thisController.parsedFiles = []
+		
+		# parse the tree of catalog files		
+		thisController.parseFile(catalogFilePath)
+		
+		# add any additional catalogs to this one
+		for addOnCatalogFile in addOnCatalogFiles:
+			thisController.parseFile(addOnCatalogFile)
+		
+		# create the folder strucutres needed	
+		thisController.arrangeFolders()
+		
+		if options.processWithInstaDMG == True:
 			# the run succeded, and it has been requested to run InstaDMG
 			thisController.runInstaDMG(scratchFolder=options.instadmgScratchFolder, outputFolder=options.instadmgOutputFolder)
 		

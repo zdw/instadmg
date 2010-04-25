@@ -1,36 +1,35 @@
-# The lines should be in the format:
-# <tab> Package Name <tab> Archive Source Location <tab> Archive Checksum <tab> Package Name </tab> Package Checksum
-# The <<Package Name>> is a user-facing string, and is not used internally, it can be empty
-# The <<Archive Source Location>> can be one of the following:
-#		name of a .pkg file in the InstaUp2DatePackages folder in InstallerFiles
-#		http: reference to be downloaded (a flat-file .pkg, a .dmg or a .zip of a folder)
+# Instructions
 #
-# Downloaded Files that are .dmg or .zip files are automatically opened, and the specified .pkg is extraced from them
-#	Zip file download not yet implimented
+#	Each line in a catalog file should be one of the following types:
 #
-# The <<Archive Checksum>> field is a a checksum for the file in the format:
-#		sha1:524e0a707afbdeff798cdd9464d62f672136ab5a
-#	Any checksum type supported by OpenSSL should be useable.
-#	If you do not want to use a checksum then put a "?" character in its place
+# 1) Comment line. Such as this one it is any line that begins with a '#' character.
+#		Additionally any of the other types of lines can end in a comment. Anything after the '#' character will not be processed
 #
-# The sections below this are not required (or helpful) if the Archive copy is a local .pkg, or a remote flat-file .pkg not in a .dmg.
+# 2) Setting line. These allow giving settings to InstaDMG (and then on to InstaDMG).
+#		They are always in the format: <setting-name> = <setting-value>, and should have no preceding space
 #
-# The <<Package Name>> is the name of the .pkg or .mpkg file that is inside the archive file
+# 3) Section name. Sections allow for some types of packages to be installed before other types.
+#		The line should just be the section name followed by a colon character. Only the following sections are allowed:
+#			"Base OS Disk", "OS Updates", "Apple Updates", "System Settings", "Third Party Software", "Software Settings"
 #
-# The <<Package Checksum>> is the checksum of the package file. The format is the same as that for <<Archive Checksum>>
+# 4) Installable item lines. Each line represents one item to install into the image. The format is:
+#		<tab> Display Name <tab> Source Location <tab> Checksum String
+#
+#		<Display Name> a human readable name. It is not used other than in reporting.
+#
+#		<Source Location> the location that the item can be found at. This can be the file name, a file path, or a http/https url.
+#			If you use only the name of the file here the file should be in InstallerFiles/InstaUp2DatePackages
+#			Files can be: .pkg/.mpkgs or .apps either directly or wrapped in a .dmg
+#
+#		<Checksum String> a string in the form <checksum type>:<checksum value> eg: sha1:524e0a707afbdeff798cdd9464d62f672136ab5a
+#			Any checksum type that is supported by the python hashlib is supported (ie: supported by OpenSSL).
+#
+#	These lines should probably be generated using the checksum.py tool
 
-#
-#	Settings
-#
-# There are a few settings that can be set from catalog files. The first catalog file read that has a variable (so the one on top) wins.
-# The format is <<Setting Name>> <space> = <space> <<Setting Value>>
-# No escaping or quoting is needed (nor will it be treated as such)
-# Examples (remove #)
 
 #ISO Language Code = en
 #Output Volume Name = MacintoshHD
 #Output File Name = My great file.dmg
-#	Comment: if there is no .dmg at the end of this, it will be appeneded automatically
 
 #
 #	Sections
@@ -41,11 +40,8 @@ Base OS Disk:
 	# this is not yet implimented
 
 OS Updates:
-	10.5.2 Combo Update	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=17357&cat=60&platform=osx&method=sa/MacOSXUpdCombo10.5.2.dmg	sha1:524e0a707afbdeff798cdd9464d62f672136ab5a	MacOSXUpdCombo10.5.2.pkg	sha1:4c5d762eeca3bf89e1ce06947ce3d24b502bf1f7
-	Safari 3.1.1 for Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/Safari3/061-4593.20080416.bKijH/Safari311UpdLeo.dmg	sha1:b46cb76eab74f9af0a6eba6d2beaa5cdf7e3380f	Safari311UpdLeo.pkg	sha1:450d80486abf76bb9a6d016f48629d3b8b813655
 
 Apple Updates:
-	test bob	http://wsidecar.apple.com/cgi-bin/nph-reg3rdpty2.pl/product=18796&cat=59&platform=osx&method=sa/CommonCriteriaTools.dmg	sha1:da6901baa2dd5a759335c08c91417477633e2da4	CommonCriteriaTools.pkg	sha1:d7e7153ea6d93a52d7de18bfd21126520299cb52
 
 System Settings:
 

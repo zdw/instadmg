@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os, sys, re
-import hashlib, urllib2, urlparse, tempfile, optparse
+import hashlib, urllib, urllib2, urlparse, tempfile, optparse
 import atexit, shutil, stat
 
 def cleanupTempFolder(tempFolder):
@@ -9,7 +9,7 @@ def cleanupTempFolder(tempFolder):
 		# ToDo: log this
 		shutil.rmtree(tempFolder, ignore_errors=True)
 
-def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expectedLength, chunkSize, fileType="file", copyToPath=None, reportProgress=False, reportStepPercentage=15):
+def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expectedLength, chunkSize, fileType="file", copyToPath=None, reportProgress=False, reportStepPercentage=15, tabsToPrefix=0):
 	
 	# todo: sanity check the input
 	
@@ -33,10 +33,10 @@ def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expected
 			verb = "Downloading"
 		
 		if expectedLength == None:
-			sys.stderr.write("%s %s (unknown length) in chunks of %i bytes\n" % (verb, targetFileName, chunkSize))
+			sys.stderr.write("%s%s %s (unknown length) in chunks of %i bytes\n" % ("\t" * tabsToPrefix, verb, targetFileName, chunkSize))
 			reportProgress = False
 		else:
-			sys.stderr.write("%s %s (%i bytes) in chunks of %i bytes: 0%%" % (verb, targetFileName, expectedLength, chunkSize))
+			sys.stderr.write("%s%s %s (%i bytes) in chunks of %i bytes: 0%%" % ("\t" * tabsToPrefix, verb, targetFileName, expectedLength, chunkSize))
 		sys.stderr.flush()
 	
 	while thisChunkSize > 0:
@@ -63,7 +63,7 @@ def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expected
 		writeFileObject.close()
 
 
-def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", outputFolder=None, returnCopy=False, chunkSize=5*1024*1024, reportProgress=True, reportStepPercentage=15):
+def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", outputFolder=None, returnCopy=False, chunkSize=5*1024*1024, reportProgress=True, reportStepPercentage=15, tabsToPrefix=0):
 	'''Return the checksum of a given file or folder'''
 	
 	# validate input
@@ -79,6 +79,8 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 	
 	overallType = None
 	
+	fileName = None
+	
 	if locationURL.scheme == '' or locationURL.scheme == 'file':
 		# we have a local path, and need to check if we have a folder
 	
@@ -92,8 +94,10 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 		elif os.path.isdir(location):
 			overallType = "folder"
 			
+			fileName = os.path.basename(location)
+			
 			if reportProgress == True:
-				sys.stderr.write("Building file list...\n")
+				sys.stderr.write("%sBuilding file list...\n" % "\t" * tabsToPrefix)
 				sys.stderr.flush()
 			
 			# walk the directory adding everything
@@ -143,7 +147,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 	hashGenerator = hashlib.new(checksumType)
 	
 	if overallType == "folder" and reportProgress == True:
-		sys.stderr.write("Processing %i items: 0%%" % len(targets))
+		sys.stderr.write("%sProcessing %i items: 0%%" % ("\t" * tabsToPrefix, len(targets)))
 		sys.stderr.flush()
 	
 	itemsProcessed = 0;
@@ -165,11 +169,10 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 			raise Exception("Unable to open file for checksumming: %s" % thisTarget['sourceUrl'].getURL())
 		
 		# default the filename to the last bit of path of the url
-		thisTarget['relativePath'] = os.path.basename(thisTarget['sourceUrl'].path)
-		if thisTarget['relativePath'] == '':
-			thisTarget['relativePath'] = thisTarget['sourceUrl'].netloc
-		
-		# grab the name of the file from the http headers if it is avalible
+				
+		fileName = os.path.basename( urllib.unquote(urlparse.urlparse(readFile.geturl()).path) )
+				
+		# grab the name of the file and its length from the http headers if avalible
 		httpHeader = readFile.info()
 		if httpHeader.has_key("content-length"):
 			try:
@@ -178,16 +181,17 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 				pass # 
 		
 		if httpHeader.has_key("content-disposition"):
-			thisTarget['relativePath'] = httpHeader.getheader("content-disposition")
+			fileName = httpHeader.getheader("content-disposition").strip()
 		
 		writeTarget = None
 		if tempFolder != None:
-			writeTarget = os.path.join(tempFolder, thisTarget['relativePath'])
+			writeTarget = os.path.join(tempFolder, fileName)
 			cacheLocation = writeTarget
 		
-		cheksumFileObject(hashGenerator, readFile, thisTarget['relativePath'], targetLength, fileType="download", chunkSize=1024*100, copyToPath=writeTarget, reportProgress=True, reportStepPercentage=reportStepPercentage)
+		cheksumFileObject(hashGenerator, readFile, fileName, targetLength, fileType="download", chunkSize=1024*100, copyToPath=writeTarget, reportProgress=True, reportStepPercentage=reportStepPercentage, tabsToPrefix=tabsToPrefix)
 		
 		readFile.close()
+		
 	
 	elif overallType == "file":
 		thisTarget = targets[0]
@@ -202,8 +206,10 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 		if tempFolder != None:
 			writeTarget = os.path.join(tempFolder, thisTarget['relativePath'])
 		
-		cheksumFileObject(hashGenerator, readFile, os.path.basename(thisTarget['sourceUrl'].path), targetLength, chunkSize, fileType="file", copyToPath=writeTarget, reportProgress=True, reportStepPercentage=reportStepPercentage)			
+		cheksumFileObject(hashGenerator, readFile, os.path.basename(thisTarget['sourceUrl'].path), targetLength, chunkSize, fileType="file", copyToPath=writeTarget, reportProgress=True, reportStepPercentage=reportStepPercentage, tabsToPrefix=tabsToPrefix)			
 		readFile.close()
+		
+		fileName = os.path.basename(thisTarget['sourceUrl'].path)
 	
 	elif overallType == "folder":
 		for thisTarget in targets:
@@ -238,7 +244,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 				# add the path to the checksum
 				hashGenerator.update("file %s" % thisTarget['relativePath'])
 				
-				cheksumFileObject(hashGenerator, readFile, os.path.basename(thisTarget['sourceUrl'].path), targetLength, chunkSize, copyToPath=writeTarget)			
+				cheksumFileObject(hashGenerator, readFile, os.path.basename(thisTarget['sourceUrl'].path), targetLength, chunkSize, copyToPath=writeTarget, tabsToPrefix=tabsToPrefix)			
 				
 				readFile.close()
 				
@@ -255,7 +261,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 				sys.stderr.flush()
 	
 	
-	returnValues = {'name':os.path.basename(location), 'checksum':hashGenerator.hexdigest(), 'checksumType':checksumType}
+	returnValues = {'name':fileName, 'checksum':hashGenerator.hexdigest(), 'checksumType':checksumType}
 	
 	# Return the location of the local copy if we were asked to
 	if returnCopy == True and cacheLocation != None:
