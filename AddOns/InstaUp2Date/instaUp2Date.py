@@ -5,9 +5,8 @@
 #	This script parses one or more catalog files to fill in the 
 
 import os, sys, re
-import hashlib, urlparse, urllib, urllib2, tempfile, shutil, subprocess
-import Foundation, checksum
-from datetime import date
+import hashlib, urlparse, urllib, urllib2, tempfile, shutil, subprocess, datetime, atexit
+import checksum # this is part of the instadmg suite
 
 #------------------------------SETTINGS------------------------------
 
@@ -21,14 +20,13 @@ instaDMGName				= "instadmg.bash" # name of the InstaDMG executable
 # this group needs to be relative to InstaDMG
 appleUpdatesFolder			= "InstallerFiles/BaseUpdates"
 customPKGFolder 			= "InstallerFiles/CustomPKG"
+
 userSuppliedPKGFolder		= "InstallerFiles/InstaUp2DatePackages" # user-created packages
 
 catalogFolderName			= "CatalogFiles"
 catalogFileExension			= ".catalog"
 
 cacheFolder					= "Caches/InstaUp2DateCache" # the location of the cache folder relative to the InstaDMG folder
-
-READ_CHUNK_SIZE				= 1024; # how large a chunk to grab while checksumming. changing this can affect performance
 
 baseOSSectionName			= "Base OS Disk"
 
@@ -71,7 +69,7 @@ class instaUpToDate:
 	
 	#--------------------Instance Variables---------------------------
 
-	packageGroups 			= None	# an Array, init-ed in cleanInstaDMGFolders
+	packageGroups 			= None	# a Hash, init-ed in cleanInstaDMGFolders
 	parsedFiles 			= None	# an Array, for loop checking
 	
 	absPathToInstaDMGFolder	= None
@@ -130,15 +128,11 @@ class instaUpToDate:
 	def runtimeChecks(self, runStyle="classic"):
 		'''Some sanity checks to make sure that things are not going to fail later'''
 		
-		#global relativePathToInstaDMG, catalogFolderName, cacheFolder, userSuppliedPKGFolder
-		#global appleUpdatesFolder, customPKGFolder
-		
 		# Note on runStyle:
 		#	"classic": use the "BaseUpdates" and "CustomPKG" folders
 		#	"tempFolder": use a temporary to hold all of the update links, deleted at close
 		
 		# --- generic checks ----
-		
 		assert os.path.isfile( os.path.join(absPathToInstaDMGFolder, instaDMGName) ), "InstaDMG was not where it was expected to be: %s" % os.path.join(absPathToInstaDMGFolder, instaDMGName)
 		assert os.path.isdir(catalogFolderPath), "The catalog files folder was not where it was expected to be: %s" % catalogFolderPath
 		assert os.path.isdir(userSuppliedPKGFolderPath), "The catalog files folder was not where it was expected to be: %s" % userSuppliedPKGFolderPath
@@ -229,8 +223,11 @@ class instaUpToDate:
 					mainCacheFolder = cacheFolderPath,
 					additionalCacheFolders = userSuppliedPKGFolderPath
 				)
-		
-				thisPackage.printPackageInformation(tabsToPrefix=1)
+				
+				print('''	Checksum:	%(checksumType)s:%(checksum)s
+	Source:		%(source)s
+	Cache:		%(cacheLocation)s
+''' % { "checksum":thisPackage.checksum, "checksumType":thisPackage.checksumType, "source":thisPackage.source, "cacheLocation":thisPackage.filePath })
 				
 				self.packageGroups[currentSection].append(thisPackage)
 				
@@ -241,13 +238,16 @@ class instaUpToDate:
 			
 		inputfile.close()
 		
-	def arrangeFolders(self):
+	def arrangeFolders(self, sectionFolders=None):
 		"Create the folder structure in the InstaDMG areas, and pop in soft-links to the items in the cache folder"
+		
+		assert isinstance(sectionFolders, list), "sectionfolders is required, and must be a list of dicts"
 		
 		import math
 		
-		groupings = [ [systemSectionTypes, appleUpdatesFolderPath], [addedSectionTypes, customPKGFolderPath] ]
-		for sectionTypes, updateFolder in groupings:
+		for thisSectionFolder in sectionFolders:
+			sectionTypes = thisSectionFolder["sections"]
+			updateFolder = thisSectionFolder["folderPath"]
 			
 			itemsToProcess = []
 			for thisSection in sectionTypes:
@@ -262,7 +262,7 @@ class instaUpToDate:
 			for thisItem in itemsToProcess:
 				
 				targetFileName = fileNameFormat % (itemCounter, thisItem.displayName)
-				targetFilePath = os.path.join(updateFolder, targetFileName)
+				targetFilePath = os.path.realpath(os.path.join(updateFolder, targetFileName))
 				pathFromTargetToSource = os.path.relpath(thisItem.filePath, os.path.dirname(targetFilePath))
 				
 				os.symlink(pathFromTargetToSource, targetFilePath)
@@ -273,44 +273,55 @@ class instaUpToDate:
 				itemCounter += 1
 				
 		return True
-
-	def cleanInstaDMGFolders(self):
-		"This will go through and clean out the InstaDMG folders. It will choke on any real files in the hirarchy (it expects soft-links). It also cleans and sets-up instance variables for a new run."
-		
-		# clean out the instance variables
-		self.packageGroups = {}
-		for group in systemSectionTypes + addedSectionTypes:
-			self.packageGroups[group] = []
-				
-		for instaDMGFolder in [appleUpdatesFolderPath, customPKGFolderPath]: # these should be abspaths
-			for subFolder in os.listdir(instaDMGFolder):
-				thisFolder = os.path.join(instaDMGFolder, subFolder)
-				
-				if re.match("\.", subFolder):
-					continue
-				
-				if os.path.islink(thisFolder):
-					os.remove(thisFolder)
-					continue
-				
-				if not(os.path.isdir(thisFolder)):
-					raise Exception("Not a folder: %s" % thisFolder) # TODO: improve error handling
-				
-				for thisItem in os.listdir(thisFolder):
-					thisItemPath = os.path.join(thisFolder, thisItem)
-					
-					if not(os.path.islink(thisItemPath)) and not(re.match("\.DS_Store", thisItem)) and not(re.match("\.svn", thisItem)):
-						raise Exception("Not a soft link: %s" % thisItemPath) # TODO: improve error handling
-					
-					if not(re.match("\.svn", thisItem)):
-						os.remove(thisItemPath)
-					
-				os.rmdir(thisFolder)
 	
-	def runInstaDMG(self, scratchFolder=None, outputFolder=None):
-		global instaDMGName
+	def setupInstaDMGFolders(self, sectionFolders=None):
+		'''Clean the chosen folders, and setup the package groups. This will only remove folders and symlinks, not actual data.'''
 		
-		instaDMGCommand			= [ os.path.join( os.getcwd(), instaDMGName ), "-f" ]
+		assert isinstance(sectionFolders, list), "sectionfolders is required, and must be a list of dicts"
+		
+		self.packageGroups = {}
+		
+		for sectionFolder in sectionFolders:
+			assert isinstance(sectionFolder, dict) and "folderPath" in sectionFolder and "sections" in sectionFolder, "sectionfolder information must be a dict with a 'folderPath' value, instead got: %s" % sectionFolder
+			assert os.path.isdir(sectionFolder['folderPath']), "The sectionfolder did not seem to exist: %s" % sectionFolder['folderPath']
+			assert os.path.isabs(sectionFolder['folderPath']), "setupInstaDMGFolders was passed a non-abs path to a folder: %s" % sectionFolder['folderPath']
+			
+			# setup the package groups
+			for thisGroup in sectionFolder["sections"]:
+				self.packageGroups[thisGroup] = []
+			
+			# clean the folders
+			for thisItem in os.listdir(sectionFolder['folderPath']):
+				
+				# skip over a few types of items
+				if thisItem in [".svn", ".DS_Store"]:
+					continue
+				
+				pathToThisItem = os.path.join(sectionFolder['folderPath'], thisItem)
+				
+				# remove all links
+				if os.path.islink(pathToThisItem):
+					os.unlink(pathToThisItem)
+					continue
+				
+				# remove the links from any folder, and if it then empty, remove it (otherwise bail)
+				if os.path.isdir(pathToThisItem):
+					for thisSubItem in os.listdir(pathToThisItem):
+						pathToThisSubItem = os.path.join(pathToThisItem, thisSubItem)
+						if os.path.islink(pathToThisSubItem):
+							os.unlink(pathToThisSubItem)
+						else:
+							raise Exception('While cleaning folder: %s found a non-softlinked item: %s' % (sectionFolder['folderPath'], pathToThisSubItem))
+					os.remdir(pathToThisItem)
+					continue
+				
+				raise Exception('While cleaning folder: %s found a non-softlinked item: %s' % (sectionFolder['folderPath'], pathToThisItem))
+	
+	def runInstaDMG(self, scratchFolder=None, sectionFolders=None, outputFolder=None):
+		
+		assert isinstance(sectionFolders, list), "sectionFolders should be a list of hashes"
+		
+		instaDMGCommand	= [ os.path.join( os.path.join(absPathToInstaDMGFolder, instaDMGName) ), "-f" ]
 		
 		if self.catalogFileSettings.has_key("ISO Language Code"):
 			instaDMGCommand += ["-i", self.catalogFileSettings["ISO Language Code"]]
@@ -322,15 +333,16 @@ class instaUpToDate:
 		if self.catalogFileSettings.has_key("Output File Name"):
 			instaDMGCommand += ["-m", self.catalogFileSettings["Output File Name"]]
 		
-		
 		if scratchFolder != None:
 			instaDMGCommand += ["-t", scratchFolder]
+		
+		for thisSectionFolder in sectionFolders:
+			instaDMGCommand += ['-K', thisSectionFolder['folderPath']]
 		
 		if outputFolder != None:
 			instaDMGCommand += ["-o", outputFolder]
 
-		
-		print("Running InstaDMG:\n\n")
+		print("Running InstaDMG: %s\n\n" % " ".join(instaDMGCommand))
 		# we should be in the same directory as InstaDMG
 		
 		subprocess.call(instaDMGCommand)
@@ -393,7 +405,7 @@ class installerPackage:
 		# check the caches for an item with this checksum
 		cacheFilePath = self.checkCacheForItem(None, checksumType, checksumValue, cacheFolders)
 		if cacheFilePath is not None:
-			print("	Found in cache folder by checksum")
+			print("	Found in cache folder by the checksum")
 		
 		else:
 			# parse the location information
@@ -409,28 +421,28 @@ class installerPackage:
 				
 				# if this is a name (ie: not a path), look in the caches for the name
 				if filePath.count("/") == 0:
-					filePath = self.checkCacheForItem(filePath, checksumType, checksumValue, cacheFolders)
+					cacheFilePath = self.checkCacheForItem(filePath, checksumType, checksumValue, cacheFolders)
+					
+					if cacheFilePath is not None:
+						print("	Found in cache folder by file name")
 					
 				# try this as a relative path from cwd
-				elif not os.path.isabs(filePath) and os.path.exists(filePath):
-					filePath = os.path.abspath(filePath)
+				if cacheFilePath is None and not os.path.isabs(filePath) and os.path.exists(filePath):
+					cacheFilePath = os.path.abspath(filePath)
+
+					print("	Found at the relative path provided")
 				
 				# try this path in each of the cache folders
-				elif not os.path.isabs(filePath):
-					
+				if cacheFilePath is None and not os.path.isabs(filePath):
 					for cacheFolder in cacheFolders:
-						
 						if os.path.exists( os.path.join(cacheFolder, filePath) ):
-							filePath = os.path.abspath(os.path.join(cacheFolder, filePath))
+							cacheFilePath = os.path.abspath(os.path.join(cacheFolder, filePath))
+							print("	Found in the cache folder at the provided path")
 							break
 				
 				# final check to make sure the file exists
-				if not os.path.exists(filePath):
-					raise FileNotFoundException("The referenced file/folder does not exist: %s" % filePath)
-				
-				print("	Found at the provided path")
-				
-				cacheFilePath = filePath
+				if not os.path.exists(cacheFilePath):
+					raise FileNotFoundException("The referenced file/folder does not exist: %s" % cacheFilePath)
 				
 			elif parsedSourceLocationURL.scheme in ["http", "https"]:
 				# url to download
@@ -438,7 +450,7 @@ class installerPackage:
 				# guess the name from the URL
 				cacheFilePath = self.checkCacheForItem(os.path.basename(parsedSourceLocationURL.path), checksumType, checksumValue, cacheFolders)
 				if cacheFilePath is not None:
-					print("	Found using name in URL")
+					print("	Found in cache folder by the name in the URL")
 					
 				else:
 					# open a connection get a file name
@@ -480,7 +492,7 @@ class installerPackage:
 						
 						targetFilePath = os.path.join(mainCacheFolder, os.path.splitext(fileName)[0] + " " + checksumType + "-" + checksumValue + os.path.splitext(fileName)[1])
 						
-						checksum.cheksumFileObject(hashGenerator, readFile, fileName, expectedLength, chunkSize=1024*100, fileType="download", copyToPath=targetFilePath, reportProgress=True, tabsToPrefix=1)
+						checksum.cheksumFileObject(hashGenerator, readFile, fileName, expectedLength, copyToPath=targetFilePath, reportProgress=True, tabsToPrefix=1)
 						
 						if hashGenerator.hexdigest() != checksumValue:
 							os.unlink(targetFilePath)
@@ -496,14 +508,6 @@ class installerPackage:
 		
 		# at this point we know that we have a file at cacheFilePath
 		self.filePath = cacheFilePath
-	
-	def printPackageInformation(self, tabsToPrefix=0):
-		
-		print('''%(tabPrefix)sDisplay Name: %(displayName)s
-%(tabPrefix)sChecksum:	%(checksumType)s:%(checksum)s
-%(tabPrefix)sSource:		%(source)s
-%(tabPrefix)sCache:		%(cacheLocation)s
-''' % { "tabPrefix":"\t" * tabsToPrefix, "displayName":self.displayName, "checksum":self.checksum, "checksumType":self.checksumType, "source":self.source, "cacheLocation":self.filePath })
 	
 	@classmethod
 	def checkCacheForItem(myClass, itemName, checksumType, checksumValue, cacheFolders):
@@ -549,6 +553,11 @@ def print_version(option, opt, value, parser):
 	print("InstaUp2Date version %s" % versionString)
 	sys.exit(0)
 
+def cleanupTempFolder(tempFolder):
+	if os.path.exists(tempFolder) and os.path.isdir(tempFolder):
+		# ToDo: log this
+		shutil.rmtree(tempFolder, ignore_errors=True)
+
 def main ():
 	
 	global catalogFolder
@@ -556,7 +565,7 @@ def main ():
 	# ------- defaults -------
 	
 	outputVolumeName	= "MacintoshHD"
-	outputFileName		= str(date.today().month) + "-" + str(date.today().day) + "-" + str(date.today().year)
+	outputFileName		= str(datetime.date.today().month) + "-" + str(datetime.date.today().day) + "-" + str(datetime.date.today().year)
 	
 	# ---- parse options ----
 	
@@ -583,6 +592,8 @@ def main ():
 	if options.instadmgOutputFolder != None and not os.path.isdir(options.instadmgOutputFolder):
 		optionsParser.error("The instadmg-output-folder option requires a valid folder path, but got: %s" % options.instadmgOutputFolder)
 	
+	# --- process options ---
+	
 	baseCatalogFiles = []
 	for thisCatalogFile in catalogFiles:
 		try:
@@ -600,17 +611,30 @@ def main ():
 			except CatalogNotFoundException:
 				optionsParser.error("There does not seem to be a catalog file at: %s" % thisCatalogFile)
 	
-	# ------- process -------
+	
+	sectionFolders = None
+	if options.processWithInstaDMG == True:
+		tempFolder = tempfile.mkdtemp(prefix='InstaUp2DateFolder-', dir="/tmp")
+		
+		atexit.register(cleanupTempFolder, tempFolder)
+		
+		sectionFolders = [
+			{"folderPath":tempFolder, "sections":["OS Updates", "System Settings", "Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings"]}
+		]
+	else:
+		sectionFolders = [
+			{"folderPath":os.path.join(absPathToInstaDMGFolder, "InstallerFiles/BaseUpdates"), "sections":["OS Updates", "System Settings"]},
+			{"folderPath":os.path.join(absPathToInstaDMGFolder, "InstallerFiles/CustomPKG"), "sections":["Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings"]}
+		]
+	# ----- run process -----
 	
 	thisController = instaUpToDate()
 	thisController.runtimeChecks()
 	
-	os.chdir(absPathToInstaDMGFolder) # ToDo: remove the necessity of this
-	
 	for catalogFilePath in baseCatalogFiles:
 		
 		# setup for the run
-		thisController.cleanInstaDMGFolders()
+		thisController.setupInstaDMGFolders(sectionFolders=sectionFolders)
 		thisController.catalogFileSettings = {}
 		thisController.parsedFiles = []
 		
@@ -622,11 +646,11 @@ def main ():
 			thisController.parseFile(addOnCatalogFile)
 		
 		# create the folder strucutres needed	
-		thisController.arrangeFolders()
+		thisController.arrangeFolders(sectionFolders=sectionFolders)
 		
 		if options.processWithInstaDMG == True:
 			# the run succeded, and it has been requested to run InstaDMG
-			thisController.runInstaDMG(scratchFolder=options.instadmgScratchFolder, outputFolder=options.instadmgOutputFolder)
+			thisController.runInstaDMG(scratchFolder=options.instadmgScratchFolder, sectionFolders=sectionFolders, outputFolder=options.instadmgOutputFolder)
 		
 		
 #------------------------------END MAIN------------------------------

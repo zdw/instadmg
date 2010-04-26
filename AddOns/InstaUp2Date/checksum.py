@@ -9,19 +9,27 @@ def cleanupTempFolder(tempFolder):
 		# ToDo: log this
 		shutil.rmtree(tempFolder, ignore_errors=True)
 
-def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expectedLength, chunkSize, fileType="file", copyToPath=None, reportProgress=False, reportStepPercentage=15, tabsToPrefix=0):
+def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expectedLength, chunkSize=None, copyToPath=None, reportProgress=False, reportStepPercentage=15, tabsToPrefix=0):
 	
 	# todo: sanity check the input
-	
-	# prep for reporting progress
-	processedLength = 0
-	lastReport = 0
-	
+	assert hasattr(targetFileObject, "read"), "The target file object does not look useable"
+		
 	writeFileObject = None
 	if copyToPath != None:
 		writeFileObject = open(copyToPath, 'wb')
 		if writeFileObject == None:
 			raise Exception("Unable to open file for writing: %s" % writeTarget)
+	
+	# set the chunk size if it has not already been set
+	if chunkSize is None:
+		if hasattr(targetFileObject, "geturl"): # a ULR object
+			chunkSize = 1024*100 # 100KiB for urls
+		else:
+			chunkSize = 5*1024*1024 # 5 MiB for local files
+	
+	# prep for reporting progress
+	processedLength = 0
+	lastReport = 0
 	
 	thisChunkSize = 1 # to get us into the first loop
 	
@@ -29,7 +37,7 @@ def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expected
 	if reportProgress == True:
 		
 		verb = "Checksumming"
-		if fileType == "download":
+		if hasattr(targetFileObject, "geturl"): # a ULR object
 			verb = "Downloading"
 		
 		if expectedLength == None:
@@ -63,7 +71,7 @@ def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expected
 		writeFileObject.close()
 
 
-def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", outputFolder=None, returnCopy=False, chunkSize=5*1024*1024, reportProgress=True, reportStepPercentage=15, tabsToPrefix=0):
+def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", outputFolder=None, returnCopy=False, chunkSize=None, reportProgress=True, reportStepPercentage=15, tabsToPrefix=0):
 	'''Return the checksum of a given file or folder'''
 	
 	# validate input
@@ -188,7 +196,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 			writeTarget = os.path.join(tempFolder, fileName)
 			cacheLocation = writeTarget
 		
-		cheksumFileObject(hashGenerator, readFile, fileName, targetLength, fileType="download", chunkSize=1024*100, copyToPath=writeTarget, reportProgress=True, reportStepPercentage=reportStepPercentage, tabsToPrefix=tabsToPrefix)
+		cheksumFileObject(hashGenerator, readFile, fileName, targetLength, copyToPath=writeTarget, chunkSize=chunkSize, reportProgress=True, reportStepPercentage=reportStepPercentage, tabsToPrefix=tabsToPrefix)
 		
 		readFile.close()
 		
@@ -206,7 +214,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 		if tempFolder != None:
 			writeTarget = os.path.join(tempFolder, thisTarget['relativePath'])
 		
-		cheksumFileObject(hashGenerator, readFile, os.path.basename(thisTarget['sourceUrl'].path), targetLength, chunkSize, fileType="file", copyToPath=writeTarget, reportProgress=True, reportStepPercentage=reportStepPercentage, tabsToPrefix=tabsToPrefix)			
+		cheksumFileObject(hashGenerator, readFile, os.path.basename(thisTarget['sourceUrl'].path), targetLength, chunkSize=chunkSize, copyToPath=writeTarget, reportProgress=True, reportStepPercentage=reportStepPercentage, tabsToPrefix=tabsToPrefix)			
 		readFile.close()
 		
 		fileName = os.path.basename(thisTarget['sourceUrl'].path)
@@ -280,7 +288,7 @@ if __name__ == "__main__":
 	optionParser.add_option("-a", "--checksum-algorithm", default="sha1", action="store", dest="checksumAlgorithm", choices=allowedChecksumAlgorithms, help="Disable progress notifications")
 	optionParser.add_option("-d", "--disable-progress", default=True, action="store_false", dest="reportCheckSum", help="Disable progress notifications")
 	optionParser.add_option("-r", "--report-progress-step", default=15, action="store", type="int", dest="reportStepPercentage", help="Percent to wait before reporting progress")
-	optionParser.add_option("-s", "--chunk-size", default=5*1024*1024, action="store", type="int", dest="chunkSize", help="Folder to copy dat to")
+	optionParser.add_option("-s", "--chunk-size", default=None, action="store", type="int", dest="chunkSize", help="Folder to copy dat to")
 	optionParser.add_option("-t", "--output-folder", default=None, action="store", dest="outputFolder", type="string", help="Folder to copy dat to")
 	(options, args) = optionParser.parse_args()
 	
