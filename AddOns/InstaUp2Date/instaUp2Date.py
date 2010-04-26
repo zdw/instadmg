@@ -257,8 +257,6 @@ class instaUpToDate:
 			leadingZeroes = int(math.log10(len(itemsToProcess)))
 			fileNameFormat = '%0' + str(leadingZeroes + 1) + "d %s"
 			
-			print "fileNameFormat:", fileNameFormat
-			
 			# Create symlinks for all of the items
 			itemCounter = 1
 			for thisItem in itemsToProcess:
@@ -649,9 +647,6 @@ def main ():
 		
 		# create the folder strucutres needed	
 		thisController.arrangeFolders(sectionFolders=sectionFolders)
-		
-		print sectionFolders[0]["folderPath"]
-		print os.listdir(sectionFolders[0]["folderPath"])
 		
 		if options.processWithInstaDMG == True:
 			# the run succeded, and it has been requested to run InstaDMG
