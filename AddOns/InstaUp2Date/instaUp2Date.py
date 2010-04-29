@@ -38,7 +38,7 @@ addedSectionTypes			= [ "Apple Updates", "Third Party Software", "Third Party Se
 
 #------------------------RUNTIME ADJUSTMENTS-------------------------
 
-absPathToInstaDMGFolder		= os.path.normpath(os.path.join( os.path.dirname(sys.argv[0]), relativePathToInstaDMG ))
+absPathToInstaDMGFolder		= os.path.normpath(os.path.join( os.path.abspath(os.path.dirname(sys.argv[0])), relativePathToInstaDMG ))
 
 appleUpdatesFolderPath		= os.path.join(absPathToInstaDMGFolder, appleUpdatesFolder)
 customPKGFolderPath			= os.path.join(absPathToInstaDMGFolder, customPKGFolder)
