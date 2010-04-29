@@ -549,8 +549,8 @@ class installerPackage:
 	
 #--------------------------------MAIN--------------------------------
 
-def print_version(option, opt, value, parser):
-	print("InstaUp2Date version %s" % versionString)
+def print_version(option, opt, value, optionsParser):
+	optionsParser.print_version()
 	sys.exit(0)
 
 def cleanupTempFolder(tempFolder):
@@ -570,10 +570,10 @@ def main ():
 	# ---- parse options ----
 	
 	import optparse
-	optionsParser = optparse.OptionParser("%prog [options] catalogFile1 [catalogFile2 ...]" )
+	optionsParser = optparse.OptionParser("%prog [options] catalogFile1 [catalogFile2 ...]", version="%%prog %s" % versionString)
 	optionsParser.add_option("-a", "--add-catalog", action="append", type="string", dest="addOnCatalogFiles", help="Add the items in this catalog file to all catalog files processed. Can be called multiple times", metavar="FILE_PATH")
 	optionsParser.add_option("-p", "--process", action="store_true", default=False, dest="processWithInstaDMG", help="Run InstaDMG for each catalog file processed")
-	optionsParser.add_option("-v", "--version", action="callback", callback=print_version, help="Print the version number and quit")
+	optionsParser.add_option("-v", "", action="callback", callback=print_version, help="Print the version number and quit")
 	optionsParser.add_option("", "--instadmg-scratch-folder", action="store", dest="instadmgScratchFolder", default=None, type="string", metavar="FOLDER_PATH", help="Tell InstaDMG to use FOLDER_PATH as the scratch folder")
 	optionsParser.add_option("", "--instadmg-output-folder", action="store", dest="instadmgOutputFolder", default=None, type="string", metavar="FOLDER_PATH", help="Tell InstaDMG to place the output image in FOLDER_PATH")
 	options, catalogFiles = optionsParser.parse_args()
@@ -591,6 +591,11 @@ def main ():
 	
 	if options.instadmgOutputFolder != None and not os.path.isdir(options.instadmgOutputFolder):
 		optionsParser.error("The instadmg-output-folder option requires a valid folder path, but got: %s" % options.instadmgOutputFolder)
+	
+	# if we are running InstaDMG, then we need to be running as root
+	if options.processWithInstaDMG is True and os.getuid() != 0:
+		optionsParser.error("When using the -p/--process flag this must be run as root (sudo is fine)")
+		
 	
 	# --- process options ---
 	
