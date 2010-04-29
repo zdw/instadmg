@@ -8,43 +8,28 @@ TARGET_DIR="$3"
 . "${SCRIPT_DIR}/USERDATA"
 
 
-check_os()
-{
-	LEOPARD=1 #also equals snow since uses dslocal
-	TIGER=1
-
-	HOST_SW_VERS=`/usr/bin/defaults read "/System/Library/CoreServices/SystemVersion" ProductVersion`
-	if ( echo $HOST_SW_VERS | grep "^10.[56]">/dev/null ); then
-		HOST_LEOPARD=0
-		HOST_TIGER=1
-	elif ( echo $HOST_SW_VERS | grep "^10.4">/dev/null ); then
-		HOST_TIGER=0
-		HOST_LEOPARD=1
+check_os() {
+	
+	# detect what tools the host OS uses
+	# ToDo: verify that this is not required
+	if [ -x "/usr/bin/dscl" ] && [ -d "/var/db/dslocal/nodes/Default" ]; then
+		# looks like 10.5+
+		HOST_OS="10.5 or later"
+	
+	elif [ -x "/usr/bin/nicl" ] && [ -e "/var/db/netinfo/local.nidb" ]; then
+		# looks like 10.4
+		HOST_OS="10.4"
+	
 	else
-		echo "OS $HOST_SW_VERS not supported"
+		echo "This host OS is not supported"
 		exit 3
 	fi
 	
-	TARGET_SW_VERS=`/usr/bin/defaults read "${TARGET_DIR}/System/Library/CoreServices/SystemVersion" ProductVersion`
-	if ( echo $TARGET_SW_VERS | grep "^10.[56]">/dev/null ); then
-		LEOPARD=0
-		TIGER=1
-	elif ( echo $TARGET_SW_VERS | grep "^10.4">/dev/null ); then
-		LEOPARD=1
-		TIGER=0
-	else
-		echo "OS $TARGET_SW_VERS not supported"
-		exit 3
-	fi
-	
-	if [ $HOST_LEOPARD -ne $LEOPARD ] || [ $HOST_TIGER -ne $TIGER ]; then
-		echo "Host version ($HOST_SW_VERS) is not the same as the target ($TARGET_SW_VERS)"
-		exit 3
-	fi
-
-	# setup commands and switches based on OS, we have to separate out some 
-	# parameters to make sure DB locations are quoted properly
-	if [ $LEOPARD -eq 0 ]; then
+	# detect what tools the target OS uses
+	if [ -x "$TARGET_DIR/usr/bin/dscl" ] && [ -d "$TARGET_DIR/var/db/dslocal/nodes/Default" ]; then
+		# looks like 10.5+
+		TARGET_OS="10.5 or later"
+		
 		DSLocalDB="${TARGET_DIR}/var/db/dslocal/nodes/Default"
 	
 		if [ ! -e "$DSLocalDB" ]; then
@@ -52,7 +37,7 @@ check_os()
 			exit 2
 		fi
 		
-		serviceCmd="/usr/bin/dscl"
+		serviceCmd="${TARGET_DIR}/usr/bin/dscl"
 		prefix='-f'
 		dsNode=${DSLocalDB}
 		suffix="localonly"
@@ -63,19 +48,21 @@ check_os()
 		userRoot="${databasePath}Users"
 		userPath="${userRoot}/${shortname}"
 		adminPath="${databasePath}Groups/admin"
-	
-	elif [ $TIGER -eq 0 ]; then
-	
-		NetInfoDB="${TARGET_DIR}/var/db/netinfo/local.nidb";
+		
+	elif [ -x "$TARGET_DIR/usr/bin/nicl" ] && [ -e "$TARGET_DIR/var/db/netinfo/local.nidb" ]; then
+		# looks like 10.4
+		TARGET_OS="10.4"
+		
+		NetInfoDB="$TARGET_DIR/var/db/netinfo/local.nidb";
 	
 		if [ ! -e "${NetInfoDB}" ]; then
 			echo "Can't find target ${DSLocalDB}"
 			exit 2
 		fi
 	
-		serviceCmd="/usr/bin/nicl"
+		serviceCmd="$TARGET_DIR/usr/bin/nicl"
 		prefix='-raw'
-		dsNode=${NetInfoDB}
+		dsNode="$NetInfoDB"
 		suffix=""
 		databasePath="/";
 		groupkey="users"
@@ -87,9 +74,16 @@ check_os()
 		userRoot="${databasePath}users"
 		userPath="${userRoot}/${shortname}"
 		adminPath="${databasePath}groups/admin"
-	
+		
 	else
-		echo "OS not supported"
+		echo "This target OS is not supported"
+		exit 3
+	fi
+	
+	# If the host OS and target OS don't use the same tools bail
+	# ToDo: verify that this is actually a problem
+	if [ "$HOST_OS" != "$TARGET_OS" ]; then
+		echo "The host OS ($HOST_OS) and target OS ($TARGET_OS) do not use the same directory tools, so this script cannot run."
 		exit 3
 	fi
 
@@ -100,7 +94,7 @@ check_uid()
 	if [ ${#uid} -eq 0 ]; then
 		#search for unused uid after 500
 		for ((uid=501; uid<600; uid++)); do
-			output=`$serviceCmd $prefix "$dsNode" $suffix -search $userRoot $uidKey $uid`
+			output=`"$serviceCmd" $prefix "$dsNode" $suffix -search $userRoot $uidKey $uid`
 			if [ "$output" == "" ]; then
 				break
 			fi
@@ -200,23 +194,23 @@ check_home
 
 echo "Creating new user $shortname using: $serviceCmd $prefix $dsNode $suffix"
 #these are the commands needed to create a base user. it will bail out if the first command fails
-$serviceCmd $prefix "$dsNode" $suffix -create $userPath || exit 1
-$serviceCmd $prefix "$dsNode" $suffix -create $userPath realname "${longname}"
-$serviceCmd $prefix "$dsNode" $suffix -create $userPath gid ${gid}
-$serviceCmd $prefix "$dsNode" $suffix -create $userPath $uidKey ${uid}
-$serviceCmd $prefix "$dsNode" $suffix -create $userPath home "${user_home}"
-$serviceCmd $prefix "$dsNode" $suffix -merge $userPath authentication_authority ";ShadowHash;"
-$serviceCmd $prefix "$dsNode" $suffix -create $userPath picture "${pic}"
-$serviceCmd $prefix "$dsNode" $suffix -create $userPath passwd "*"
-$serviceCmd $prefix "$dsNode" $suffix -create $userPath shell "${shell}"
+"$serviceCmd" $prefix "$dsNode" $suffix -create $userPath || exit 1
+"$serviceCmd" $prefix "$dsNode" $suffix -create $userPath realname "${longname}"
+"$serviceCmd" $prefix "$dsNode" $suffix -create $userPath gid ${gid}
+"$serviceCmd" $prefix "$dsNode" $suffix -create $userPath $uidKey ${uid}
+"$serviceCmd" $prefix "$dsNode" $suffix -create $userPath home "${user_home}"
+"$serviceCmd" $prefix "$dsNode" $suffix -merge $userPath authentication_authority ";ShadowHash;"
+"$serviceCmd" $prefix "$dsNode" $suffix -create $userPath picture "${pic}"
+"$serviceCmd" $prefix "$dsNode" $suffix -create $userPath passwd "*"
+"$serviceCmd" $prefix "$dsNode" $suffix -create $userPath shell "${shell}"
 
 # lookup/save generated uid
 if [ ${#genUID} -eq 36 ]; then
 	#save guid if we specified one
-	$serviceCmd $prefix "$dsNode" $suffix -create $userPath generateduid ${genUID}
+	"$serviceCmd" $prefix "$dsNode" $suffix -create $userPath generateduid ${genUID}
 else 
 	#otherwise get the auto generated one 
-	genUID=`$serviceCmd $prefix "$dsNode" $suffix -read ${userPath} generateduid|awk '{print $2}'`
+	genUID=`"$serviceCmd" $prefix "$dsNode" $suffix -read ${userPath} generateduid|awk '{print $2}'`
 fi
 
 #create shadow hash folder if necessary and set perms
@@ -232,7 +226,7 @@ echo "$password_hash">"${TARGET_DIR}/var/db/shadow/hash/$genUID"
 
 #if admin flag is set, then add user to admin group
 if [ $admin -eq 1 ]; then
-	$serviceCmd $prefix "$dsNode" $suffix -merge $adminPath $groupkey "${shortname}"
+	"$serviceCmd" $prefix "$dsNode" $suffix -merge $adminPath $groupkey "${shortname}"
 fi
 
 if [ $hide_user -eq 1 ]; then
