@@ -8,13 +8,15 @@ Base OS Disk:
 OS Updates:
 	Mac OS X 10.6.3 v1.1 Combo Update	http://support.apple.com/downloads/DL1017/en_US/MacOSXUpdCombo10.6.3v1.1.dmg	sha1:39d16279373906041a066f409b5f667e2bca77e2
 	Security Update 2010-003 (Snow Leopard)	http://support.apple.com/downloads/DL1029/en_US/SecUpd2010-003Snow.dmg	sha1:aa1579322ef07a1637b35a3ac02612ca5a22a74a
+
 Apple Updates:
 	Remote Desktop Client 3.3.2	http://support.apple.com/downloads/DL986/en_US/RemoteDesktopClient.dmg	sha1:707812be781a5e3635c552bef24382c1eced93cf
 	iLife Support 9.0.4	http://support.apple.com/downloads/DL1009/en_US/iLifeSupport904.dmg	sha1:7cda1492d1bab91383b5738a7cda2cde24f72d2c
-	iTunes 9.1	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes9/061-7203.20100330.XswP8/iTunes9.1.dmg	sha1:cbfe7da9ccc2934395e27ee99ab400c3fdea0595
+	iTunes 9.1.1	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/iTunes9/061-8202.20100427.5vfkH/iTunes9.1.1.dmg	sha1:4d766a400590fa0e11fc28827d4cbc1e8e5802f7
 	Safari 4.0.5 for SnowLeopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/Safari4/061-7783.20100311.sfrew/Safari4.0.5SnowLeopard.dmg	sha1:b1b0c3510acf7144a6358b6e5667fb43aaa8a6b9
 	Java For MacOS X 10.6 Update 1	http://support.apple.com/downloads/DL972/en_US/JavaForMacOSX10.6Update1.dmg	sha1:e31791c61b56c7db104baffb00971fad88feb8e4
 	AirPort Utility 5.5.1	http://support.apple.com/downloads/DL955/en_US/AirPortUtility551.dmg	sha1:542636fb7d538795cf18db6aa4453c4bcb570c19
+	Digital Camera Raw Compatibility Update 3.2	http://support.apple.com/downloads/DL1035/en_US/RAWCameraUpdate3.dmg	sha1:974c5d2d6836ffe1a25ec9a575f125e9d165b274
 
 System Settings:
 
