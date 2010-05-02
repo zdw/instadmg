@@ -1,3 +1,6 @@
+# Creates a 10.6 image with all the items that would appear in software update
+# $Rev$ from $Date$
+
 Output Volume Name = Macintosh HD
 Output File Name = 10.6.3 Vanilla
 
