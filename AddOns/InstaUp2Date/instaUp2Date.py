@@ -312,7 +312,7 @@ class instaUpToDate:
 							os.unlink(pathToThisSubItem)
 						else:
 							raise Exception('While cleaning folder: %s found a non-softlinked item: %s' % (sectionFolder['folderPath'], pathToThisSubItem))
-					os.remdir(pathToThisItem)
+					os.rmdir(pathToThisItem)
 					continue
 				
 				raise Exception('While cleaning folder: %s found a non-softlinked item: %s' % (sectionFolder['folderPath'], pathToThisItem))
