@@ -868,6 +868,7 @@ install_packages_from_folder() {
 		TARGET="$SELECTED_FOLDER/$ORDERED_FOLDER"
 		ORIGINAL_TARGET="$TARGET"
 		CHROOT_TARGET=''
+		
 		TARGET_COPIED=false
 		
 		PACKAGE_DMG_MOUNT=''
@@ -884,136 +885,166 @@ install_packages_from_folder() {
 		done
 		
 		# check for dmgs
-		if [ -f "$TARGET" ]; then
-			# see if it is a dmg. If it does not have a name, we can trust it is not a dmg
+		shopt -s nocasematch
+		if [[ "$TARGET" == *.dmg ]]; then
+			# If it does not have a name it is not a dmg
 			DMG_INTERNAL_NAME=`/usr/bin/hdiutil imageinfo "$TARGET" 2>/dev/null | awk '/^\tName:/ && sub("\tName: ", "")'`
 			if [ -z "$DMG_INTERNAL_NAME" ]; then
 				# this is an unknown file type, so we need to bail
-				log "Error: $ORIGINAL_TARGET pointed at $TARGET, which is an unknown file type (should be a dmg or a folder)" error
+				log "Error: $ORIGINAL_TARGET pointed at $TARGET, which should be a DMG, but hdiutil cannot get a volume name for it" error
 				exit 1
 			else
 				PACKAGE_DMG_FILE="$TARGET"
 				
-				# mount in the host mount folder
-				TARGET=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
+				# mount in /Volumes in the TARGET_IMAGE_MOUNT
+				TARGET=`/usr/bin/mktemp -d "$TARGET_IMAGE_MOUNT/private/tmp/$MOUNT_POINT_TEMPLATE"`
 				/bin/chmod og+x "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
 				PACKAGE_DMG_MOUNT="$TARGET"
 				log "	Mounting the package dmg: $DMG_INTERNAL_NAME ($ORIGINAL_TARGET) at: $TARGET" information
 				mount_dmg "$PACKAGE_DMG_FILE" "$TARGET"
+				
+				# get the chroot target string, in case we use it
+				CHROOT_TARGET=`basename $TARGET`; CHROOT_TARGET="/private/tmp/$CHROOT_TARGET"
+				
+				# mark this as copied
+				TARGET_COPIED=true
 			fi
 		fi
+		shopt -u nocasematch
 		
-		# If we are using a chroot jail copy the contents of the folder into the image
-		if [ $DISABLE_CHROOT == false ]; then
-			# create a folder inside /tmp on the target
-			
-			CHROOT_TARGET=`cd "$TARGET_IMAGE_MOUNT"; /usr/bin/mktemp -d "private/tmp/$SOURCE_FOLDER_TEMPLATE"`
-			/bin/chmod og+x "$TARGET_IMAGE_MOUNT/$CHROOT_TARGET"
-			CHROOT_TARGET="/$CHROOT_TARGET"
-			
-			log "	Copying folder $TARGET into the target at $CHROOT_TARGET" information
-			/bin/cp -RHL "$TARGET/" "${TARGET_IMAGE_MOUNT}${CHROOT_TARGET}/" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
-			
-			TARGET_COPIED=true
-		fi
-		
-		ABSOLUTE_TARGET_PATH=( `cd "$TARGET"; pwd -P` )
-		
-		IFS=$'\n'
-		FOUND_PACKAGE=false
-		for UPDATE_PKG in $(/usr/bin/find -L "$ABSOLUTE_TARGET_PATH" -maxdepth 1 -iname '*pkg' | /usr/bin/awk 'tolower() ~ /\.(m)?pkg/ && !/\/\._/'); do
-			FOUND_PACKAGE=true
-			CHOICES_FILE=''
-			PACKAGE_DISABLE_CHROOT=false
-			
-			# check to see if this package should be excluded from the chroot system
-			if [ -d "$UPDATE_PKG" ]; then
-				# does not work on flat packages
-				
-				PACKAGE_BUNDLE_ID=`/usr/bin/defaults read "$UPDATE_PKG/Contents/Info" "CFBundleIdentifier" 2>/dev/null`
-				PACKAGE_CHROOT_DISABLE=`/usr/bin/defaults read "$UPDATE_PKG/Contents/Info" "InstaDMG Chroot Disable" 2>/dev/null`
+		# build a list of items to install
+		ITEM_LIST=()
+		shopt -s nocasematch
+		if [[ "$TARGET" == *.pkg ]] || [[ "$TARGET" == *.mpkg ]] || [[ "$TARGET" == *.app ]]; then
+			# a naked package or .app
+			IFS=$'\n'
+			ITEM_LIST[${#ITEM_LIST[@]}]=`basename "$TARGET"`
 
-				if [ ! -z "$PACKAGE_CHROOT_DISABLE" ]; then
-					PACKAGE_DISABLE_CHROOT=true
-				fi
-				
-				if [ ! -z "$PACKAGE_BUNDLE_ID" ]; then
-					BUNDLE_ID_ARRAY_LENGTH=${#CHROOT_EXCLUDED_CODES[@]}
-					INDEX=0
-					while [ "$INDEX" -lt "$BUNDLE_ID_ARRAY_LENGTH" ]; do
-						if [ "$PACKAGE_BUNDLE_ID" == "${CHROOT_EXCLUDED_CODES[$INDEX]}" ]; then
-							PACKAGE_DISABLE_CHROOT=true
-						fi
-						let "INDEX = $INDEX + 1"
-					done
-				fi
-				
-			fi
-						
-			if [ -e "$TARGET/InstallerChoices.xml" ] && [ $OS_REV_MAJOR -ge 5 ]; then # remember: 10.4 and before can't use InstallerChoices files
-				CHOICES_FILE="InstallerChoices.xml"
-				# TODO: better handle multiple pkg's and InstallerChoice files named for the file they should handle
-			fi		
+		elif [ -d "$TARGET" ]; then
+			# a folder of things
 			
-			TARGET_FILE_NAME=`/usr/bin/basename "$UPDATE_PKG"`
-			if [ "$ORIGINAL_TARGET" == "$TARGET" ]; then
-				CONTAINER_PATH="$TARGET"
-			else
-				# probably a dmg installer
-				CONTAINER_PATH=`/usr/bin/readlink "$ORIGINAL_TARGET"`
+			IFS=$'\n'
+			for THIS_ITEM in $(ls -A1 "$TARGET"); do
+				if [[ "$THIS_ITEM" == *.pkg ]] || [[ "$THIS_ITEM" == *.mpkg ]]; then
+					ITEM_LIST[${#ITEM_LIST[@]}]="$THIS_ITEM"
+				fi
+			done
+			
+			# if we didn't find anything, then we need to look for naked .app's
+			if [ ${#ITEM_LIST[@]} -eq 0 ]; then
+				for THIS_ITEM in $(ls -A1 "$TARGET"); do
+					if [[ "$THIS_ITEM" == *.app ]]; then
+						ITEM_LIST[${#ITEM_LIST[@]}]="$THIS_ITEM"
+					fi
+				done
 			fi
 			
-			if [ -z "$CHOICES_FILE" ]; then
-				if [ $DISABLE_CHROOT == false ] && [ $PACKAGE_DISABLE_CHROOT == false ]; then
-					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER}) inside a chroot jail" information
-					
-					( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verboseR -dumplog -pkg "$CHROOT_TARGET/$TARGET_FILE_NAME" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
-				else
-					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER})" information
-					/usr/sbin/installer -verboseR -dumplog -pkg "$TARGET/$TARGET_FILE_NAME" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
-				fi
-			else
-				if [ $DISABLE_CHROOT == false ] && [ $PACKAGE_DISABLE_CHROOT == false ]; then
-					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER}) with XML Choices file: $CHOICES_FILE inside a chroot jail" information
-					
-					( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "/private/tmp/$CHOICES_FILE" -pkg "$CHROOT_TARGET/$TARGET_FILE_NAME" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
-				else
-					log "	Installing $TARGET_FILE_NAME from ${CONTAINER_PATH} (${ORDERED_FOLDER}) with XML Choices file: $CHOICES_FILE" information
-					/usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$TARGET/$CHOICES_FILE" -pkg "$TARGET/$TARGET_FILE_NAME" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
-				fi
-			fi
-		done
+		else
+			# we have fallen through, and don't know what to do with this item
+			log "Unable to figure out what to do with: $TARGET" error
+			exit 1
+		fi
 		
-		# if there was no package here, look for a single naked .app
-		if [ $FOUND_PACKAGE == false ]; then
+		if [ ${#ITEM_LIST[@]} -eq 0 ]; then
+			log "There were no items to install in: $TARGET" error
+			exit 1
+		fi
+		
+		# install the items
+		for INSTALL_ITEM in $ITEM_LIST; do
 			
-			COPY_SOURCE=""
-			
-			if [ $DISABLE_CHROOT == false ]; then
-				if [ 1 -eq `/bin/ls "$CHROOT_TARGET" | grep -c ".app$"` ]; then
-					COPY_SOURCE=`/bin/ls "$CHROOT_TARGET" | grep ".app$"`
+			# packages
+			if [[ "$INSTALL_ITEM" == *.pkg ]] || [[ "$INSTALL_ITEM" == *.mpkg ]]; then
+				# copy things to a temporary folder inside the chroot zone if we need to
+				if [ $DISABLE_CHROOT == false ] && [ $TARGET_COPIED == false ]; then
+					
+					CHROOT_TARGET=`/usr/bin/mktemp -d "$TARGET_IMAGE_MOUNT/private/tmp/$SOURCE_FOLDER_TEMPLATE"`
+					/bin/chmod og+x "$CHROOT_TARGET" # allow the installer user thourgh
+					
+					if [ -d "$TARGET" ]; then # note: we should never get here for dmg's
+						# copy all of the contents into the image, just in case something cross-references
+						log "	Copying folder $TARGET into the target at $CHROOT_TARGET" information
+						/bin/cp -RHL "$TARGET/" "$CHROOT_TARGET/" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+					
+					else
+						# copy just the item into the folder
+						log "	Copying $TARGET into the target at $CHROOT_TARGET" information
+						/bin/cp -RHL "$TARGET" "$CHROOT_TARGET/" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+					fi
+					
+					# reset the chroot target to the correct path
+					CHROOT_TARGET=`basename "$CHROOT_TARGET"`; CHROOT_TARGET="/private/tmp/$CHROOT_TARGET"
+					TARGET_COPIED=true
 				fi
-			else
-				if [ 1 -eq `/bin/ls "$TARGET" | grep -c ".app$"` ]; then
-					COPY_SOURCE=`/bin/ls "$TARGET" | grep ".app$"`
+				
+				if [ $OS_REV_MAJOR -ge 5 ] && [ -e "`dirname "$INSTALL_ITEM"`/InstallerChoices.xml" ]; then # 10.4 can't use InstallerChoices files
+					CHOICES_FILE=true
+				else
+					CHOICES_FILE=false
 				fi
-			fi
-			
-			if [ ! -z $COPY_SOURCE ]; then
-				FOUND_PACKAGE=true
-			
-				log "Copying $COPY_SOURCE to the Applications folder on $TARGET_IMAGE_MOUNT" detail
-				/bin/cp -R "$TARGET/$COPY_SOURCE" "$TARGET_IMAGE_MOUNT/Applications" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+				
+				if [ $DISABLE_CHROOT == true ]; then
+					PACKAGE_USE_CHROOT=false
+				else
+					PACKAGE_USE_CHROOT=true
+					
+					# check to see if this is on the list of packages to exclude from the chroot
+					if [ -d "$INSTALL_ITEM" ]; then
+						PACKAGE_BUNDLE_ID=`/usr/bin/defaults read "$INSTALL_ITEM/Contents/Info" "CFBundleIdentifier" 2>/dev/null`
+						PACKAGE_CHROOT_DISABLE=`/usr/bin/defaults read "$INSTALL_ITEM/Contents/Info" "InstaDMG Chroot Disable" 2>/dev/null`
+						
+						if [ ! -z "$PACKAGE_CHROOT_DISABLE" ]; then
+							PACKAGE_USE_CHROOT=false
+						
+						elif [ ! -z "$PACKAGE_BUNDLE_ID" ]; then
+							BUNDLE_ID_ARRAY_LENGTH=${#CHROOT_EXCLUDED_CODES[@]}
+							INDEX=0
+							while [ "$INDEX" -lt "$BUNDLE_ID_ARRAY_LENGTH" ]; do
+								if [ "$PACKAGE_BUNDLE_ID" == "${CHROOT_EXCLUDED_CODES[$INDEX]}" ]; then
+									PACKAGE_USE_CHROOT=false
+								fi
+								let "INDEX = $INDEX + 1"
+							done
+						fi
+					fi
+				fi
+				
+				# install
+				if [ $CHOICES_FILE == false ]; then
+					# without an InstallerChoices.xml file
+					if [ $PACKAGE_USE_CHROOT == true ]; then
+						log "	Installing $INSTALL_ITEM from ${ORDERED_FOLDER} inside a chroot jail" information
+						
+						( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verboseR -dumplog -pkg "$CHROOT_TARGET/$INSTALL_ITEM" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+					else
+						log "	Installing $INSTALL_ITEM from ${ORDERED_FOLDER}" information
+						/usr/sbin/installer -verboseR -dumplog -pkg "$TARGET/$INSTALL_ITEM" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+					fi
+				else
+					if [ $PACKAGE_USE_CHROOT == true ]; then
+						log "	Installing $INSTALL_ITEM from ${ORDERED_FOLDER} with XML Choices file inside a chroot jail" information
+						
+						( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$CHROOT_TARGET/InstallerChoices.xml" -pkg "$CHROOT_TARGET/$INSTALL_ITEM" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+					else
+						log "	Installing $INSTALL_ITEM from ${ORDERED_FOLDER} with XML Choices file" information
+						/usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$TARGET/InstallerChoices.xml" -pkg "$TARGET/$INSTALL_ITEM" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+					fi
+				fi
+				
+			# naked .apps
+			elif [[ "$INSTALL_ITEM" == *.app ]]; then
+				log "Copying $INSTALL_ITEM to the Applications folder on $TARGET_IMAGE_MOUNT" detail
+				/bin/cp -R "$TARGET/$INSTALL_ITEM" "$TARGET_IMAGE_MOUNT/Applications/" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				
 				# Wipe the quarentine property away
-				/usr/bin/xattr -d -r "com.apple.quarantine" "$TARGET_IMAGE_MOUNT/Applications/$COPY_SOURCE" 2>/dev/null 1>/dev/null
+				/usr/bin/xattr -d -r "com.apple.quarantine" "$TARGET_IMAGE_MOUNT/Applications/$INSTALL_ITEM" 2>/dev/null 1>/dev/null
+			
+			else
+				log "Internal error: do not know what to do with: $INSTALL_ITEM" error
+				exit 1
 			fi
-		fi
-		
-		# if there was still nothing found, then report it
-		if [ $FOUND_PACKAGE == false ]; then
-			log "Nothing found to install in $ORIGINAL_TARGET (${ORDERED_FOLDER})" error
-		fi
+		done
+		shopt -u nocasematch
 		
 		# cleanup
 		if [ ! -z "$PACKAGE_DMG_MOUNT" ]; then
