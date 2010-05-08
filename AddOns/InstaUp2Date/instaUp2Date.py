@@ -254,7 +254,9 @@ class instaUpToDate:
 				itemsToProcess += self.packageGroups[thisSection]
 			
 			# Get the number of leading 0s we need
-			leadingZeroes = int(math.log10(len(itemsToProcess)))
+			leadingZeroes = 0
+			if len(itemsToProcess) > 0:
+				leadingZeroes = int(math.log10(len(itemsToProcess)))
 			fileNameFormat = '%0' + str(leadingZeroes + 1) + "d %s"
 			
 			# Create symlinks for all of the items
