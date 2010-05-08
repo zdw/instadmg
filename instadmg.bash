@@ -896,15 +896,23 @@ install_packages_from_folder() {
 			else
 				PACKAGE_DMG_FILE="$TARGET"
 				
-				# mount in /Volumes in the TARGET_IMAGE_MOUNT
-				TARGET=`/usr/bin/mktemp -d "$TARGET_IMAGE_MOUNT/private/tmp/$MOUNT_POINT_TEMPLATE"`
+				if [ $DISABLE_CHROOT == true ]; then
+					# mount in the host mount folder
+					TARGET=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
+				else
+					# mount in /Volumes in the TARGET_IMAGE_MOUNT
+					TARGET=`/usr/bin/mktemp -d "$TARGET_IMAGE_MOUNT/private/tmp/$MOUNT_POINT_TEMPLATE"`
+				fi
+
 				/bin/chmod og+x "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
 				PACKAGE_DMG_MOUNT="$TARGET"
 				log "	Mounting the package dmg: $DMG_INTERNAL_NAME ($ORIGINAL_TARGET) at: $TARGET" information
 				mount_dmg "$PACKAGE_DMG_FILE" "$TARGET"
 				
-				# get the chroot target string, in case we use it
-				CHROOT_TARGET=`basename $TARGET`; CHROOT_TARGET="/private/tmp/$CHROOT_TARGET"
+				if [ $DISABLE_CHROOT == fase ]; then
+					# get the chroot target string, in case we use it
+					CHROOT_TARGET=`basename $TARGET`; CHROOT_TARGET="/private/tmp/$CHROOT_TARGET"
+				fi
 				
 				# mark this as copied
 				TARGET_COPIED=true
