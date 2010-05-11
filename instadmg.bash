@@ -1060,9 +1060,8 @@ install_packages_from_folder() {
 			# remove up the mount point
 			/bin/rmdir "$PACKAGE_DMG_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 			PACKAGE_DMG_MOUNT=''
-		fi
 			
-		if [ $TARGET_COPIED == true ]; then
+		elif [ $TARGET_COPIED == true ]; then
 			# delete the copied folder
 			log "Removing the copied folder: ${TARGET_IMAGE_MOUNT}${CHROOT_TARGET}" detail
 			/bin/rm -Rf "${TARGET_IMAGE_MOUNT}${CHROOT_TARGET}" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
