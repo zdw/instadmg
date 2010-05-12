@@ -214,7 +214,7 @@ class instaUpToDate:
 			if packageLineMatch:
 				if currentSection == None:
 					# we have to have a place to put this
-					raise Exception() # TODO: improve error handling
+					raise Exception('Every item must belong to a section') # TODO: improve error handling
 				
 				thisPackage = installerPackage(
 					displayName = packageLineMatch.group("displayName"),
@@ -427,7 +427,13 @@ class installerPackage:
 					
 					if cacheFilePath is not None:
 						print("	Found in cache folder by file name")
+				
+				# an absolute path
+				if cacheFilePath is None and os.path.isabs(filePath) and os.path.exists(filePath):
+					cacheFilePath = filePath
 					
+					print("	Found at the absolute path provided")
+				
 				# try this as a relative path from cwd
 				if cacheFilePath is None and not os.path.isabs(filePath) and os.path.exists(filePath):
 					cacheFilePath = os.path.abspath(filePath)
@@ -443,7 +449,7 @@ class installerPackage:
 							break
 				
 				# final check to make sure the file exists
-				if not os.path.exists(cacheFilePath):
+				if cacheFilePath is None or not os.path.exists(cacheFilePath):
 					raise FileNotFoundException("The referenced file/folder does not exist: %s" % cacheFilePath)
 				
 			elif parsedSourceLocationURL.scheme in ["http", "https"]:
