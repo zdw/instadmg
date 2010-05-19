@@ -880,8 +880,12 @@ install_packages_from_folder() {
 		while [ -h "$TARGET" ]; do
 			# look into this being a dmg
 			NEW_LINK=`/usr/bin/readlink "$TARGET"`
-			BASE_LINK=`/usr/bin/dirname "$TARGET"`
-			TARGET="$BASE_LINK/$NEW_LINK"
+			if [[ "$NEW_LINK" == /* ]]; then
+				TARGET="$NEW_LINK"
+			else
+				BASE_LINK=`/usr/bin/dirname "$TARGET"`
+				TARGET="$BASE_LINK/$NEW_LINK"
+			fi
 		done
 		
 		# check for dmgs
@@ -1021,20 +1025,20 @@ install_packages_from_folder() {
 				if [ $CHOICES_FILE == false ]; then
 					# without an InstallerChoices.xml file
 					if [ $PACKAGE_USE_CHROOT == true ]; then
-						log "	Installing $INSTALL_ITEM from ${ORDERED_FOLDER} inside a chroot jail" information
+						log "	Installing $INSTALL_ITEM inside a chroot jail" information
 						
 						( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verboseR -dumplog -pkg "$CHROOT_TARGET/$INSTALL_ITEM" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 					else
-						log "	Installing $INSTALL_ITEM from ${ORDERED_FOLDER}" information
+						log "	Installing $INSTALL_ITEM" information
 						/usr/sbin/installer -verboseR -dumplog -pkg "$TARGET/$INSTALL_ITEM" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 					fi
 				else
 					if [ $PACKAGE_USE_CHROOT == true ]; then
-						log "	Installing $INSTALL_ITEM from ${ORDERED_FOLDER} with XML Choices file inside a chroot jail" information
+						log "	Installing $INSTALL_ITEM with Installer Choices file inside a chroot jail" information
 						
 						( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$CHROOT_TARGET/InstallerChoices.xml" -pkg "$CHROOT_TARGET/$INSTALL_ITEM" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 					else
-						log "	Installing $INSTALL_ITEM from ${ORDERED_FOLDER} with XML Choices file" information
+						log "	Installing $INSTALL_ITEM with Installer Choices file" information
 						/usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$TARGET/InstallerChoices.xml" -pkg "$TARGET/$INSTALL_ITEM" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 					fi
 				fi

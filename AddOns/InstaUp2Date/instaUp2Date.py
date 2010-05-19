@@ -265,9 +265,12 @@ class instaUpToDate:
 				
 				targetFileName = fileNameFormat % (itemCounter, thisItem.displayName)
 				targetFilePath = os.path.realpath(os.path.join(updateFolder, targetFileName))
-				pathFromTargetToSource = os.path.relpath(thisItem.filePath, os.path.dirname(targetFilePath))
 				
-				os.symlink(pathFromTargetToSource, targetFilePath)
+				if os.path.isabs(targetFilePath):
+					os.symlink(thisItem.filePath, targetFilePath)
+				else:
+					pathFromTargetToSource = os.path.relpath(thisItem.filePath, os.path.dirname(targetFilePath))
+					os.symlink(pathFromTargetToSource, targetFilePath)
 				# ToDo: capture and better explain any errors here
 				
 				assert os.path.exists(targetFilePath), "Something went wrong linking from %s to %s" % (targetFilePath, pathFromTargetToSource) # this should catch bad links
