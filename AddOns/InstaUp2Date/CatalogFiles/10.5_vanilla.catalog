@@ -14,6 +14,10 @@ OS Updates:
 	Java For MacOS X 10.5 Update 5	http://support.apple.com/downloads/DL924/en_US/JavaForMacOSX10.5Update5.dmg	sha1:20dd590192fb81a8f164b73727295ed2ac4f1693
 	Security Update 2010-003 for Leopard	http://support.apple.com/downloads/DL1027/en_US/SecUpd2010-003.dmg	sha1:3f82f68f5a96a0c103fcc3ad88da9451b48def08
 	Java For MacOS X 10.5 Update 6	http://support.apple.com/downloads/DL971/en_US/JavaForMacOSX10.5Update6.dmg	sha1:04d4d028aa60f0a855c5393f81a6ea0d1af475bc
+	
+	# unknown if previous updates are needed, keeping until tested
+	Java For MacOS X 10.5 Update 7	http://support.apple.com/downloads/DL971/en_US/JavaForMacOSX10.5Update7.dmg	sha1:bd7835ed10bd8a3145c94a922c13e1704a65d374
+
 	# waiting on AirPort Base Station Update 2010-003
 
 Apple Updates:
