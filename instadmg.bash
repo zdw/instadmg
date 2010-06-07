@@ -1050,7 +1050,7 @@ install_packages_from_folder() {
 			# naked .apps
 			elif [[ "$INSTALL_ITEM" == *.app ]]; then
 				log "Copying $INSTALL_ITEM to the Applications folder on $TARGET_IMAGE_MOUNT" detail
-				/bin/cp -R "$TARGET/$INSTALL_ITEM" "$TARGET_IMAGE_MOUNT/Applications/" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+				/bin/cp -R "$INSTALL_ITEM" "$TARGET_IMAGE_MOUNT/Applications/" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				
 				# Wipe the quarentine property away
 				/usr/bin/xattr -d -r "com.apple.quarantine" "$TARGET_IMAGE_MOUNT/Applications/$INSTALL_ITEM" 2>/dev/null 1>/dev/null
