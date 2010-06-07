@@ -865,6 +865,7 @@ install_packages_from_folder() {
 	
 	IFS=$'\n'
 	for ORDERED_FOLDER in $(/bin/ls -A1 "$SELECTED_FOLDER" | /usr/bin/awk "/^[[:digit:]]+.*$/" | /usr/bin/sort -n); do
+		
 		TARGET="$SELECTED_FOLDER/$ORDERED_FOLDER"
 		ORIGINAL_TARGET="$TARGET"
 		CHROOT_TARGET=''
@@ -878,7 +879,6 @@ install_packages_from_folder() {
 				
 		# first resolve any chain of symlinks
 		while [ -h "$TARGET" ]; do
-			# look into this being a dmg
 			NEW_LINK=`/usr/bin/readlink "$TARGET"`
 			if [[ "$NEW_LINK" == /* ]]; then
 				TARGET="$NEW_LINK"
@@ -889,9 +889,10 @@ install_packages_from_folder() {
 		done
 		
 		# check for dmgs
-		shopt -s nocasematch
+		shopt -s nocasematch # case insensitive matching
 		if [[ "$TARGET" == *.dmg ]]; then
-			# If it does not have a name it is not a dmg
+			
+			# use hdiutil to get a volume name
 			DMG_INTERNAL_NAME=`/usr/bin/hdiutil imageinfo "$TARGET" 2>/dev/null | awk '/^\tName:/ && sub("\tName: ", "")'`
 			if [ -z "$DMG_INTERNAL_NAME" ]; then
 				# this is an unknown file type, so we need to bail
@@ -930,7 +931,7 @@ install_packages_from_folder() {
 		if [[ "$TARGET" == *.pkg ]] || [[ "$TARGET" == *.mpkg ]] || [[ "$TARGET" == *.app ]]; then
 			# a naked package or .app
 			IFS=$'\n'
-			ITEM_LIST[${#ITEM_LIST[@]}]=`basename "$TARGET"`
+			ITEM_LIST[${#ITEM_LIST[@]}]="$TARGET"
 
 		elif [ -d "$TARGET" ]; then
 			# a folder of things
@@ -938,7 +939,7 @@ install_packages_from_folder() {
 			IFS=$'\n'
 			for THIS_ITEM in $(ls -A1 "$TARGET"); do
 				if [[ "$THIS_ITEM" == *.pkg ]] || [[ "$THIS_ITEM" == *.mpkg ]]; then
-					ITEM_LIST[${#ITEM_LIST[@]}]="$THIS_ITEM"
+					ITEM_LIST[${#ITEM_LIST[@]}]="$TARGET/$THIS_ITEM"
 				fi
 			done
 			
@@ -946,7 +947,7 @@ install_packages_from_folder() {
 			if [ ${#ITEM_LIST[@]} -eq 0 ]; then
 				for THIS_ITEM in $(ls -A1 "$TARGET"); do
 					if [[ "$THIS_ITEM" == *.app ]]; then
-						ITEM_LIST[${#ITEM_LIST[@]}]="$THIS_ITEM"
+						ITEM_LIST[${#ITEM_LIST[@]}]="$TARGET/$THIS_ITEM"
 					fi
 				done
 			fi
@@ -963,6 +964,7 @@ install_packages_from_folder() {
 		fi
 		
 		# install the items
+		IFS=$'\n'
 		for INSTALL_ITEM in $ITEM_LIST; do
 			
 			# packages
@@ -1022,24 +1024,26 @@ install_packages_from_folder() {
 				fi
 				
 				# install
+				INSTALL_ITEM_NAME=`basename "$INSTALL_ITEM"`
+				
 				if [ $CHOICES_FILE == false ]; then
 					# without an InstallerChoices.xml file
 					if [ $PACKAGE_USE_CHROOT == true ]; then
-						log "	Installing $INSTALL_ITEM inside a chroot jail" information
+						log "	Installing $INSTALL_ITEM_NAME inside a chroot jail" information
 						
-						( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verboseR -dumplog -pkg "$CHROOT_TARGET/$INSTALL_ITEM" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+						( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verboseR -dumplog -pkg "$CHROOT_TARGET/$INSTALL_ITEM_NAME" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 					else
-						log "	Installing $INSTALL_ITEM" information
-						/usr/sbin/installer -verboseR -dumplog -pkg "$TARGET/$INSTALL_ITEM" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+						log "	Installing $INSTALL_ITEM_NAME" information
+						/usr/sbin/installer -verboseR -dumplog -pkg "$INSTALL_ITEM" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 					fi
 				else
 					if [ $PACKAGE_USE_CHROOT == true ]; then
-						log "	Installing $INSTALL_ITEM with Installer Choices file inside a chroot jail" information
+						log "	Installing $INSTALL_ITEM_NAME with Installer Choices file inside a chroot jail" information
 						
-						( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$CHROOT_TARGET/InstallerChoices.xml" -pkg "$CHROOT_TARGET/$INSTALL_ITEM" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+						( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$CHROOT_TARGET/InstallerChoices.xml" -pkg "$CHROOT_TARGET/$INSTALL_ITEM_NAME" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 					else
-						log "	Installing $INSTALL_ITEM with Installer Choices file" information
-						/usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$TARGET/InstallerChoices.xml" -pkg "$TARGET/$INSTALL_ITEM" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+						log "	Installing $INSTALL_ITEM_NAME with Installer Choices file" information
+						/usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$TARGET/InstallerChoices.xml" -pkg "$INSTALL_ITEM" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 					fi
 				fi
 				
