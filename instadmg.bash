@@ -1043,7 +1043,7 @@ install_packages_from_folder() {
 						( cd "$TARGET_IMAGE_MOUNT"; /usr/sbin/chroot . /usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$CHROOT_TARGET/InstallerChoices.xml" -pkg "$CHROOT_TARGET/$INSTALL_ITEM_NAME" -target / ) 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 					else
 						log "	Installing $INSTALL_ITEM_NAME with Installer Choices file" information
-						/usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$TARGET/InstallerChoices.xml" -pkg "$INSTALL_ITEM" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+						/usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "`dirname "$INSTALL_ITEM"`/InstallerChoices.xml" -pkg "$INSTALL_ITEM" -target "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 					fi
 				fi
 				
