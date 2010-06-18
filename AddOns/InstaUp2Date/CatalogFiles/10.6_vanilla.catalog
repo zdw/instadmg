@@ -2,7 +2,7 @@
 # $Rev$ from $Date$
 
 Output Volume Name = Macintosh HD
-Output File Name = 10.6.3 Vanilla
+Output File Name = 10.6.4 Vanilla
 
 Base OS Disk:
 	# the first one should be disk 1 of an installer disk
