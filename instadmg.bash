@@ -326,17 +326,31 @@ mount_dmg() {
 		log "Internal error: mount_dmg called with invalid source file: $1" error
 	fi
 	
-	# Get the absolute path to the image
+	# Get the absolute path to the image, resolving any chain of symlinks
+	DMG_PATH="$1"
+	while [ -h "$DMG_PATH" ]; do
+		NEW_LINK=`/usr/bin/readlink "$DMG_PATH"`
+		if [[ "$NEW_LINK" == /* ]]; then
+			DMG_PATH="$NEW_LINK"
+		else
+			BASE_LINK=`/usr/bin/dirname "$TARGET"`
+			DMG_PATH="$BASE_LINK/$NEW_LINK"
+		fi
+	done
 	DMG_PATH=$( cd $( dirname "$1" ); echo "`pwd`/`basename "$1"`" )
 	
 	# Test to see if the image is already mounted
-	IFS=$'\n'
+	
+	# Get a list of mounted images
 	MOUNTED_IMAGES=`/usr/bin/hdiutil info -plist | /usr/bin/awk '/<key>image-path<\/key>/ { getline; gsub(/[[:space:]]*\<\/?string>/,""); print }'`
 	IMAGE_MOUNT_POINTS=`/usr/bin/hdiutil info -plist | /usr/bin/awk '/<key>mount-point<\/key>/ { getline; gsub(/[[:space:]]*\<\/?string>/,""); print }'`
+	
 	# convert to arrays
+	IFS=$'\n'
 	MOUNTED_IMAGES=( $MOUNTED_IMAGES )
 	IMAGE_MOUNT_POINTS=( $IMAGE_MOUNT_POINTS )
 	
+	# check to see if this is the same iage
 	for (( mountCounter = 0 ; mountCounter < ${#MOUNTED_IMAGES[@]} ; mountCounter++ )); do
 		if [ "$MOUNTED_IMAGES[$mountCounter]" == "$DMG_PATH" ]; then
 			# The image is already mounted
