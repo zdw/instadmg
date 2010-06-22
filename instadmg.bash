@@ -333,11 +333,11 @@ mount_dmg() {
 		if [[ "$NEW_LINK" == /* ]]; then
 			DMG_PATH="$NEW_LINK"
 		else
-			BASE_LINK=`/usr/bin/dirname "$TARGET"`
+			BASE_LINK=`/usr/bin/dirname "$DMG_PATH"`
 			DMG_PATH="$BASE_LINK/$NEW_LINK"
 		fi
 	done
-	DMG_PATH=$( cd $( dirname "$1" ); echo "`pwd`/`basename "$1"`" )
+	DMG_PATH=$( cd $( dirname "$DMG_PATH" ); echo "`pwd`/`basename "$DMG_PATH"`" )
 	
 	# Test to see if the image is already mounted
 	
@@ -625,8 +625,6 @@ find_base_os() {
 		log "Unable to find primary installer disk" error
 		exit 1
 	fi
-	
-	log "Found the image at: $CURRENT_OS_INSTALL_FILE" information
 }
 
 # Look for and mount a cached image
@@ -637,6 +635,17 @@ mount_cached_image() {
 	
 	# compatibility for old-style checksums (using colons)
 	OLD_STYLE_TARGET_IMAGE_CHECKSUM=''	# using colons
+	
+	while [ -h "$CURRENT_OS_INSTALL_FILE" ]; do
+		NEW_LINK=`/usr/bin/readlink "$CURRENT_OS_INSTALL_FILE"`
+		if [[ "$NEW_LINK" == /* ]]; then
+			CURRENT_OS_INSTALL_FILE="$NEW_LINK"
+		else
+			BASE_LINK=`/usr/bin/dirname "$CURRENT_OS_INSTALL_FILE"`
+			CURRENT_OS_INSTALL_FILE="$BASE_LINK/$NEW_LINK"
+		fi
+	done
+	CURRENT_OS_INSTALL_FILE=$( cd $( dirname "$CURRENT_OS_INSTALL_FILE" ); echo "`pwd`/`basename "$CURRENT_OS_INSTALL_FILE"`" )
 	
 	TARGET_IMAGE_CHECKSUM=`/usr/bin/hdiutil imageinfo "$CURRENT_OS_INSTALL_FILE" | /usr/bin/awk '/^Checksum Value:/ { print $3 }' | /usr/bin/sed 's/\\$//'`
 	
@@ -836,15 +845,14 @@ save_cached_image()	{
 	
 	# move the image to the cached folder with the appropriate name
 	TARGET_IMAGE_FILE="$BASE_IMAGE_CACHE/$TARGET_IMAGE_CHECKSUM.dmg"
-	/bin/mv "$SHADOW_FILE_LOCATION" "$TARGET_IMAGE_FILE"
+	
+	/usr/bin/hdiutil convert -format UDZO -imagekey zlib-level=6 -o "$TARGET_IMAGE_FILE" "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+	/bin/rm "$SHADOW_FILE_LOCATION"
+	
 	if [ $? -ne 0 ]; then
 		log "Unable to move the image to cache folder, unable to continue" error
 		exit 1
 	fi
-	
-	# NOTE: backing off this code for the moment... does not seem happy
-	# compress the image and store it in the new location
-	#/usr/bin/hdiutil convert -format UDZO -imagekey zlib-level=6 -o "$TARGET_IMAGE_FILE" "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	
 	# set the appropriate metadata on the file so that time-machine does not back it up
 	if [ -x /usr/bin/xattr ]; then
@@ -871,7 +879,7 @@ install_packages_from_folder() {
 	SELECTED_FOLDER="$1"
 	
 	log "Beginning Update Installs from $SELECTED_FOLDER" section
-
+	
 	if [ -z "$SELECTED_FOLDER" ]; then
 		log "install_packages_from_folder called without folder" error
 		exit 1;
@@ -946,7 +954,7 @@ install_packages_from_folder() {
 			# a naked package or .app
 			IFS=$'\n'
 			ITEM_LIST[${#ITEM_LIST[@]}]="$TARGET"
-
+		
 		elif [ -d "$TARGET" ]; then
 			# a folder of things
 			
@@ -1140,7 +1148,7 @@ close_up_and_compress() {
 	# We'll rename the newly installed system so that computers imaged with this will get the name
 	log "Rename the deployment volume: $ASR_FILESYSTEM_NAME" information
 	/usr/sbin/diskutil rename "$TARGET_IMAGE_MOUNT" "$ASR_FILESYSTEM_NAME" | (while read INPUT; do log "$INPUT " detail; done)
-
+	
 	# Create a new, compessed, image from the intermediary one and scan for ASR.
 	log "Create a read-only image" information
 	
