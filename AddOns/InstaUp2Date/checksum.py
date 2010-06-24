@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys, re
+import os, sys, re, time
 import hashlib, urllib, urllib2, urlparse, tempfile, optparse
 import atexit, shutil, stat
 
@@ -8,6 +8,18 @@ def cleanupTempFolder(tempFolder):
 	if os.path.exists(tempFolder) and os.path.isdir(tempFolder):
 		# ToDo: log this
 		shutil.rmtree(tempFolder, ignore_errors=True)
+
+def translateBytes(bytes):
+	if int(bytes) > 1024*1024*1024*1024:
+		return "%.1f TeraBytes" % (float(bytes)/(1024*1024*1024*1024))
+	elif int(bytes) > 1024*1024*1024:
+		return "%.1f GigaBytes" % (float(bytes)/(1024*1024*1024))
+	elif int(bytes) > 1024*1024:
+		return "%.1f MegaBytes" % (float(bytes)/(1024*1024))
+	elif int(bytes) > 1024:
+		return "%.1f KiloBytes" % (float(bytes)/1024)
+	else:
+		return "%i Bytes" % bytes
 
 def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expectedLength, chunkSize=None, copyToPath=None, reportProgress=False, reportStepPercentage=15, tabsToPrefix=0):
 	
@@ -27,24 +39,26 @@ def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expected
 		else:
 			chunkSize = 5*1024*1024 # 5 MiB for local files
 	
-	# prep for reporting progress
-	processedLength = 0
-	lastReport = 0
-	
 	thisChunkSize = 1 # to get us into the first loop
 	
 	# ToDo: log this better
 	if reportProgress == True:
 		
-		verb = "Checksumming"
+		# prep for reporting progress
+		processedLength = 0
+		lastReportString = '0%'
+		startReportTime = time.time()
+		lastReportTime = startReportTime
+		
+		verb = "Checksumm"
 		if hasattr(targetFileObject, "geturl"): # a ULR object
-			verb = "Downloading"
+			verb = "Download"
 		
 		if expectedLength == None:
-			sys.stderr.write("%s%s %s (unknown length) in chunks of %i bytes\n" % ("\t" * tabsToPrefix, verb, targetFileName, chunkSize))
+			sys.stderr.write("%s%sing %s (unknown length) in chunks of %s\n" % ("\t" * tabsToPrefix, verb, targetFileName, translateBytes(chunkSize)))
 			reportProgress = False
 		else:
-			sys.stderr.write("%s%s %s (%i bytes) in chunks of %i bytes: 0%%" % ("\t" * tabsToPrefix, verb, targetFileName, expectedLength, chunkSize))
+			sys.stderr.write("%s%sing %s (%s) in chunks of %s: %s" % ("\t" * tabsToPrefix, verb, targetFileName, translateBytes(expectedLength), translateBytes(chunkSize), lastReportString))
 		sys.stderr.flush()
 	
 	while thisChunkSize > 0:
@@ -52,20 +66,31 @@ def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expected
 		thisChunkSize = len(thisChunk)
 		hashFileObject.update(thisChunk)
 		
-		processedLength += thisChunkSize
-		
 		if reportProgress == True:
-			if processedLength >= expectedLength:
-				sys.stderr.write("  100%\n")
-				reportProgress = False
+			processedLength += thisChunkSize
 			
-			elif ((processedLength - lastReport)* 100)/expectedLength >= reportStepPercentage:
-				lastReport = processedLength
-				sys.stderr.write("  %i%%" % int(((processedLength)* 100)/expectedLength))
-		sys.stderr.flush()
+			# erase what we had last
+			sys.stdout.write('%s' % '\b' * len(lastReportString))
+			
+			# write out the current percentage
+			if processedLength >= expectedLength: # in case we go over
+				lastReportString = "100%"
+			else:
+				processSpeed = int(thisChunkSize/(time.time() - lastReportTime))
+				lastReportString = str(int(((processedLength)* 100)/expectedLength)) + '% (' + translateBytes(processSpeed) + '/sec)'
+				lastReportTime = time.time()
+			
+			sys.stdout.write(lastReportString)
+		
+		sys.stdout.flush()
 		
 		if writeFileObject != None:
 			writeFileObject.write(thisChunk)
+	
+	if reportProgress == True:
+		# wrap up the download reporting
+		processSpeed = int(processedLength/(time.time() - startReportTime))
+		sys.stdout.write('%s%sed (%s/sec)\n' % ('\b' * len(lastReportString), verb, translateBytes(processSpeed)))
 	
 	if writeFileObject != None:
 		writeFileObject.close()
@@ -154,13 +179,6 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 	# warm up the checksummer
 	hashGenerator = hashlib.new(checksumType)
 	
-	if overallType == "folder" and reportProgress == True:
-		sys.stderr.write("%sProcessing %i items: 0%%" % ("\t" * tabsToPrefix, len(targets)))
-		sys.stderr.flush()
-	
-	itemsProcessed = 0;
-	lastReport = 0;
-	
 	targetLength = None
 	
 	if overallType == "url":
@@ -214,12 +232,20 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 		if tempFolder != None:
 			writeTarget = os.path.join(tempFolder, thisTarget['relativePath'])
 		
-		cheksumFileObject(hashGenerator, readFile, os.path.basename(thisTarget['sourceUrl'].path), targetLength, chunkSize=chunkSize, copyToPath=writeTarget, reportProgress=True, reportStepPercentage=reportStepPercentage, tabsToPrefix=tabsToPrefix)			
+		cheksumFileObject(hashGenerator, readFile, os.path.basename(thisTarget['sourceUrl'].path), targetLength, chunkSize=chunkSize, copyToPath=writeTarget, reportProgress=reportProgress, reportStepPercentage=reportStepPercentage, tabsToPrefix=tabsToPrefix)			
 		readFile.close()
 		
 		fileName = os.path.basename(thisTarget['sourceUrl'].path)
 	
 	elif overallType == "folder":
+	
+		if reportProgress == True:
+			sys.stdout.write("%sProcessing %i items: 0%%" % ("\t" * tabsToPrefix, len(targets)))
+			sys.stdout.flush()
+			
+			lastReportString = '0%';
+			itemsProcessed = 0;
+	
 		for thisTarget in targets:
 			
 			if thisTarget['type'] == 'folder':
@@ -256,17 +282,20 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 				
 				readFile.close()
 				
-			itemsProcessed += 1
-			
-			# report progress if this is a folder
-			if overallType == "folder" and reportProgress == True:
+			# report progress
+			if reportProgress == True:
+				itemsProcessed += 1
+				
+				# erase what we had last
+				sys.stdout.write('%s' % '\b' * len(lastReportString))
+				
 				if itemsProcessed >= len(targets):
-					sys.stderr.write("  100%\n")
-					
-				elif ((itemsProcessed - lastReport)* 100)/len(targets) >= reportStepPercentage:
-					lastReport = itemsProcessed
-					sys.stderr.write("  %i%%" % int(((itemsProcessed)* 100)/len(targets)))
-				sys.stderr.flush()
+					lastReportString = "100%"
+				else:
+					lastReportString = str(int(((itemsProcessed)* 100)/len(targets))) + '%'
+				
+				sys.stdout.write(lastReportString)
+				sys.stdout.flush()
 	
 	
 	returnValues = {'name':fileName, 'checksum':hashGenerator.hexdigest(), 'checksumType':checksumType}
