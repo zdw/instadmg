@@ -10,7 +10,7 @@
 #
 
 SVN_REVISION=`/bin/echo '$Revision$' | /usr/bin/awk '{ print $2 }'`
-VERSION="1.6b2 (svn revision: $SVN_REVISION)"
+VERSION="1.6rc1 (svn revision: $SVN_REVISION)"
 PROGRAM=$( (basename $0) )
 
 
@@ -44,7 +44,7 @@ export CM_BUILD=CM_BUILD
 CREATE_DATE=`/bin/date +%y-%m-%d`
 
 # Default values
-DMG_SIZE=300g									# Size of the sparce image, this shoud be large enough
+DMG_SIZE=300g									# Size of the sparse image, this should be large enough
 ISO_CODE="en"									# ISO code that installer will use for the install language
 DISABLE_CHROOT=false							# Use a chroot jail while installing updates
 DISABLE_INSTALLD_CHROOT=false					# replace roots installd daemon with a chrooted version
@@ -87,12 +87,12 @@ ALLOWED_INSTALLER_DISK_NAMES=("Mac OS X Install Disc 1.dmg" "Mac OS X Install DV
 CHROOT_EXCLUDED_CODES=("edu.uc.daap.createuser.pkg")
 
 #<!-------------------- Working Variables ------------------>
-HOST_MOUNT_FOLDER=''					# Enclosing folder for the base image mount point, and othes if not using chroot
+HOST_MOUNT_FOLDER=''					# Enclosing folder for the base image mount point, and others if not using chroot
 TARGET_TEMP_FOLDER=''					# If using chroot packages will be copied into temp folders in here before install
 
 TARGET_IMAGE_MOUNT=''					# Where the target is mounted
 TARGET_IMAGE_FILE=''					# Location of the base image dmg if using cached images, the whole image dmg otherwise
-TARGET_IMAGE_CHECKSUM=''				# Checksum reported by diskutil for the OS Instal disk image
+TARGET_IMAGE_CHECKSUM=''				# Checksum reported by diskutil for the OS Install disk image
 
 SHADOW_FILE_LOCATION=''					# Location of the shadow file that is grafted onto the TARGET_IMAGE_MOUNT
 
@@ -133,7 +133,7 @@ CONSOLE_LOG_LEVEL=2
 PACKAGE_LOG_LEVEL=2
 
 # Log a message - takes up to two arguments
-#	The first argument is the message to send. If blank log prints the date to the standard places for the selcted log level
+#	The first argument is the message to send. If blank log prints the date to the standard places for the selected log level
 #	The second argument tells the type of message. The default is information. The options are:
 #		section		- header announcing that a new section is being started
 #		warning		- non-fatal warning
@@ -310,7 +310,7 @@ EOF
 
 mount_dmg() {
 	# input
-	#	$1 - path to file (manditory)
+	#	$1 - path to file (mandatory)
 	#	$2 - mount point (optional)
 	#	$3 - mount name (optional)
 	#	$4 - mount options (optional)
@@ -384,9 +384,9 @@ mount_dmg() {
 	
 	# Mount the image
 	if [ $ENABLE_NON_PARANOID_MODE == true ]; then
-		/usr/bin/hdiutil mount "$DMG_PATH" -nobrowse -noautofsck -noverify $4 -puppetstrings -owners on -mountpoint "$TEMP_MOUNT_POINT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+		/usr/bin/hdiutil attach "$DMG_PATH" -nobrowse -noautofsck -noverify $4 -owners on -mountpoint "$TEMP_MOUNT_POINT" 2>/dev/null 1>/dev/null
 	else
-		/usr/bin/hdiutil mount "$DMG_PATH" -nobrowse $4 -puppetstrings -owners on -mountpoint "$TEMP_MOUNT_POINT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+		/usr/bin/hdiutil attach "$DMG_PATH" -nobrowse $4 -owners on -mountpoint "$TEMP_MOUNT_POINT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
 	# Add the disk to the list of mount points
@@ -415,7 +415,7 @@ unmount_dmg() {
 	
 	FEEDBACK=`/usr/bin/hdiutil eject "$1" 2>&1`
 	if [ ${?} -ne 0 ]; then
-		echo "$FEEBACK" | (while read INPUT; do log "$INPUT " detail; done)
+		echo "$FEEDBACK" | (while read INPUT; do log "$INPUT " detail; done)
 		# for some reason it did not un-mount, so we will try again with more force
 		log "The image did not eject cleanly, so I will force it" information
 		FEEDBACK=`/usr/bin/hdiutil eject -force "$1" 2>&1`
@@ -427,7 +427,7 @@ unmount_dmg() {
 			echo "$FEEDBACK" | (while read INPUT; do log "$INPUT " detail; done)
 		fi
 	else
-		echo "$FEEBACK" | (while read INPUT; do log "$INPUT " detail; done)
+		echo "$FEEDBACK" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
 	# Remove the disk from MOUNTED_DMG_MOUNT_POINTS 
@@ -447,8 +447,8 @@ unmount_dmg() {
 }
 
 jail_installer_daemons() {
-	# create a modified vesion of the com.apple.installd.plist and launch it in replacement
-	log "Encasing instaler daemon in a chroot jail" information
+	# create a modified version of the com.apple.installd.plist and launch it in replacement
+	log "Encasing installer daemon in a chroot jail" information
 	
 	# make sure that installd is not running already
 	if [ ! -z `/bin/ps -axww -c -o "comm" | /usr/bin/awk '/^installd$/'` ]; then
@@ -531,7 +531,7 @@ check_setup () {
 	
 	# make sure that the CONSOLE_LOG_LEVEL is one of the accepted values
 	if [ "$CONSOLE_LOG_LEVEL" != "0" ] && [ "$CONSOLE_LOG_LEVEL" != "1" ] && [ "$CONSOLE_LOG_LEVEL" != "2" ] && [ "$CONSOLE_LOG_LEVEL" != "3" ] && [ "$CONSOLE_LOG_LEVEL" != "4" ]; then
-		log "The conole log level must be an integer between 0 and 4" error
+		log "The console log level must be an integer between 0 and 4" error
 	fi
 }
 
@@ -556,7 +556,7 @@ startup() {
 	
 	
 	for FOLDER_ITEM in $FOLDER_LIST; do
-		# sanitise the folder paths to make sure that they don't end in /
+		# sanitize the folder paths to make sure that they don't end in /
 		if [ ${!FOLDER_ITEM: -1} == '/' ] && [ "${!FOLDER_ITEM}" != '/' ]; then
 			THE_STR="${!FOLDER_ITEM}"
 			eval $FOLDER_ITEM='${THE_STR: 0: $((${#THE_STR} - 1)) }'
@@ -571,7 +571,7 @@ startup() {
 	# Create folder to enclose host mount points
 	
 	HOST_MOUNT_FOLDER=`/usr/bin/mktemp -d "$TEMPORARY_FOLDER/$MOUNT_FOLDER_TEMPLATE"`
-	/bin/chmod og+x "$HOST_MOUNT_FOLDER" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
+	/bin/chmod og+x "$HOST_MOUNT_FOLDER" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user through
 	log "Host mount folder: $HOST_MOUNT_FOLDER" detail
 	
 	# Get the MacOS X version information.
@@ -610,7 +610,7 @@ find_base_os() {
 			fi
 		done
 	else
-		# user should have suplpied us with everything we need
+		# user should have supplied us with everything we need
 		
 		# Check for the disk at the path supplied
 		if [ -f "$INSTALLER_DISK" ]; then
@@ -677,7 +677,7 @@ mount_cached_image() {
 	
 	# Create mount point for the (read-only) target
 	TARGET_IMAGE_MOUNT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
-	/bin/chmod og+x "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
+	/bin/chmod og+x "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user through
 	log "Current image mount point: $TARGET_IMAGE_MOUNT" detail
 	
 	# Decide the location for the shadow file to be attached to the target dmg
@@ -687,9 +687,9 @@ mount_cached_image() {
 	# Mount the image and the shadow file
 	log "Mounting the shadow file ($SHADOW_FILE_LOCATION) onto the cached image ($TARGET_IMAGE_FILE)" information
 	if [ $ENABLE_NON_PARANOID_MODE == true ]; then
-		/usr/bin/hdiutil mount "$TARGET_IMAGE_FILE" -nobrowse -noautofsck -noverify -puppetstrings -owners on -mountpoint "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+		/usr/bin/hdiutil attach "$TARGET_IMAGE_FILE" -nobrowse -noautofsck -noverify -owners on -mountpoint "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	else
-		/usr/bin/hdiutil mount "$TARGET_IMAGE_FILE" -nobrowse -puppetstrings -owners on -mountpoint "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+		/usr/bin/hdiutil attach "$TARGET_IMAGE_FILE" -nobrowse -owners on -mountpoint "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
 	# Check that the host OS is the same dot version as the target, or newer
@@ -712,7 +712,7 @@ mount_os_install() {
 	
 	mount_dmg "$CURRENT_OS_INSTALL_FILE"
 	if [ $? -ne 0 ]; then
-		log "Unable to mount the Instal Disc: $CURRENT_OS_INSTALL_FILE" error
+		log "Unable to mount the Install Disc: $CURRENT_OS_INSTALL_FILE" error
 		exit 1
 	fi
 	
@@ -761,7 +761,7 @@ create_and_mount_image() {
 	
 	# Create mount point for the (read-only) target
 	TARGET_IMAGE_MOUNT=`/usr/bin/mktemp -d "/tmp/$MOUNT_POINT_TEMPLATE"` # note: we do not use the temp folder, as it blows up
-	/bin/chmod og+x "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
+	/bin/chmod og+x "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user through
 	log "Current image mount point: $TARGET_IMAGE_MOUNT" detail
 	
 	# Decide the location for the shadow file to be attached to the target dmg
@@ -783,7 +783,7 @@ create_and_mount_image() {
 		exit 1
 	fi
 	
-	log "Target image: $SHADOW_FILE_LOCATION mounted sucessfuly at: $TARGET_IMAGE_MOUNT" information
+	log "Target image: $SHADOW_FILE_LOCATION mounted successfully at: $TARGET_IMAGE_MOUNT" information
 }
 
 # Install from installation media to the DMG
@@ -930,13 +930,13 @@ install_packages_from_folder() {
 					# mount in /Volumes in the TARGET_IMAGE_MOUNT
 					TARGET=`/usr/bin/mktemp -d "$TARGET_IMAGE_MOUNT/private/tmp/$MOUNT_POINT_TEMPLATE"`
 				fi
-
-				/bin/chmod og+x "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user thourgh
+				
+				/bin/chmod og+x "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user through
 				PACKAGE_DMG_MOUNT="$TARGET"
 				log "	Mounting the package dmg: $DMG_INTERNAL_NAME ($ORIGINAL_TARGET) at: $TARGET" information
-				mount_dmg "$PACKAGE_DMG_FILE" "$TARGET"
+				mount_dmg "$PACKAGE_DMG_FILE" "$TARGET" "" "-readonly"
 				
-				if [ $DISABLE_CHROOT == fase ]; then
+				if [ $DISABLE_CHROOT == false ]; then
 					# get the chroot target string, in case we use it
 					CHROOT_TARGET=`basename $TARGET`; CHROOT_TARGET="/private/tmp/$CHROOT_TARGET"
 				fi
@@ -995,7 +995,7 @@ install_packages_from_folder() {
 				if [ $DISABLE_CHROOT == false ] && [ $TARGET_COPIED == false ]; then
 					
 					CHROOT_TARGET=`/usr/bin/mktemp -d "$TARGET_IMAGE_MOUNT/private/tmp/$SOURCE_FOLDER_TEMPLATE"`
-					/bin/chmod og+x "$CHROOT_TARGET" # allow the installer user thourgh
+					/bin/chmod og+x "$CHROOT_TARGET" # allow the installer user through
 					
 					if [ -d "$TARGET" ]; then # note: we should never get here for dmg's
 						# copy all of the contents into the image, just in case something cross-references
@@ -1074,7 +1074,7 @@ install_packages_from_folder() {
 				log "Copying $INSTALL_ITEM to the Applications folder on $TARGET_IMAGE_MOUNT" detail
 				/bin/cp -R "$INSTALL_ITEM" "$TARGET_IMAGE_MOUNT/Applications/" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 				
-				# Wipe the quarentine property away
+				# Wipe the quarantine property away
 				/usr/bin/xattr -d -r "com.apple.quarantine" "$TARGET_IMAGE_MOUNT/Applications/$INSTALL_ITEM" 2>/dev/null 1>/dev/null
 			
 			else
@@ -1318,7 +1318,7 @@ if [ ! -z "$TESTING_TARGET_VOLUME" ]; then
 	log "Testing target volume set to: $TESTING_TARGET_VOLUME_DEV ($TESTING_TARGET_VOLUME)" info
 fi
 
-# Setup log names. The PKG log is a more consise history of what was installed.
+# Setup log names. The PKG log is a more concise history of what was installed.
 DATE_STRING=`/bin/date +%y.%m.%d-%H.%M`
 LOG_FILE="${LOG_FOLDER}/${DATE_STRING}.debug.log"		# The debug log
 PKG_LOG="${LOG_FOLDER}/${DATE_STRING}.package.log"		# List of packages installed
