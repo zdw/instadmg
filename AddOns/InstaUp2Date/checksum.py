@@ -7,19 +7,29 @@ import atexit, shutil, stat
 class statusHandler:
 	import sys
 	
-	statusMessage	= ''
-	updateMessage	= ''
+	linePrefix			= ''
+	linePrefixWritten	= True
 	
-	outputChannel	= sys.stdout
+	statusMessage		= ''
+	updateMessage		= ''
 	
-	def __init__(self, outputChannel=None, statusMessage=None, updateMessage=None):
+	outputChannel		= sys.stderr
+	
+	def __init__(self, outputChannel=None, linePrefix=None, statusMessage=None, updateMessage=None):
 		if outputChannel is not None:
 			self.outputChannel = outputChannel
+		
+		self.linePrefix = linePrefix	# Note: we are delaying writing anything untill we have something other than the prefix to write
+		self.linePrefixWritten = False
 		
 		self.update(statusMessage, updateMessage)
 	
 	def update(self, statusMessage=None, updateMessage=None):
 		lengthChange = 0
+		
+		if self.linePrefixWritten is False and (statusMessage is not None or updateMessage is not None):
+			self.outputChannel.write(self.linePrefix)
+			self.linePrefixWritten = True
 		
 		if statusMessage is not None:
 			oldLength = len(self.statusMessage) + len(self.updateMessage)
@@ -45,11 +55,6 @@ class statusHandler:
 			self.outputChannel.write('%s%s' % (' ' * lengthChange, '\b' * lengthChange))
 		
 		self.outputChannel.flush()
-
-def cleanupTempFolder(tempFolder):
-	if os.path.exists(tempFolder) and os.path.isdir(tempFolder):
-		# ToDo: log this
-		shutil.rmtree(tempFolder, ignore_errors=True)
 
 def secondsToReadableTime(seconds):
 	seconds = int(math.fabs(seconds))
@@ -155,24 +160,31 @@ def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expected
 	return (processedLength, time.time() - startReportTime)
 
 
-def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", outputFolder=None, returnCopy=False, chunkSize=None, progressReporter=True, reportStepPercentage=15, tabsToPrefix=0):
+def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", outputFolder=None, chunkSize=None, progressReporter=True):
 	'''Return the checksum of a given file or folder'''
 	
 	# validate input
-	if location == None:
+	if location is None:
 		raise Exception('Checksum called with a empty file location')
-	if checksumType == None:
+	if checksumType is None:
 		raise Exception('Checksum called with a empty checksum type')
+	if outputFolder is not None and not os.path.isdir(outputFolder):
+		raise Exception('The output folder given does not exist, or is not a folder: ' + outputFolder)
 	
 	# setup a temporary folder to house the downloads if we are bringing this down
-	tempFolder = None
-	cacheLocation = None
-	if returnCopy == True:
-		tempFolder = tempfile.mkdtemp(prefix=tempFolderPrefix, dir='/tmp') # note: the default tempdir would not go away in a reboot
-		if tempFolder == None:
+	cacheFolder = None
+	
+	if outputFolder is not None:
+		cacheFolder = tempfile.mkdtemp(prefix=tempFolderPrefix, dir='/tmp')
+		if cacheFolder is None:
 			raise Exception('Internal error: unable to create tempfolder')
-		atexit.register(cleanupTempFolder, tempFolder)
-		cacheLocation = tempFolder
+		
+		# make sure we cleanup after outselves
+		def cleanupTempFolder(cacheFolder):
+			if os.path.exists(cacheFolder) and os.path.isdir(cacheFolder):
+				# ToDo: log this
+				shutil.rmtree(cacheFolder, ignore_errors=True)
+		atexit.register(cleanupTempFolder, cacheFolder)
 	
 	# warm up the checksummer
 	hashGenerator = hashlib.new(checksumType)
@@ -197,7 +209,10 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 		# we have a local path, and need to check if we have a folder
 		# ToDo: figure out what to do with file:// urls
 		
-		fileName = location
+		fileName = os.path.basename(os.path.abspath(location))
+		
+		if chunkSize is None:
+			chunkSize = 5*1024*1024 # 5 MiB for local files
 		
 		if not os.path.exists(location):
 			raise Exception('Checksum called with a file location that does not exist: %s' % location)
@@ -207,7 +222,6 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 			startReportTime = time.time()
 			
 			if progressReporter is not None:
-				sys.stdout.write("\t" * tabsToPrefix)
 				progressReporter.update(statusMessage="Building file list: ", updateMessage="0 items")
 			
 			# get a quick count
@@ -233,16 +247,16 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 			
 			# process the items
 			processedCount = 0
-			for thisFolder, subFolders, subFiles in os.walk(targetFolder):
+			for processFolder, subFolders, subFiles in os.walk(targetFolder):
 				
 				for thisFile in subFiles:
-					thisFilePath = os.path.join(thisFolder, thisFile)
-					relativeFilePath = os.path.join(thisFolder.replace(targetFolder, '', 1), thisFile)
+					thisFilePath = os.path.join(processFolder, thisFile)
+					relativeFilePath = os.path.join(processFolder.replace(targetFolder, '', 1), thisFile)
 					if os.path.isabs(relativeFilePath):
 						relativeFilePath = relativeFilePath[1:]
 					
 					if os.path.islink(thisFilePath):
-						if tempFolder is not None:
+						if cacheFolder is not None:
 							os.symlink(os.readlink(thisFilePath), os.path.join(tempFolder, relativeFilePath))
 						
 						hashGenerator.update("softlink %s to %s" % (os.readlink(thisFilePath), relativeFilePath))
@@ -255,8 +269,8 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 						
 						targetLength = os.stat(thisFilePath)[stat.ST_SIZE]
 						writeTarget = None
-						if tempFolder != None:
-							writeTarget = os.path.join(tempFolder, relativeFilePath)
+						if cacheFolder != None:
+							writeTarget = os.path.join(cacheFolder, relativeFilePath)
 						
 						# add the path to the checksum
 						hashGenerator.update("file " + relativeFilePath)
@@ -270,6 +284,30 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 					processedCount += 1
 					if progressReporter is not None:
 						progressReporter.update(updateMessage="%i of %i" % (processedCount, itemCount))
+				
+				for thisFolder in subFolders:
+					thisFolderPath = os.path.join(processFolder, thisFolder)
+					relativeFolderPath = os.path.join(processFolder.replace(targetFolder, '', 1), thisFolder)
+					if os.path.isabs(relativeFolderPath):
+						relativeFolderPath = relativeFolderPath[1:]
+					
+					if os.path.islink(thisFolderPath):
+						if cacheFolder is not None:
+							os.symlink(os.readlink(thisFilePath), os.path.join(cacheFolder, relativeFilePath))
+						
+						hashGenerator.update("softlink %s to %s" % (os.readlink(thisFilePath), relativeFilePath))
+					
+					else:
+						if cacheFolder != None:
+							os.mkdir( os.path.join(cacheLocation, relativeFolderPath) )
+						
+						# add this to the hash
+						hashGenerator.update("folder %s" % relativeFolderPath)
+					
+					processedCount += 1
+					if progressReporter is not None:
+						progressReporter.update(updateMessage="%i of %i" % (processedCount, itemCount))
+					
 			
 			if progressReporter is not None:
 				progressReporter.update(statusMessage='Checksummed %s (%i items) in %s\n' % (fileName, processedCount, secondsToReadableTime(time.time() - startReportTime)), updateMessage='')
@@ -277,8 +315,6 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 		elif os.path.isfile(location):
 			
 			fileName = os.path.basename(location)
-			chunkSize = 5*1024*1024 # 5 MiB for local files
-			
 			readFile = open(location)
 			if readFile == None:
 				raise Exception("Unable to open file for checksumming: %s" % location)
@@ -286,8 +322,8 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 			targetLength = os.stat(location)[stat.ST_SIZE]
 			
 			writeTarget = None
-			if tempFolder != None:
-				writeTarget = os.path.join(tempFolder, os.path.basename(location))
+			if cacheFolder != None:
+				writeTarget = os.path.join(cacheFolder, os.path.basename(location))
 			
 			if progressReporter is not None:
 				progressReporter.update(statusMessage="Checksumming %s (%s) in chunks of %s: " % (fileName, translateBytes(targetLength), translateBytes(chunkSize)), updateMessage="0%")
@@ -304,7 +340,8 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 	
 	elif locationURL.scheme in ['http', 'https']:
 		
-		chunkSize = 1024*100 # 100KiB for urls
+		if chunkSize is None:
+			chunkSize = 1024*100 # 100KiB for urls
 		
 		try:
 			readFile = urllib2.urlopen(location)
@@ -333,17 +370,17 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 			fileName = httpHeader.getheader("content-disposition").strip()
 		
 		writeTarget = None
-		if tempFolder != None:
-			writeTarget = os.path.join(tempFolder, fileName)
-			cacheLocation = writeTarget
+		if cacheFolder != None:
+			writeTarget = os.path.join(cacheFolder, fileName)
+			cacheFolder = writeTarget
 		
 		if progressReporter is not None:
 			if targetLength is not None:
-				progressReporter.update(statusMessage="Downloading %s (%s) in chunks of %s: " % (fileName, translateBytes(targetLength), translateBytes(1024*100)), updateMessage="0%")
+				progressReporter.update(statusMessage="Downloading %s (%s) in chunks of %s: " % (fileName, translateBytes(targetLength), translateBytes(chunkSize)), updateMessage="0%")
 			else:
-				progressReporter.update(statusMessage="Downloading %s (unknown length) in chunks of %s: " % (fileName, translateBytes(1024*100)), updateMessage=translateBytes(0))
+				progressReporter.update(statusMessage="Downloading %s (unknown length) in chunks of %s: " % (fileName, translateBytes(chunkSize)), updateMessage=translateBytes(0))
 		
-		processedBytes, processSeconds = cheksumFileObject(hashGenerator, readFile, fileName, targetLength, copyToPath=writeTarget, chunkSize=1024*100, progressReporter=progressReporter)
+		processedBytes, processSeconds = cheksumFileObject(hashGenerator, readFile, fileName, targetLength, copyToPath=writeTarget, chunkSize=chunkSize, progressReporter=progressReporter)
 		
 		if progressReporter is not None:
 			progressReporter.update(statusMessage="Downloaded %s (%s) in %s (%s/sec)\n" % (fileName, translateBytes(processedBytes), secondsToReadableTime(processSeconds), translateBytes(processedBytes/processSeconds)), updateMessage='')
@@ -356,8 +393,8 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 	returnValues = {'name':fileName, 'checksum':hashGenerator.hexdigest(), 'checksumType':checksumType}
 	
 	# Return the location of the local copy if we were asked to
-	if returnCopy == True and cacheLocation != None:
-		returnValues["cacheLocation"] = cacheLocation
+	if outputFolder is not None:
+		returnValues["cacheLocation"] = cacheFolder
 	
 	return returnValues
 
@@ -372,7 +409,7 @@ if __name__ == "__main__":
 	optionParser.add_option("-a", "--checksum-algorithm", default="sha1", action="store", dest="checksumAlgorithm", choices=allowedChecksumAlgorithms, help="Disable progress notifications")
 	optionParser.add_option("-d", "--disable-progress", default=True, action="store_false", dest="reportCheckSum", help="Disable progress notifications")
 	optionParser.add_option("-s", "--chunk-size", default=None, action="store", type="int", dest="chunkSize", help="Folder to copy dat to")
-	optionParser.add_option("-t", "--output-folder", default=None, action="store", dest="outputFolder", type="string", help="Folder to copy dat to")
+	optionParser.add_option("-t", "--output-folder", default=None, action="store", dest="outputFolder", type="string", help="Folder to copy data to")
 	(options, args) = optionParser.parse_args()
 	
 	for location in args:

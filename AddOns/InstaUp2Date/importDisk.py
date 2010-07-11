@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import sys, os, re, subprocess, optparse, Foundation
-import checksum, threading, time
+import sys, os, re, time, subprocess, Foundation
+#import threading
 
 def getMountPointFromBSDName(diskBSDName):
 	''' Return the mount point for an given disk '''
@@ -145,6 +145,8 @@ def getPossibleMountPoints():
 
 
 def main():
+	import optparse
+	
 	startTime = time.time()
 	
 	compressionChoices = ['zlib', 'bzip2']

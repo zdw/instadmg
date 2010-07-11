@@ -535,9 +535,7 @@ class installerPackage:
 		else:
 			raise Exception("cacheFolders is not the right format: %s" % cacheFolders)
 		
-		# ToDo: put in logging of this event
-		
-		# create a list of cache folder to check
+		processReporter = None
 		
 		for thisCacheFolder in cacheFolders:
 			assert os.path.isdir(thisCacheFolder), "The cache folder does not exist or is not a folder: %s" % thisCacheFolder
@@ -545,15 +543,15 @@ class installerPackage:
 			# ToDo: think through the idea of having nested folders
 			for thisItemName in os.listdir(thisCacheFolder):
 				
-				# check for an item with the same name
-				if itemName is not None and thisItemName == itemName:
-					if checksumValue == checksum.checksum(os.path.join(thisCacheFolder, thisItemName), checksumType, tabsToPrefix=1)['checksum']:
-						return os.path.join(thisCacheFolder, thisItemName)
+				itemNameCheksum = os.path.splitext(thisItemName)[0].split(" ")[-1]
 				
-				# check to see if the last "word" of the item name is the checksum string and is the same
-				itemNameStriped = os.path.splitext(thisItemName)[0]
-				if itemNameStriped.split(" ")[-1] == checksumType + "-" + checksumValue:
-					if checksumValue == checksum.checksum(os.path.join(thisCacheFolder, thisItemName), checksumType, tabsToPrefix=1)['checksum']:
+				# check for an item with the same name or if it contains the proper checksum value
+				if itemName is not None and (thisItemName == itemName or itemNameCheksum == checksumType + "-" + checksumValue):
+				
+					if processReporter is None:
+						processReporter = checksum.statusHandler(linePrefix="\t")
+					
+					if checksumValue == checksum.checksum(os.path.join(thisCacheFolder, thisItemName), checksumType=checksumType, progressReporter=processReporter)['checksum']:
 						return os.path.join(thisCacheFolder, thisItemName)
 		
 		return None
