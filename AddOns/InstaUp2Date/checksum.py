@@ -5,29 +5,39 @@ import hashlib, urllib, urllib2, urlparse, tempfile, optparse
 import atexit, shutil, stat
  
 class statusHandler:
-	import sys
 	
-	linePrefix			= ''
-	linePrefixWritten	= True
+	linePrefix				= ''
+	linePrefixWritten		= True
 	
-	statusMessage		= ''
-	updateMessage		= ''
+	statusMessage			= ''
 	
-	outputChannel		= sys.stderr
+	updateMessage			= ''
+	unwrittenUpdateMessage	= None
 	
-	def __init__(self, outputChannel=None, linePrefix=None, statusMessage=None, updateMessage=None):
+	outputChannel			= sys.stderr
+	
+	throttleUpdateSeconds	= .125				# limit updates to once every this many seconds, 0 is constant updates
+	lastUpdateTime			= None
+	
+	def __init__(self, outputChannel=None, linePrefix=None, statusMessage=None, updateMessage=None, throttleUpdateSeconds=None):
 		if outputChannel is not None:
 			self.outputChannel = outputChannel
+		
+		if throttleUpdateSeconds is not None:
+			self.throttleUpdateSeconds = float(throttleUpdateSeconds)
 		
 		self.linePrefix = linePrefix	# Note: we are delaying writing anything untill we have something other than the prefix to write
 		self.linePrefixWritten = False
 		
+		self.lastUpdateTime = time.time()
+		
 		self.update(statusMessage, updateMessage)
 	
-	def update(self, statusMessage=None, updateMessage=None):
+	def update(self, statusMessage=None, updateMessage=None, forceOutput=False):
+		
 		lengthChange = 0
 		
-		if self.linePrefixWritten is False and (statusMessage is not None or updateMessage is not None):
+		if self.linePrefixWritten is False and self.linePrefix not in ['', None] and (statusMessage is not None or updateMessage is not None):
 			self.outputChannel.write(self.linePrefix)
 			self.linePrefixWritten = True
 		
@@ -36,13 +46,27 @@ class statusHandler:
 			self.outputChannel.write('\b' * oldLength)
 			
 			self.statusMessage = str(statusMessage)
+			
 			if updateMessage is not None:
 				self.updateMessage = str(updateMessage)
+				self.unwrittenUpdateMessage = None
+				
+			elif self.unwrittenUpdateMessage is not None:
+				self.updateMessage = self.unwrittenUpdateMessage
+				self.unwrittenUpdateMessage = None
 			
-			lengthChange = oldLength - (len(self.statusMessage) + len(self.updateMessage))
+			lengthChange = oldLength - len(self.statusMessage) - len(self.updateMessage)
+			#print lengthChange, oldLength, len(self.statusMessage), len(self.updateMessage)
 			self.outputChannel.write(self.statusMessage + self.updateMessage)
 		
 		elif updateMessage is not None:
+			
+			if forceOutput is False and self.throttleUpdateSeconds != 0 and (time.time() - self.lastUpdateTime) < self.throttleUpdateSeconds:
+				self.unwrittenUpdateMessage = updateMessage
+				return # limit writing to the terminal, to keep it from absorbing too much cpu
+			
+			self.unwrittenUpdateMessage = None
+			
 			oldLength = len(self.updateMessage)
 			self.outputChannel.write('\b' * oldLength)
 			
@@ -50,10 +74,21 @@ class statusHandler:
 			
 			lengthChange = oldLength - len(self.updateMessage)
 			self.outputChannel.write(self.updateMessage)
+		
+		elif forceOutput is True:
+			oldLength = len(self.statusMessage) + len(self.updateMessage)
 			
+			if self.unwrittenUpdateMessage is not None:
+				self.updateMessage = self.unwrittenUpdateMessage
+				self.unwrittenUpdateMessage = None
+			
+			self.outputChannel.write('\b' * oldLength)
+			self.outputChannel.write(self.statusMessage + self.updateMessage)
+		
 		if lengthChange > 0:
 			self.outputChannel.write('%s%s' % (' ' * lengthChange, '\b' * lengthChange))
 		
+		self.lastUpdateTime = time.time()
 		self.outputChannel.flush()
 
 def secondsToReadableTime(seconds):
@@ -83,19 +118,19 @@ def secondsToReadableTime(seconds):
 			responce += "%i second" % seconds
 	
 	if responce == "":
-		responce = "< one second"
+		responce = "less than one second"
 	
 	return responce.strip()
 
 def translateBytes(bytes):
-	if int(bytes) > 1024*1024*1024*1024:
-		return "%.1f TeraBytes" % (float(bytes)/(1024*1024*1024*1024))
-	elif int(bytes) > 1024*1024*1024:
-		return "%.1f GigaBytes" % (float(bytes)/(1024*1024*1024))
-	elif int(bytes) > 1024*1024:
-		return "%.1f MegaBytes" % (float(bytes)/(1024*1024))
-	elif int(bytes) > 1024:
-		return "%.1f KiloBytes" % (float(bytes)/1024)
+	if int(bytes) >= 1024*1024*1024*1024:
+		return "%.1f Terabytes" % (float(bytes)/(1024*1024*1024*1024))
+	elif int(bytes) >= 1024*1024*1024:
+		return "%.1f Gigabytes" % (float(bytes)/(1024*1024*1024))
+	elif int(bytes) >= 1024*1024:
+		return "%.1f Megabytes" % (float(bytes)/(1024*1024))
+	elif int(bytes) >= 1024:
+		return "%.1f Kilobytes" % (float(bytes)/1024)
 	else:
 		return "%i Bytes" % bytes
 
@@ -212,7 +247,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 		fileName = os.path.basename(os.path.abspath(location))
 		
 		if chunkSize is None:
-			chunkSize = 5*1024*1024 # 5 MiB for local files
+			chunkSize = 1*1024*1024 # 1 MiB chunks for local files
 		
 		if not os.path.exists(location):
 			raise Exception('Checksum called with a file location that does not exist: %s' % location)
@@ -310,7 +345,8 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 					
 			
 			if progressReporter is not None:
-				progressReporter.update(statusMessage='Checksummed %s (%i items) in %s\n' % (fileName, processedCount, secondsToReadableTime(time.time() - startReportTime)), updateMessage='')
+				progressReporter.update(statusMessage='Checksummed %s (%i items) in %s' % (fileName, processedCount, secondsToReadableTime(time.time() - startReportTime)), updateMessage='', forceOutput=True)
+				
 			
 		elif os.path.isfile(location):
 			
@@ -331,7 +367,8 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 			processedBytes, processSeconds = cheksumFileObject(hashGenerator, readFile, os.path.basename(location), targetLength, chunkSize=chunkSize, copyToPath=writeTarget, progressReporter=progressReporter)
 			
 			if progressReporter is not None:
-				progressReporter.update(statusMessage='Checksummed %s (%s) in %s (%s/sec)\n' % (fileName, translateBytes(processedBytes), secondsToReadableTime(processSeconds), translateBytes(processedBytes/processSeconds)), updateMessage='')
+				progressReporter.update(statusMessage='Checksummed %s (%s) in %s (%s/sec)' % (fileName, translateBytes(processedBytes), secondsToReadableTime(processSeconds), translateBytes(processedBytes/processSeconds)), updateMessage='', forceOutput=True)
+				progressReporter.outputChannel.write('\n')
 			
 			readFile.close()
 			
@@ -383,7 +420,8 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 		processedBytes, processSeconds = cheksumFileObject(hashGenerator, readFile, fileName, targetLength, copyToPath=writeTarget, chunkSize=chunkSize, progressReporter=progressReporter)
 		
 		if progressReporter is not None:
-			progressReporter.update(statusMessage="Downloaded %s (%s) in %s (%s/sec)\n" % (fileName, translateBytes(processedBytes), secondsToReadableTime(processSeconds), translateBytes(processedBytes/processSeconds)), updateMessage='')
+			progressReporter.update(statusMessage="Downloaded %s (%s) in %s (%s/sec)" % (fileName, translateBytes(processedBytes), secondsToReadableTime(processSeconds), translateBytes(processedBytes/processSeconds)), updateMessage='')
+			progressReporter.outputChannel.write('\n')
 		
 		readFile.close()
 		

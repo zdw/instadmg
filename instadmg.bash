@@ -1149,6 +1149,9 @@ close_up_and_compress() {
 	log "Rename the deployment volume: $ASR_FILESYSTEM_NAME" information
 	/usr/sbin/diskutil rename "$TARGET_IMAGE_MOUNT" "$ASR_FILESYSTEM_NAME" | (while read INPUT; do log "$INPUT " detail; done)
 	
+	# Use fsck_hfs to make sure we don't run into the fragmented catalog problem
+	# ToDo: figure out a way to fsck_hfs -r this filesystem (does not work with shadow files)
+	
 	# Create a new, compessed, image from the intermediary one and scan for ASR.
 	log "Create a read-only image" information
 	

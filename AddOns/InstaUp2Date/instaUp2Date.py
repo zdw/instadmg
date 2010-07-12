@@ -13,23 +13,6 @@ import checksum # this is part of the instadmg suite
 svnRevision					= int('$Revision$'.split(" ")[1])
 versionString				= "0.5b (svn revision: %i)" % svnRevision
 
-relativePathToInstaDMG		= "../../" # the relative path between InstaUp2date and InstaDMG
-relativePathFromInstaDMG	= "AddOns/InstaUp2Date/"
-instaDMGName				= "instadmg.bash" # name of the InstaDMG executable
-
-# this group needs to be relative to InstaDMG
-appleUpdatesFolder			= "InstallerFiles/BaseUpdates"
-customPKGFolder 			= "InstallerFiles/CustomPKG"
-
-userSuppliedPKGFolder		= "InstallerFiles/InstaUp2DatePackages" # user-created packages
-
-catalogFolderName			= "CatalogFiles"
-catalogFileExension			= ".catalog"
-
-cacheFolder					= "Caches/InstaUp2DateCache" # the location of the cache folder relative to the InstaDMG folder
-
-baseOSSectionName			= "Base OS Disk"
-
 allowedCatalogFileSettings	= [ "ISO Language Code", "Output Volume Name", "Output File Name" ]
 
 # these should be in the order they run in
@@ -38,15 +21,14 @@ addedSectionTypes			= [ "Apple Updates", "Third Party Software", "Third Party Se
 
 #------------------------RUNTIME ADJUSTMENTS-------------------------
 
-absPathToInstaDMGFolder		= os.path.normpath(os.path.join( os.path.abspath(os.path.dirname(sys.argv[0])), relativePathToInstaDMG ))
+absPathToInstaDMGFolder		= os.path.normpath(os.path.join( os.path.abspath(os.path.dirname(sys.argv[0])), "../../" ))
 
-appleUpdatesFolderPath		= os.path.join(absPathToInstaDMGFolder, appleUpdatesFolder)
-customPKGFolderPath			= os.path.join(absPathToInstaDMGFolder, customPKGFolder)
+appleUpdatesFolderPath		= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "InstallerFiles", "BaseUpdates"))
+customPKGFolderPath			= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "InstallerFiles", "CustomPKG"))
+userSuppliedPKGFolderPath	= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "InstallerFiles", "InstaUp2DatePackages"))
+baseOSFolderPath			= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "InstallerFiles", "Base OS Disk"))
 
-userSuppliedPKGFolderPath	= os.path.join(absPathToInstaDMGFolder, userSuppliedPKGFolder)
-cacheFolderPath				= os.path.join(absPathToInstaDMGFolder, cacheFolder)
-
-catalogFolderPath			= os.path.join(os.path.dirname(sys.argv[0]), catalogFolderName)
+cacheFolderPath				= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "Caches", "InstaUp2DateCache"))
 
 #-------------------------------CLASSES------------------------------
 
@@ -61,18 +43,20 @@ class instaUpToDate:
 		
 	#---------------------Class Variables-----------------------------
 	
-	sectionStartParser	= re.compile('^(?P<sectionName>[^\t]+):\s*(#.*)?$')
-	packageLineParser	= re.compile('^\t(?P<displayName>[^\t]*)\t(?P<fileLocation>[^\t]+)\t(?P<fileChecksum>\S+)\s*(#.*)?$')
-	emptyLineParser		= re.compile('^\s*(?P<comment>#.*)?$')
-	settingLineParser	= re.compile('^(?P<variableName>[^=]+) = (?P<variableValue>.*)')
-	includeLineParser	= re.compile('^\s*include-file:\s+(?P<location>.*)(\s*#.*)?$')
+	sectionStartParser		= re.compile('^(?P<sectionName>[^\t]+):\s*(#.*)?$')
+	packageLineParser		= re.compile('^\t(?P<displayName>[^\t]*)\t(?P<fileLocation>[^\t]+)\t(?P<fileChecksum>\S+)\s*(#.*)?$')
+	emptyLineParser			= re.compile('^\s*(?P<comment>#.*)?$')
+	settingLineParser		= re.compile('^(?P<variableName>[^=]+) = (?P<variableValue>.*)')
+	includeLineParser		= re.compile('^\s*include-file:\s+(?P<location>.*)(\s*#.*)?$')
+	
+	fileExtensions			= ['.catalog']
 	
 	#--------------------Instance Variables---------------------------
-
+	
+	sectionFolders			= None
+	
 	packageGroups 			= None	# a Hash, init-ed in cleanInstaDMGFolders
 	parsedFiles 			= None	# an Array, for loop checking
-	
-	absPathToInstaDMGFolder	= None
 	
 	# defaults
 	outputVolumeNameDefault = "MacintoshHD"
@@ -83,7 +67,7 @@ class instaUpToDate:
 	#---------------------Class Functions-----------------------------
 	
 	@classmethod
-	def getCatalogFullPath(myClass, catalogFileInput):
+	def getCatalogFullPath(myClass, catalogFileInput, catalogFolders):
 		'''Classmethod to translate input to a abs-path from one of the accepted formats (checked in this order):
 	- ToDo: http or https reference (will be downloaded and temporary filepath returned)
 	- absolute path to a file
@@ -91,72 +75,117 @@ class instaUpToDate:
 	- relative path from CatalogFiles folder, with or without the .catalog extension
 	- relative path from the pwd, with or without the .catalog extension
 '''
-		global catalogFolderName, catalogFileExension
 		
-		absPathToCatalogFilesFolder = os.path.abspath( os.path.join(os.path.dirname(sys.argv[0]), catalogFolderName) )
+		if catalogFolders is None:
+			raise Exception('getCatalogFullPath was passed an emtpy catalogFolders')
+			
+		elif isinstance(catalogFolders, str) and os.path.isdir(str(catalogFolders)):
+			catalogFolders = [catalogFolders]
+		
+		elif hasattr(catalogFolders, '__iter__'):
+			for thisFolder in catalogFolders:
+				if not os.path.isdir(str(thisFolder)):
+					raise Exception('getCatalogFullPath was passed a bad catalog folder: ' + str(thisFolder))
+			
+		else:
+			raise Exception('getCatalogFullPath unable to understand the catalogFolders given: ' + str(catalogFolders))
+		
 		
 		# http/https url
 		if urlparse.urlparse(catalogFileInput).scheme in ["http", "https"]:
 			raise Exception("URL catalog files are not done yet")
 			# ToDo: download the files, then return the path
 		
-		# ToDo: rework this for better url handling
+		# try it as an absolute or relative file path
+		if os.path.isfile(catalogFileInput):
+			return os.path.abspath(os.path.realpath(catalogFileInput))
 		
-		# absolute path to a file
-		elif os.path.isabs(catalogFileInput):
-			return catalogFileInput
+		# cycle through the folders we have been given to see if it is there
+		for thisFolder in catalogFolders:
+			
+			# try the simple path:
+			if os.path.isfile( os.path.join(thisFolder, catalogFileInput) ):
+				return os.path.abspath(os.path.realpath(os.path.join(thisFolder, catalogFileInput)))
+			
+			# try appending file extension(s)
+			for thisExtension in myClass.fileExtensions:
+				if os.path.isfile( os.path.join(thisFolder, catalogFileInput + thisExtension) ):
+					return os.path.abspath(os.path.realpath(os.path.join(thisFolder, catalogFileInput + thisExtension)))
 		
-		# file name in the CatalogFiles folder, or relative path
-		elif os.path.isfile(os.path.join(absPathToCatalogFilesFolder, catalogFileInput)) or os.path.isfile(os.path.join(absPathToCatalogFilesFolder, catalogFileInput + catalogFileExension)):
-			if catalogFileInput.lower().endswith(catalogFileExension):
-				return os.path.join(absPathToCatalogFilesFolder, catalogFileInput)
-			else:
-				return os.path.join(absPathToCatalogFilesFolder, catalogFileInput + catalogFileExension)
-		
-		# file path relative to pwd
-		elif os.path.isfile(catalogFileInput) or os.path.isfile(catalogFileInput + catalogFileExension):
-			if catalogFileInput.lower().endswith(catalogFileExension):
-				return os.path.abspath(catalogFileInput)
-			else:
-				return os.path.abspath(catalogFileInput + catalogFileExension)
-		
-		else:
-			raise CatalogNotFoundException("The file input is not one that getCatalogFullPath understands, or can find: %s" % catalogFileInput)
+		raise CatalogNotFoundException("The file input is not one that getCatalogFullPath understands, or can find: %s" % catalogFileInput)
 		
 	#------------------------Functions--------------------------------
 	
-	def runtimeChecks(self, runStyle="classic"):
-		'''Some sanity checks to make sure that things are not going to fail later'''
+	def __init__(self, sectionFolders, catalogFolders):
 		
-		# Note on runStyle:
-		#	"classic": use the "BaseUpdates" and "CustomPKG" folders
-		#	"tempFolder": use a temporary to hold all of the update links, deleted at close
+		# being a little paranoid... setting up section folders structure
+		self.sectionFolders = []
+		self.catalogFolders	= []
+		self.packageGroups	= {}
 		
-		# --- generic checks ----
-		assert os.path.isfile( os.path.join(absPathToInstaDMGFolder, instaDMGName) ), "InstaDMG was not where it was expected to be: %s" % os.path.join(absPathToInstaDMGFolder, instaDMGName)
-		assert os.path.isdir(catalogFolderPath), "The catalog files folder was not where it was expected to be: %s" % catalogFolderPath
+		# catalogFolders
+		if isinstance(catalogFolders, str) and os.path.isdir(catalogFolders):
+			catalogFolders = [str(catalogFolders)]
+		
+		if hasattr(catalogFolders, '__iter__'):
+			for thisCatalogFolder in catalogFolders:
+				if not os.path.isdir(str(thisCatalogFolder)):
+					raise Exception('%s called with a catalogFolder that was not a folder: %s' % (self.__class__, thisCatalogFolder))
+				self.catalogFolders.append(str(thisCatalogFolder))
+				
+		else:
+			raise Exception('%s called with a catalogFolder that could not be understood: %s' % (self.__class__, str(sectionFolders)))
+		
+		
+		# sectionFolders
+		if not hasattr(sectionFolders, '__iter__'):
+			raise Exception('%s called with a sectionFolders attribute that was not an array: %s' % (self.__class__, sectionFolders))
+		for thisFolder in sectionFolders:
+			if not hasattr(thisFolder, 'has_key') or not thisFolder.has_key('folderPath') or not thisFolder.has_key('sections'):
+				raise Exception('%s called with a sectionFolders that had a bad item in it: %s' % (self.__class__, thisFolder))
+			
+			newSection = {}
+			
+			if not isinstance(thisFolder['folderPath'], str) or not os.path.isdir(thisFolder['folderPath']):
+				raise Exception('%s called with a sectionFolders that had a bad item in it (folderPath was not an existing path): %s' % (self.__class__, thisFolder))
+			
+			newSection['folderPath'] = str(thisFolder['folderPath'])
+			
+			if not hasattr(thisFolder['sections'], 'append'):
+				raise Exception('%s called with a sectionFolders that had a bad item in it (sections was not an array): %s' % (self.__class__, thisFolder))
+			
+			newSection['sections'] = []
+			
+			for thisSectionName in thisFolder['sections']:
+				if not str(thisSectionName) in (systemSectionTypes + addedSectionTypes):
+					raise Exception('Section type not in allowed section types: ' + str(thisSectionName))
+				
+				for thisSectionFolder in self.sectionFolders:
+					if str(thisSectionName) in thisSectionFolder['sections']:
+						raise Exception('Section type was repeated: ' + str(thisSectionName))
+					
+					newSection['sections'].append(str(thisSectionName))
+				
+				self.packageGroups[str(thisSectionName)] = []
+			
+			self.sectionFolders.append(newSection)
+		
+		self.catalogFileSettings	= {}
+		self.parsedFiles			= []
+		
+		# --- runtime checks ----
+		assert os.path.isfile(os.path.join(absPathToInstaDMGFolder, "instadmg.bash")), "InstaDMG was not where it was expected to be: %s" % os.path.join(absPathToInstaDMGFolder, "instadmg.bash")
 		assert os.path.isdir(userSuppliedPKGFolderPath), "The catalog files folder was not where it was expected to be: %s" % userSuppliedPKGFolderPath
 		assert os.path.isdir(cacheFolderPath), "The instaDMG cache folder was not where it was expected to be: %s" % cacheFolderPath
-		
-		# --- classic checks ----
-		if runStyle == "classic":
-			assert os.path.isdir(appleUpdatesFolderPath), "The BaseUpdates folder was not where it was expected to be: %s" % appleUpdatesFolderPath
-			assert os.path.isdir(customPKGFolderPath), "The CustomPKGs folder was not where it was expected to be: %s" % customPKGFolderPath
-		
-		# -- tempFolder checks --
-		elif runStyle == "tempFolder":
-			pass
-		
 	
 	def parseFile(self, fileLocation):
 		
-		global catalogFileExension
 		global allowedCatalogFileSettings
 					
 		# the file passed could be an absolute path, a relative path, or a catalog file name
 		#	the first two are handled without a special section, but the name needs some work
 		
-		fileLocation = self.getCatalogFullPath(fileLocation) # there should not be an error here, since we have already validated it
+		fileLocation = self.getCatalogFullPath(fileLocation, self.catalogFolders) # there should not be an error here, since we have already validated it
 		# note: this last will have taken care of downloading any remote files
 		
 		assert os.path.isfile(fileLocation), "There was no file where it was expected to be: %s" % fileLocation
@@ -193,17 +222,16 @@ class instaUpToDate:
 					
 				continue
 			
-			
 			# ----- file includes lines ----
 			includeLineMatch = self.includeLineParser.search(line)
 			if includeLineMatch:
-				self.parseFile( self.getCatalogFullPath(includeLineMatch.group("location")) )
+				self.parseFile( self.getCatalogFullPath(includeLineMatch.group("location"), self.catalogFolders) )
 				continue
 			
 			# ------- section lines --------
 			sectionTitleMatch = self.sectionStartParser.search(line)
 			if sectionTitleMatch:
-				if sectionTitleMatch.group("sectionName") not in self.packageGroups and sectionTitleMatch.group("sectionName") != baseOSSectionName:
+				if sectionTitleMatch.group("sectionName") not in self.packageGroups and sectionTitleMatch.group("sectionName") != "Base OS Disk":
 					raise Exception('Unknown section title: "%s" on line: %i of file: %s\n%s' % (sectionTitleMatch.group("sectionName"), lineNumber, fileLocation, line) ) # TODO: improve error handling
 				
 				currentSection = sectionTitleMatch.group("sectionName")
@@ -279,21 +307,15 @@ class instaUpToDate:
 				
 		return True
 	
-	def setupInstaDMGFolders(self, sectionFolders=None):
+	def setupInstaDMGFolders(self):
 		'''Clean the chosen folders, and setup the package groups. This will only remove folders and symlinks, not actual data.'''
 		
-		assert isinstance(sectionFolders, list), "sectionfolders is required, and must be a list of dicts"
+		assert isinstance(self.sectionFolders, list), "sectionfolders is required, and must be a list of dicts"
 		
-		self.packageGroups = {}
-		
-		for sectionFolder in sectionFolders:
+		for sectionFolder in self.sectionFolders:
 			assert isinstance(sectionFolder, dict) and "folderPath" in sectionFolder and "sections" in sectionFolder, "sectionfolder information must be a dict with a 'folderPath' value, instead got: %s" % sectionFolder
 			assert os.path.isdir(sectionFolder['folderPath']), "The sectionfolder did not seem to exist: %s" % sectionFolder['folderPath']
 			assert os.path.isabs(sectionFolder['folderPath']), "setupInstaDMGFolders was passed a non-abs path to a folder: %s" % sectionFolder['folderPath']
-			
-			# setup the package groups
-			for thisGroup in sectionFolder["sections"]:
-				self.packageGroups[thisGroup] = []
 			
 			# clean the folders
 			for thisItem in os.listdir(sectionFolder['folderPath']):
@@ -322,11 +344,12 @@ class instaUpToDate:
 				
 				raise Exception('While cleaning folder: %s found a non-softlinked item: %s' % (sectionFolder['folderPath'], pathToThisItem))
 	
-	def runInstaDMG(self, scratchFolder=None, sectionFolders=None, outputFolder=None):
+	def runInstaDMG(self, scratchFolder=None, outputFolder=None):
 		
-		assert isinstance(sectionFolders, list), "sectionFolders should be a list of hashes"
+		assert isinstance(self.sectionFolders, list), "sectionFolders should be a list of hashes"
+		# Todo: create a routine to validate things before th erun
 		
-		instaDMGCommand	= [ os.path.join( os.path.join(absPathToInstaDMGFolder, instaDMGName) ), "-f" ]
+		instaDMGCommand	= [ os.path.join(absPathToInstaDMGFolder, "instadmg.bash"), "-f" ]
 		
 		if self.catalogFileSettings.has_key("ISO Language Code"):
 			instaDMGCommand += ["-i", self.catalogFileSettings["ISO Language Code"]]
@@ -338,13 +361,13 @@ class instaUpToDate:
 		if self.catalogFileSettings.has_key("Output File Name"):
 			instaDMGCommand += ["-m", self.catalogFileSettings["Output File Name"]]
 		
-		if scratchFolder != None:
+		if scratchFolder is not None:
 			instaDMGCommand += ["-t", scratchFolder]
 		
-		for thisSectionFolder in sectionFolders:
+		for thisSectionFolder in self.sectionFolders:
 			instaDMGCommand += ['-K', thisSectionFolder['folderPath']]
 		
-		if outputFolder != None:
+		if outputFolder is not None:
 			instaDMGCommand += ["-o", outputFolder]
 
 		print("Running InstaDMG: %s\n\n" % " ".join(instaDMGCommand))
@@ -569,8 +592,6 @@ def cleanupTempFolder(tempFolder):
 
 def main ():
 	
-	global catalogFolder
-	
 	# ------- defaults -------
 	
 	outputVolumeName	= "MacintoshHD"
@@ -581,12 +602,26 @@ def main ():
 	import optparse
 	optionsParser = optparse.OptionParser("%prog [options] catalogFile1 [catalogFile2 ...]", version="%%prog %s" % versionString)
 	optionsParser.add_option("-a", "--add-catalog", action="append", type="string", dest="addOnCatalogFiles", help="Add the items in this catalog file to all catalog files processed. Can be called multiple times", metavar="FILE_PATH")
-	optionsParser.add_option("-p", "--process", action="store_true", default=False, dest="processWithInstaDMG", help="Run InstaDMG for each catalog file processed")
 	optionsParser.add_option("-v", "", action="callback", callback=print_version, help="Print the version number and quit")
+	
+	# instaDMG options
+	
+	optionsParser.add_option("-p", "--process", action="store_true", default=False, dest="processWithInstaDMG", help="Run InstaDMG for each catalog file processed")
 	optionsParser.add_option("", "--instadmg-scratch-folder", action="store", dest="instadmgScratchFolder", default=None, type="string", metavar="FOLDER_PATH", help="Tell InstaDMG to use FOLDER_PATH as the scratch folder")
 	optionsParser.add_option("", "--instadmg-output-folder", action="store", dest="instadmgOutputFolder", default=None, type="string", metavar="FOLDER_PATH", help="Tell InstaDMG to place the output image in FOLDER_PATH")
+	
+	# sourceFolder options
+	
+	optionsParser.add_option('', '--add-catalog-folder', action='append', default=None, type='string', dest='catalogFolders', help='Override the folders that are searched for catalog files', metavar="FILE_PATH")
+	
+	
 	options, catalogFiles = optionsParser.parse_args()
-		
+	
+	# --- process options ---
+	
+	if options.catalogFolders is None:
+		options.catalogFolders = os.path.normpath(os.path.join(absPathToInstaDMGFolder, "AddOns", "InstaUp2Date", "CatalogFiles"))
+	
 	# --- police options ----
 	
 	if len(catalogFiles) < 1:
@@ -604,14 +639,13 @@ def main ():
 	# if we are running InstaDMG, then we need to be running as root
 	if options.processWithInstaDMG is True and os.getuid() != 0:
 		optionsParser.error("When using the -p/--process flag this must be run as root (sudo is fine)")
-		
 	
 	# --- process options ---
 	
 	baseCatalogFiles = []
 	for thisCatalogFile in catalogFiles:
 		try:
-			baseCatalogFiles.append(instaUpToDate.getCatalogFullPath(thisCatalogFile))
+			baseCatalogFiles.append(instaUpToDate.getCatalogFullPath(thisCatalogFile, options.catalogFolders))
 			
 		except CatalogNotFoundException:
 			optionsParser.error("There does not seem to be a catalog file at: %s" % thisCatalogFile)
@@ -620,11 +654,10 @@ def main ():
 	if options.addOnCatalogFiles is not None:
 		for thisCatalogFile in options.addOnCatalogFiles:
 			try:
-				addOnCatalogFiles.append(instaUpToDate.getCatalogFullPath(thisCatalogFile))
+				addOnCatalogFiles.append(instaUpToDate.getCatalogFullPath(thisCatalogFile, self.catalogFolders))
 			
 			except CatalogNotFoundException:
 				optionsParser.error("There does not seem to be a catalog file at: %s" % thisCatalogFile)
-	
 	
 	sectionFolders = None
 	if options.processWithInstaDMG == True:
@@ -642,29 +675,26 @@ def main ():
 		]
 	# ----- run process -----
 	
-	thisController = instaUpToDate()
-	thisController.runtimeChecks()
-	
 	for catalogFilePath in baseCatalogFiles:
 		
-		# setup for the run
-		thisController.setupInstaDMGFolders(sectionFolders=sectionFolders)
-		thisController.catalogFileSettings = {}
-		thisController.parsedFiles = []
+		thisController = instaUpToDate(sectionFolders, options.catalogFolders)
 		
-		# parse the tree of catalog files		
+		# setup for the run
+		thisController.setupInstaDMGFolders()
+		
+		# parse the tree of catalog files
 		thisController.parseFile(catalogFilePath)
 		
 		# add any additional catalogs to this one
 		for addOnCatalogFile in addOnCatalogFiles:
 			thisController.parseFile(addOnCatalogFile)
 		
-		# create the folder strucutres needed	
+		# create the folder strucutres needed
 		thisController.arrangeFolders(sectionFolders=sectionFolders)
 		
 		if options.processWithInstaDMG == True:
 			# the run succeded, and it has been requested to run InstaDMG
-			thisController.runInstaDMG(scratchFolder=options.instadmgScratchFolder, sectionFolders=sectionFolders, outputFolder=options.instadmgOutputFolder)
+			thisController.runInstaDMG(scratchFolder=options.instadmgScratchFolder, outputFolder=options.instadmgOutputFolder)
 		
 		
 #------------------------------END MAIN------------------------------
