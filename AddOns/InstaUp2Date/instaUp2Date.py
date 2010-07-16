@@ -526,7 +526,7 @@ class installerPackage:
 						
 						processReporter = checksum.statusHandler(linePrefix="\t")
 						if expectedLength is None:
-							processReporter.update(statusMessage='Downloading %s from %s: ' % fileName, updateMessage='starting')
+							processReporter.update(statusMessage='Downloading %s: ' % fileName, updateMessage='starting')
 						else:
 							processReporter.update(statusMessage='Downloading %s (%s): ' % (fileName, checksum.translateBytes(expectedLength)), updateMessage='starting')
 						
