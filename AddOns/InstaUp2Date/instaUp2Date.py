@@ -524,16 +524,23 @@ class installerPackage:
 						# continue downloading into the main cache folder
 						hashGenerator = hashlib.new(checksumType)
 						
+						processReporter = checksum.statusHandler(linePrefix="\t")
+						if expectedLength is None:
+							processReporter.update(statusMessage='Downloading %s from %s: ' % fileName, updateMessage='starting')
+						else:
+							processReporter.update(statusMessage='Downloading %s (%s): ' % (fileName, checksum.translateBytes(expectedLength)), updateMessage='starting')
+						
 						targetFilePath = os.path.join(mainCacheFolder, os.path.splitext(fileName)[0] + " " + checksumType + "-" + checksumValue + os.path.splitext(fileName)[1])
 						
-						checksum.cheksumFileObject(hashGenerator, readFile, fileName, expectedLength, copyToPath=targetFilePath, reportProgress=True, tabsToPrefix=1)
+						processedBytes, processSeconds = checksum.checksumFileObject(hashGenerator, readFile, fileName, expectedLength, copyToPath=targetFilePath, progressReporter=processReporter)
 						
 						if hashGenerator.hexdigest() != checksumValue:
 							os.unlink(targetFilePath)
 							raise Exception("Downloaded file did not match checksum: %s" % sourceLocation)
 						
 						cacheFilePath = targetFilePath
-						print("	Downloaded and verified")
+						processReporter.update(statusMessage='%s (%s) downloaded and verified in %s (%s/sec)' % (fileName, checksum.translateBytes(processedBytes), checksum.secondsToReadableTime(processSeconds), checksum.translateBytes(processedBytes/processSeconds)), updateMessage='', forceOutput=True)
+						processReporter.update(updateMessage='\n', forceOutput=True);
 							
 					readFile.close()
 				

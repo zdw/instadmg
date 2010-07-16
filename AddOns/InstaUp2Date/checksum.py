@@ -134,7 +134,7 @@ def translateBytes(bytes):
 	else:
 		return "%i Bytes" % bytes
 
-def cheksumFileObject(hashFileObject, targetFileObject, targetFileName, expectedLength, chunkSize=None, copyToPath=None, progressReporter=None):
+def checksumFileObject(hashFileObject, targetFileObject, targetFileName, expectedLength, chunkSize=None, copyToPath=None, progressReporter=None):
 	
 	# todo: sanity check the input
 	assert hasattr(targetFileObject, "read"), "The target file object does not look useable"
@@ -310,7 +310,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 						# add the path to the checksum
 						hashGenerator.update("file " + relativeFilePath)
 						
-						cheksumFileObject(hashGenerator, readFile, thisFile, targetLength, chunkSize, copyToPath=writeTarget)
+						checksumFileObject(hashGenerator, readFile, thisFile, targetLength, chunkSize, copyToPath=writeTarget)
 						readFile.close()
 												
 					else:
@@ -364,7 +364,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 			if progressReporter is not None:
 				progressReporter.update(statusMessage="Checksumming %s (%s) in chunks of %s: " % (fileName, translateBytes(targetLength), translateBytes(chunkSize)), updateMessage="0%")
 			
-			processedBytes, processSeconds = cheksumFileObject(hashGenerator, readFile, os.path.basename(location), targetLength, chunkSize=chunkSize, copyToPath=writeTarget, progressReporter=progressReporter)
+			processedBytes, processSeconds = checksumFileObject(hashGenerator, readFile, os.path.basename(location), targetLength, chunkSize=chunkSize, copyToPath=writeTarget, progressReporter=progressReporter)
 			
 			if progressReporter is not None:
 				progressReporter.update(statusMessage='Checksummed %s (%s) in %s (%s/sec)' % (fileName, translateBytes(processedBytes), secondsToReadableTime(processSeconds), translateBytes(processedBytes/processSeconds)), updateMessage='', forceOutput=True)
@@ -417,7 +417,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 			else:
 				progressReporter.update(statusMessage="Downloading %s (unknown length) in chunks of %s: " % (fileName, translateBytes(chunkSize)), updateMessage=translateBytes(0))
 		
-		processedBytes, processSeconds = cheksumFileObject(hashGenerator, readFile, fileName, targetLength, copyToPath=writeTarget, chunkSize=chunkSize, progressReporter=progressReporter)
+		processedBytes, processSeconds = checksumFileObject(hashGenerator, readFile, fileName, targetLength, copyToPath=writeTarget, chunkSize=chunkSize, progressReporter=progressReporter)
 		
 		if progressReporter is not None:
 			progressReporter.update(statusMessage="Downloaded %s (%s) in %s (%s/sec)" % (fileName, translateBytes(processedBytes), secondsToReadableTime(processSeconds), translateBytes(processedBytes/processSeconds)), updateMessage='')
