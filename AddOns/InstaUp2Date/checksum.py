@@ -206,6 +206,12 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 	if outputFolder is not None and not os.path.isdir(outputFolder):
 		raise Exception('The output folder given does not exist, or is not a folder: ' + outputFolder)
 	
+	# confirm that hashlib supports the hash type:
+	try:
+		hashlib.new(checksumType)
+	except ValueError:
+		raise Exception("Hash type: %s is not supported by hashlib" % checksumType)
+	
 	# setup a temporary folder to house the downloads if we are bringing this down
 	cacheFolder = None
 	
@@ -441,14 +447,29 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 
 if __name__ == "__main__":
 	
-	allowedChecksumAlgorithms = ("sha1", "sha224", "sha256", "sha384", "sha512", "md5")
-	
 	optionParser = optparse.OptionParser()
-	optionParser.add_option("-a", "--checksum-algorithm", default="sha1", action="store", dest="checksumAlgorithm", choices=allowedChecksumAlgorithms, help="Disable progress notifications")
+	
+	if hasattr(hashlib, 'algorithms'):
+		optionParser.add_option("-a", "--checksum-algorithm", default="sha1", action="store", dest="checksumAlgorithm", choices=hashlib.algorithms, help="Disable progress notifications") # Python 2.7 and above
+	else:
+		optionParser.add_option("-a", "--checksum-algorithm", default="sha1", action="store", dest="checksumAlgorithm", help="Disable progress notifications")
+	
 	optionParser.add_option("-d", "--disable-progress", default=True, action="store_false", dest="reportCheckSum", help="Disable progress notifications")
-	optionParser.add_option("-s", "--chunk-size", default=None, action="store", type="int", dest="chunkSize", help="Folder to copy dat to")
-	optionParser.add_option("-t", "--output-folder", default=None, action="store", dest="outputFolder", type="string", help="Folder to copy data to")
+	optionParser.add_option("-s", "--chunk-size", default=None, action="store", type="int", dest="chunkSize", help="The size in bytes to use as a buffer")
+	optionParser.add_option("-t", "--output-folder", default=None, action="store", dest="outputFolder", type="string", help="Write a copy of the file/folder to this folder")
 	(options, args) = optionParser.parse_args()
+	
+	# confirm that hashlib supports the hash type:
+	try:
+		hashlib.new(options.checksumAlgorithm)
+	except ValueError:
+		optionParser.error("Hash type: %s is not supported by hashlib" % options.checksumAlgorithm)
+	
+	# confirm that the output folder exists
+	if options.outputFolder is not None and not os.path.isdir(options.outputFolder):
+		optionParser.error('The output folder given does not exist, or is not a folder: ' + str(options.outputFolder))
+	# and is writable by this user
+	
 	
 	for location in args:
 		data = checksum(
