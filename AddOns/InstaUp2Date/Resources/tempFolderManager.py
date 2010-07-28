@@ -154,6 +154,13 @@ class tempFolderManager(object):
 		if inManagedPath is not True:
 			raise ValueError('cleanupItem called with a targetPath that was not in a manged path: ' + targetPath)
 		
+		# catch things if it is a file or a link
+		if os.path.isfile(targetPath) or os.path.islink(targetPath):
+			try:
+				os.unlink(targetPath)
+			except: # ToDo: make this more specific
+				pass # ToDo: log this
+		
 		# walk up the tree to remove any volumes mounted into the path
 		for root, dirs, files in os.walk(targetPath, topdown=True):
 			

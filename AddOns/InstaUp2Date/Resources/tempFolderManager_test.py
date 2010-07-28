@@ -94,6 +94,36 @@ class setupTests(unittest.TestCase):
 		
 		# !!!! WORK HERE !!!!
 	
+	def test_plainFiles(self):
+		'''Test that a random file will be deleted'''
+		
+		(fileHandle, filePath) = tempfile.mkstemp()
+		os.close(fileHandle) # we don't need to write anything to this
+		filePath = os.path.realpath(os.path.normpath(filePath))
+		
+		# add it, and confirm that this is managed
+		tempFolderManager.addManagedItem(filePath)
+		self.assertTrue(filePath in tempFolderManager.managedItems, 'Adding a file using addManagedItem did not result in it being put in managedItems')
+		self.assertTrue(tempFolderManager.getManagedPathForPath(filePath) is not None, 'Adding a file using addManagedItem did not make it managed (according to getManagedPathForPath)')
+		
+		# wipe this out using cleanupItem
+		tempFolderManager.cleanupItem(filePath)
+		self.assertFalse(os.path.exists(filePath), 'Removing a file added with addManagedItem with cleanupItem did not get rid of the file')
+		
+		# repeat the exercise for cleanupForExit
+		(fileHandle, filePath) = tempfile.mkstemp()
+		os.close(fileHandle) # we don't need to write anything to this
+		filePath = os.path.realpath(os.path.normpath(filePath))
+		
+		# add it, and confirm that this is managed
+		tempFolderManager.addManagedItem(filePath)
+		self.assertTrue(filePath in tempFolderManager.managedItems, 'Adding a file using addManagedItem did not result in it being put in managedItems')
+		self.assertTrue(tempFolderManager.getManagedPathForPath(filePath) is not None, 'Adding a file using addManagedItem did not make it managed (according to getManagedPathForPath)')
+		
+		# wipe this out using cleanupItem
+		tempFolderManager.cleanupForExit()
+		self.assertFalse(os.path.exists(filePath), 'Removing a file added with addManagedItem with cleanupForExit did not get rid of the file')
+	
 	def test_withStatementFunction(self):
 		'''Test the use of items with the "with" statement'''
 		
