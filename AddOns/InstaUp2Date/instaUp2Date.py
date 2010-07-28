@@ -2,11 +2,15 @@
 
 # InstaUpToDate
 #
-#	This script parses one or more catalog files to fill in the 
+#	This script parses one or more catalog files to setup InstaDMG
 
 import os, sys, re
-import hashlib, urlparse, urllib, urllib2, tempfile, shutil, subprocess, datetime, atexit
-import checksum # this is part of the instadmg suite
+import hashlib, urlparse, urllib, urllib2, subprocess, datetime
+
+from Resources.checksum				import checksumFileObject, checksum
+from Resources.displayTools			import statusHandler, translateBytes, secondsToReadableTime
+from Resources.tempFolderManager	import tempFolderManager
+#from 
 
 #------------------------------SETTINGS------------------------------
 
@@ -25,18 +29,18 @@ absPathToInstaDMGFolder		= os.path.normpath(os.path.join( os.path.abspath(os.pat
 
 appleUpdatesFolderPath		= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "InstallerFiles", "BaseUpdates"))
 customPKGFolderPath			= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "InstallerFiles", "CustomPKG"))
-userSuppliedPKGFolderPath	= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "InstallerFiles", "InstaUp2DatePackages"))
+
 baseOSFolderPath			= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "InstallerFiles", "Base OS Disk"))
 
-cacheFolderPath				= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "Caches", "InstaUp2DateCache"))
-
-#-------------------------------CLASSES------------------------------
-
-class CatalogNotFoundException(Exception):
-	pass
+#-----------------------------EXCEPTIONS-----------------------------
 
 class FileNotFoundException(Exception):
 	pass
+
+class CatalogNotFoundException(FileNotFoundException):
+	pass
+
+#-------------------------------CLASSES------------------------------
 
 class instaUpToDate:
 	"The central class to manage the process"
@@ -69,12 +73,12 @@ class instaUpToDate:
 	@classmethod
 	def getCatalogFullPath(myClass, catalogFileInput, catalogFolders):
 		'''Classmethod to translate input to a abs-path from one of the accepted formats (checked in this order):
-	- ToDo: http or https reference (will be downloaded and temporary filepath returned)
-	- absolute path to a file
-	- catalog file name within the CatalogFiles folder, with or without the .catalog extension
-	- relative path from CatalogFiles folder, with or without the .catalog extension
-	- relative path from the pwd, with or without the .catalog extension
-'''
+			- ToDo: http or https reference (will be downloaded and temporary filepath returned)
+			- absolute path to a file
+			- catalog file name within the CatalogFiles folder, with or without the .catalog extension
+			- relative path from CatalogFiles folder, with or without the .catalog extension
+			- relative path from the pwd, with or without the .catalog extension
+		'''
 		
 		if catalogFolders is None:
 			raise Exception('getCatalogFullPath was passed an emtpy catalogFolders')
@@ -175,8 +179,6 @@ class instaUpToDate:
 		
 		# --- runtime checks ----
 		assert os.path.isfile(os.path.join(absPathToInstaDMGFolder, "instadmg.bash")), "InstaDMG was not where it was expected to be: %s" % os.path.join(absPathToInstaDMGFolder, "instadmg.bash")
-		assert os.path.isdir(userSuppliedPKGFolderPath), "The catalog files folder was not where it was expected to be: %s" % userSuppliedPKGFolderPath
-		assert os.path.isdir(cacheFolderPath), "The instaDMG cache folder was not where it was expected to be: %s" % cacheFolderPath
 	
 	def parseFile(self, fileLocation):
 		
@@ -248,8 +250,6 @@ class instaUpToDate:
 					displayName = packageLineMatch.group("displayName"),
 					sourceLocation = packageLineMatch.group("fileLocation"),
 					checksumString = packageLineMatch.group("fileChecksum"),
-					mainCacheFolder = cacheFolderPath,
-					additionalCacheFolders = userSuppliedPKGFolderPath
 				)
 				
 				print('''	Checksum:	%(checksumType)s:%(checksum)s
@@ -347,7 +347,8 @@ class instaUpToDate:
 	def runInstaDMG(self, scratchFolder=None, outputFolder=None):
 		
 		assert isinstance(self.sectionFolders, list), "sectionFolders should be a list of hashes"
-		# Todo: create a routine to validate things before th erun
+		
+		# Todo: create a routine to validate things before the run
 		
 		instaDMGCommand	= [ os.path.join(absPathToInstaDMGFolder, "instadmg.bash"), "-f" ]
 		
@@ -381,6 +382,54 @@ class installerPackage:
 		
 	#---------------------Class Variables-----------------------------
 	
+	cacheFolders		= []
+	
+	verifiedFiles		= []
+	
+	#--------------------- Class Methods -----------------------------
+	
+	# ToDo: manage the cache size
+	
+	@classmethod
+	def setCacheFolders(myClass, cacheFolders):
+		# the first cacheFolder is used to store new files, and must be write-able
+		
+		myClass.cacheFolders = []
+		
+		if isinstance(cacheFolders, str) and os.path.isdir(cacheFolders):
+			if not os.access(cacheFolders, os.W_OK):
+				raise ValueError('The first folder given to %s\'s setCacheFolders method must be a write-able folder: %s' % (myClass.__name__, cacheFolders))
+			
+			myClass.cacheFolders.append(os.path.realpath(os.path.abspath(cacheFolders)))
+		
+		elif hasattr(cacheFolders, '__iter__'):
+			for thisFolder in cacheFolders:
+				if not os.path.isdir(str(thisFolder)):
+					raise ValueError('%s\'s setCacheFolders method recieved a cacheFolders entry that it did not understand: %s' % (myClass.__name__, thisFolder))
+				
+				if len(myClass.cacheFolders) == 0 and not os.access(thisFolder, os.W_OK):
+					raise ValueError('The first folder given to %s\'s setCacheFolders method must be a write-able folder: %s' % (myClass.__name__, thisFolder))
+				
+				myClass.cacheFolders.append(os.path.realpath(os.path.abspath(thisFolder)))
+		
+		else:
+			raise ValueError('%s\'s setCacheFolders method recieved a cacheFolders variable that it did not understand: ' % (myClass.__name__, cacheFolders))
+	
+	
+	@classmethod
+	def getCacheFolder(myClass):
+		if myClass.cacheFolders is None or len(myClass.cacheFolders) == 0:
+			raise RuntimeWarning('The %s class\'s cache folders must be setup before getCacheFolder is called' % myClass.__name__)
+		
+		return myClass.cacheFolders[0]
+	
+	@classmethod
+	def getSourceFolders(myClass):
+		if myClass.cacheFolders is None or len(myClass.cacheFolders) == 0:
+			raise RuntimeWarning('The %s class\'s cache folders must be setup before getSourceFolders is called' % myClass.__name__)
+		
+		return myClass.cacheFolders
+		
 	
 	#--------------------Instance Variables---------------------------
 	
@@ -392,38 +441,55 @@ class installerPackage:
 	source				= None
 	filePath			= None		# a local location to link to
 	
-	#------------------------Functions--------------------------------
+	#-------------------- Instance Methods ---------------------------
 	
-	def __init__(self, displayName, sourceLocation, checksumString, mainCacheFolder, additionalCacheFolders=None):	
+	def __init__(self, displayName, sourceLocation, checksumString, additionalCacheFolders=None):	
 		
-		assert isinstance(displayName, str), "Recieved an empty or invalid name"
-		assert sourceLocation is not None, "Recieved an empty location"
-		assert isinstance(checksumString, str) is not None, "Recieved an empty or invalid checksum string"
-		assert additionalCacheFolders is None or isinstance(additionalCacheFolders, str) or isinstance(additionalCacheFolders, list)
+		if self.cacheFolders is None or len(self.cacheFolders) == 0:
+			raise RuntimeWarning('The %s class\'s cache folders must be setup before getCacheFolder is called' % self.__class__.__name__)
 		
-		assert checksumString.count(":") > 0, "Checksum string is not of the right format"
-		checksumType, checksumValue = checksumString.split(":", 1)
-		assert checksumType is not None, "There was no checksum type"
-		assert checksumValue is not None, "There was no checksum"
+		# displayName
+		if isinstance(displayName, str):
+			self.displayName = displayName
+		else:
+			raise ValueError("Recieved an empty or invalid displayName: " + str(displayName))
 		
-		# confirm that hashlib supports the hash type:
-		try:
-			hashlib.new(checksumType)
-		except ValueError:
-			raise Exception("Hash type: %s is not supported by hashlib" % checksumType)
+		# sourceLocation
+		if isinstance(sourceLocation, str):
+			self.source = sourceLocation
+		else:
+			raise ValueError("Recieved an empty or invalid sourceLocation: " + str(sourceLocation))
+			
+		# checksum and checksumType
+		if isinstance(checksumString, str) and checksumString.count(":") > 0:
+			self.checksumType, self.checksumValue = checksumString.split(":", 1)
+			
+			# confirm that hashlib supports the hash type:
+			try:
+				hashlib.new(self.checksumType)
+			except ValueError:
+				raise Exception('Hash type: %s is not supported by hashlib' % self.checksumType)
+		else:
+			raise ValueError('Recieved an empty or invalid checksumString: ' + str(checksumString))
 		
-		# set basic values
-		self.source = sourceLocation
-		self.displayName = displayName
-		self.checksum = checksumValue
-		self.checksumType = checksumType
+		foldersToSearch = []
 		
-		# put together the list of cache folders
-		cacheFolders = [mainCacheFolder]
-		if isinstance(additionalCacheFolders, str):
-			cacheFolders.append(additionalCacheFolders)
-		elif isinstance(additionalCacheFolders, list):
-			cacheFolders += additionalCacheFolders
+		# additionalCacheFolders
+		if additionalCacheFolders is None:
+			pass
+		
+		elif isinstance(additionalCacheFolders, str) and os.path.isdir(additionalCacheFolders):
+			foldersToSearch.append( os.path.realpath(os.path.abspath(additionalCacheFolders)) )
+		
+		elif hasattr(additionalCacheFolders, '__iter__'):
+			for thisFolder in additionalCacheFolders:
+				if not os.path.isdir(thisFolder):
+					raise ValueError('The folder given to %s as an additionalCacheFolders either did not exist or was not a folder: %s' % (self.__class__.__name__, thisFolder))
+					
+					foldersToSearch.append( os.path.realpath(os.path.abspath(thisFolder)) )
+		
+		else:
+			raise ValueError('Unable to understand the additionalCacheFolders given: ' + str(additionalCacheFolders))
 		
 		# values we need to find or create
 		cacheFilePath = None
@@ -431,7 +497,7 @@ class installerPackage:
 		print("Looking for %s" % displayName)
 		
 		# check the caches for an item with this checksum
-		cacheFilePath = self.checkCacheForItem(None, checksumType, checksumValue, cacheFolders)
+		cacheFilePath = self.findItem(None, self.checksumType, self.checksumValue)
 		if cacheFilePath is not None:
 			print("	Found in cache folder by the checksum")
 		
@@ -449,7 +515,7 @@ class installerPackage:
 				
 				# if this is a name (ie: not a path), look in the caches for the name
 				if filePath.count("/") == 0:
-					cacheFilePath = self.checkCacheForItem(filePath, checksumType, checksumValue, cacheFolders)
+					cacheFilePath = self.findItem(filePath, checksumType, checksumValue, cacheFolders)
 					
 					if cacheFilePath is not None:
 						print("	Found in cache folder by file name")
@@ -482,7 +548,7 @@ class installerPackage:
 				# url to download
 				
 				# guess the name from the URL
-				cacheFilePath = self.checkCacheForItem(os.path.basename(parsedSourceLocationURL.path), checksumType, checksumValue, cacheFolders)
+				cacheFilePath = self.findItem(os.path.basename(parsedSourceLocationURL.path), self.checksumType, self.checksumValue)
 				if cacheFilePath is not None:
 					print("	Found in cache folder by the name in the URL")
 					
@@ -515,31 +581,32 @@ class installerPackage:
 						fileName = httpHeader.getheader("content-disposition").strip()
 					
 					# check to see if we already have a file with this name and checksum
-					cacheFilePath = self.checkCacheForItem(fileName, checksumType, checksumValue, cacheFolders)
+					cacheFilePath = self.findItem(fileName, self.checksumType, self.checksumValue)
 					
 					if cacheFilePath is not None:
 						print("	Found using name in a redirected URL or content disposition header")
 					
 					if cacheFilePath is None:
 						# continue downloading into the main cache folder
-						hashGenerator = hashlib.new(checksumType)
+						hashGenerator = hashlib.new(self.checksumType)
 						
-						processReporter = checksum.statusHandler(linePrefix="\t")
+						processReporter = statusHandler(linePrefix="\t")
 						if expectedLength is None:
 							processReporter.update(statusMessage='Downloading %s: ' % fileName, updateMessage='starting')
 						else:
-							processReporter.update(statusMessage='Downloading %s (%s): ' % (fileName, checksum.translateBytes(expectedLength)), updateMessage='starting')
+							processReporter.update(statusMessage='Downloading %s (%s): ' % (fileName, translateBytes(expectedLength)), updateMessage='starting')
 						
-						targetFilePath = os.path.join(mainCacheFolder, os.path.splitext(fileName)[0] + " " + checksumType + "-" + checksumValue + os.path.splitext(fileName)[1])
+						targetFilePath = os.path.join(self.getCacheFolder(), os.path.splitext(fileName)[0] + " " + self.checksumType + "-" + self.checksumValue + os.path.splitext(fileName)[1])
 						
-						processedBytes, processSeconds = checksum.checksumFileObject(hashGenerator, readFile, fileName, expectedLength, copyToPath=targetFilePath, progressReporter=processReporter)
+						processedBytes, processSeconds = checksumFileObject(hashGenerator, readFile, fileName, expectedLength, copyToPath=targetFilePath, progressReporter=processReporter)
 						
-						if hashGenerator.hexdigest() != checksumValue:
+						if hashGenerator.hexdigest() != self.checksumValue:
 							os.unlink(targetFilePath)
 							raise Exception("Downloaded file did not match checksum: %s" % sourceLocation)
 						
 						cacheFilePath = targetFilePath
-						processReporter.update(statusMessage='%s (%s) downloaded and verified in %s (%s/sec)' % (fileName, checksum.translateBytes(processedBytes), checksum.secondsToReadableTime(processSeconds), checksum.translateBytes(processedBytes/processSeconds)), updateMessage='', forceOutput=True)
+						
+						processReporter.update(statusMessage='%s (%s) downloaded and verified in %s (%s/sec)' % (fileName, translateBytes(processedBytes), secondsToReadableTime(processSeconds), translateBytes(processedBytes/processSeconds)), updateMessage='', forceOutput=True)
 						processReporter.update(updateMessage='\n', forceOutput=True);
 							
 					readFile.close()
@@ -551,23 +618,39 @@ class installerPackage:
 		self.filePath = cacheFilePath
 	
 	@classmethod
-	def checkCacheForItem(myClass, itemName, checksumType, checksumValue, cacheFolders):
+	def findItem(myClass, itemName, checksumType, checksumValue, additionalSourceFolders=None):
 		'''Look through the caches for this file'''
 		
-		assert checksumType is not None, "Checksum Type is required"
-		assert checksumValue is not None, "Checksum is required"
-		assert cacheFolders is not None, "Cache folders required"
+		if not isinstance(checksumType, str) or not isinstance(checksumValue, str):
+			raise ValueError('Recieved a value for the checksumType or checksumValue that was not useable: %s:%s' % (checksumType, checksumValue))
 		
-		if isinstance(cacheFolders, str):
-			cacheFolders = [cacheFolders]
-		elif isinstance(cacheFolders, list):
-			pass # in the right format
+		# check the already verified items for this checksum
+		if '%s:%s' % (checksumType, checksumValue) in myClass.verifiedFiles:
+			return self.verifiedFiles['%s:%s' % (checksumType, checksumValue)]
+			# ToDo: differentiate these from files that need finding
+		
+		sourceFolders = myClass.getSourceFolders()
+		
+		# additionalCacheFolders
+		if additionalSourceFolders is None:
+			pass
+		
+		elif isinstance(additionalSourceFolders, str) and os.path.isdir(additionalSourceFolders):
+			sourceFolders.append( os.path.realpath(os.path.abspath(additionalSourceFolders)) )
+		
+		elif hasattr(additionalCacheFolders, '__iter__'):
+			for thisFolder in additionalSourceFolders:
+				if not os.path.isdir(thisFolder):
+					raise ValueError('The folder given to %s as an additionalCacheFolders either did not exist or was not a folder: %s' % (self.__class__.__name__, thisFolder))
+					
+					sourceFolders.append( os.path.realpath(os.path.abspath(thisFolder)) )
+		
 		else:
-			raise Exception("cacheFolders is not the right format: %s" % cacheFolders)
+			raise ValueError('Unable to understand the additionalCacheFolders given: ' + str(additionalSourceFolders))
 		
 		processReporter = None
 		
-		for thisCacheFolder in cacheFolders:
+		for thisCacheFolder in sourceFolders:
 			assert os.path.isdir(thisCacheFolder), "The cache folder does not exist or is not a folder: %s" % thisCacheFolder
 			
 			# ToDo: think through the idea of having nested folders
@@ -579,10 +662,12 @@ class installerPackage:
 				if itemName is not None and (thisItemName == itemName or itemNameCheksum == checksumType + "-" + checksumValue):
 				
 					if processReporter is None:
-						processReporter = checksum.statusHandler(linePrefix="\t")
+						processReporter = statusHandler(linePrefix="\t")
 					
-					if checksumValue == checksum.checksum(os.path.join(thisCacheFolder, thisItemName), checksumType=checksumType, progressReporter=processReporter)['checksum']:
+					if checksumValue == checksum(os.path.join(thisCacheFolder, thisItemName), checksumType=checksumType, progressReporter=processReporter)['checksum']:
 						return os.path.join(thisCacheFolder, thisItemName)
+		
+		# the item is not in the caches, try to get it otherwise
 		
 		return None
 	
@@ -591,11 +676,6 @@ class installerPackage:
 def print_version(option, opt, value, optionsParser):
 	optionsParser.print_version()
 	sys.exit(0)
-
-def cleanupTempFolder(tempFolder):
-	if os.path.exists(tempFolder) and os.path.isdir(tempFolder):
-		# ToDo: log this
-		shutil.rmtree(tempFolder, ignore_errors=True)
 
 def main ():
 	
@@ -617,9 +697,10 @@ def main ():
 	optionsParser.add_option("", "--instadmg-scratch-folder", action="store", dest="instadmgScratchFolder", default=None, type="string", metavar="FOLDER_PATH", help="Tell InstaDMG to use FOLDER_PATH as the scratch folder")
 	optionsParser.add_option("", "--instadmg-output-folder", action="store", dest="instadmgOutputFolder", default=None, type="string", metavar="FOLDER_PATH", help="Tell InstaDMG to place the output image in FOLDER_PATH")
 	
-	# sourceFolder options
+	# source folder options
 	
-	optionsParser.add_option('', '--add-catalog-folder', action='append', default=None, type='string', dest='catalogFolders', help='Override the folders that are searched for catalog files', metavar="FILE_PATH")
+	optionsParser.add_option('', '--add-catalog-folder', action='append', default=None, type='string', dest='catalogFolders', help='Set the folders searched for catalog files', metavar="FILE_PATH")
+	optionsParser.add_option('', '--add-cache-folder', action='append', default=None, type='string', dest='cacheFolders', help='Set the folders searched for catalog files', metavar="FILE_PATH")
 	
 	
 	options, catalogFiles = optionsParser.parse_args()
@@ -661,16 +742,14 @@ def main ():
 	if options.addOnCatalogFiles is not None:
 		for thisCatalogFile in options.addOnCatalogFiles:
 			try:
-				addOnCatalogFiles.append(instaUpToDate.getCatalogFullPath(thisCatalogFile, self.catalogFolders))
+				addOnCatalogFiles.append(instaUpToDate.getCatalogFullPath(thisCatalogFile, options.catalogFolders))
 			
 			except CatalogNotFoundException:
 				optionsParser.error("There does not seem to be a catalog file at: %s" % thisCatalogFile)
 	
 	sectionFolders = None
-	if options.processWithInstaDMG == True:
-		tempFolder = tempfile.mkdtemp(prefix='InstaUp2DateFolder-', dir="/tmp")
-		
-		atexit.register(cleanupTempFolder, tempFolder)
+	if options.processWithInstaDMG is True:
+		tempFolder = tempFolderManager.getNewTempFolder(prefix='InstaUp2DateFolder-')
 		
 		sectionFolders = [
 			{"folderPath":tempFolder, "sections":["OS Updates", "System Settings", "Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings"]}
@@ -680,6 +759,16 @@ def main ():
 			{"folderPath":os.path.join(absPathToInstaDMGFolder, "InstallerFiles/BaseUpdates"), "sections":["OS Updates", "System Settings"]},
 			{"folderPath":os.path.join(absPathToInstaDMGFolder, "InstallerFiles/CustomPKG"), "sections":["Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings"]}
 		]
+	
+	if options.cacheFolders is None:
+		options.cacheFolders = []
+		for thisFolder in ["Caches/InstaUp2DateCache", "InstallerFiles/InstaUp2DatePackages"]:
+			options.cacheFolders.append( os.path.normpath(os.path.join(absPathToInstaDMGFolder, thisFolder)) )
+	
+	# ----- setup system ----
+	
+	installerPackage.setCacheFolders(options.cacheFolders)
+	
 	# ----- run process -----
 	
 	for catalogFilePath in baseCatalogFiles:
