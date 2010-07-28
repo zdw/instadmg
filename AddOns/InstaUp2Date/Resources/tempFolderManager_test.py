@@ -151,6 +151,43 @@ class setupTests(unittest.TestCase):
 		
 		self.assertEquals(tempFolderManager.managedItems, [], 'cleanupAtExit left the managedItems variable with a value: ' + str(tempFolderManager.managedItems))
 		self.assertTrue(tempFolderManager.defaultFolder	is None, 'cleanupAtExit left the defaultFolder variable with a value: ' + str(tempFolderManager.defaultFolder))
+	
+	def test_getNewTempFolder(self):
+		'''Test the getNewTempFolder method'''
+		
+		# test without any input
+		firstFolderPath = tempFolderManager.getNewTempFolder()
+		self.assertTrue(firstFolderPath is not None, 'Called with no options getNewTempFolder gave back None')
+		self.assertTrue(os.path.isdir(firstFolderPath), 'Called with no options getNewTempFolder returned a string that was not a path to an existing folder: ' + str(firstFolderPath))
+		self.assertTrue(tempFolderManager.getManagedPathForPath(firstFolderPath) is not None, 'Called with no options getNewTempFolder returned a path that was not in any managed path (according to getManagedPathForPath): ' + firstFolderPath)
+		
+		# test with the parent folder option
+		secondParentFolder = tempfile.mkdtemp(dir='/tmp')
+		secondFolderPath = tempFolderManager.getNewTempFolder(parentFolder=secondParentFolder)
+		self.assertTrue(secondFolderPath is not None, 'Called with a parent folder getNewTempFolder gave back None')
+		self.assertTrue(os.path.isdir(secondFolderPath), 'Called with a parent folder getNewTempFolder returned a string that was not a path to an existing folder: ' + str(secondFolderPath))
+		self.assertTrue(secondFolderPath.startswith(os.path.realpath(os.path.normpath(secondParentFolder))), 'Called with a parent folder (%s) getNewTempFolder returned a path not in the parent folder: %s' % (secondParentFolder, secondFolderPath))
+		self.assertTrue(tempFolderManager.getManagedPathForPath(secondFolderPath) is not None, 'Called with a parent folder getNewTempFolder returned a path that was not in any managed path (according to getManagedPathForPath): ' + secondFolderPath)
+		
+		# test with the prefix option
+		prefixOption = "thisIsATest"
+		thirdFolderPath = tempFolderManager.getNewTempFolder(prefix=prefixOption)
+		self.assertTrue(thirdFolderPath is not None, 'Called with the prefix option (%s) getNewTempFolder gave back None' % prefixOption)
+		self.assertTrue(os.path.isdir(thirdFolderPath), 'Called with the prefix option (%s) getNewTempFolder returned a string that was not a path to an existing folder: %s' % (prefixOption, str(thirdFolderPath)))
+		self.assertTrue(os.path.basename(thirdFolderPath).startswith(prefixOption), 'Called with the prefix option (%s) getNewTempFolder returned a path not in the parent folder: %s' % (prefixOption, thirdFolderPath))
+		self.assertTrue(tempFolderManager.getManagedPathForPath(secondFolderPath) is not None, 'Called with the prefix option (%s) getNewTempFolder returned a path that was not in any managed path (according to getManagedPathForPath): %s' % (prefixOption, thirdFolderPath))
+		
+		# call cleanupAtExit to clear everything
+		tempFolderManager.cleanupForExit()
+		
+		# verify that the folders dissapeared
+		self.assertFalse(os.path.exists(firstFolderPath), 'After being created with getNewTempFolder using no options the folder path was not cleaned properly by cleanupForExit: ' + firstFolderPath)
+		self.assertFalse(os.path.exists(secondFolderPath), 'After being created with getNewTempFolder using the parent folder the folder optionthe path was not cleaned properly by cleanupForExit: ' + secondFolderPath)
+		self.assertFalse(os.path.exists(thirdFolderPath), 'After being created with getNewTempFolder using the prefix option (%s) the folder path was not cleaned properly by cleanupForExit: %s' % (prefixOption, thirdFolderPath))
+		
+		# remove the tempdir we made for the parent folder test
+		shutil.rmtree(secondParentFolder)
+		
 
 class setupTests_negative(unittest.TestCase):
 	

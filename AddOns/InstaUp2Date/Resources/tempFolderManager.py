@@ -243,7 +243,7 @@ class tempFolderManager(object):
 			# create the new folder
 			pathToReturn = tempfile.mkdtemp(dir=parentFolder, prefix=prefix)
 			
-			if myClass.getManagedItemForPath(parentFolder) is None:
+			if myClass.getManagedPathForPath(parentFolder) is None:
 				# this is an unmanaged path, and we need to add it
 				myClass.addManagedItem(pathToReturn)
 		
