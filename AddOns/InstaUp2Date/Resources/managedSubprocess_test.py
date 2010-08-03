@@ -1,7 +1,9 @@
 #!/usr/bin/python
 
-import unittest, subprocess, sys
+import os, sys, unittest, subprocess
+
 from managedSubprocess import managedSubprocess
+from tempFolderManager import tempFolderManager
 
 class simpleTests(unittest.TestCase):
 	'''Some simple tests'''
@@ -9,27 +11,37 @@ class simpleTests(unittest.TestCase):
 	def test_stdout(self):
 		'''Make sure that stdout is being properly returned'''
 		
-		command = ["/bin/ls", "/System"]
+		# setup a folder to then test on (so things are predictable)
+		outerFolder = tempFolderManager.getNewTempFolder()
+		testFile = open(os.path.join(outerFolder, "testItem"), "w")
+		testFile.close()
+		
+		command = ["/bin/ls", outerFolder]
 		process = managedSubprocess(command)
 		
 		self.assertTrue(hasattr(process, 'stdout') and process.stdout is not None, 'managedSubprocess did not have a stdout item when it should have')
 		result = process.stdout.read()
-		expectedResult = "Library\n"
+		expectedResult = "testItem\n"
 		self.assertTrue(isinstance(process.stdoutLen, int), 'managedSubprocess should have had an integer value for stdoutLen, rather it had: ' + str(process.stdoutLen))
-		self.assertEqual(len(expectedResult), process.stdoutLen, 'managedSubprocess should have had a value of %i for stdoutLen, rather it had: %i' % (len(expectedResult), process.stdoutLen))
+		self.assertEqual(len(expectedResult), process.stdoutLen, 'managedSubprocess should have had a length of %i for stdoutLen, rather it had a length of %i: %s' % (len(expectedResult), process.stdoutLen, result))
 		self.assertEqual(result, expectedResult, 'managedSubprocess did not return the correct stdout for process "%s". Got "%s" rather than "%s"' % (" ".join(command), result, expectedResult))
 	
 	def test_stderr(self):
 		'''Make sure that stderr is being properly returned'''
 		
-		command = ["/bin/ls /System 1>&2"]
+		# setup a folder to then test on (so things are predictable)
+		outerFolder = tempFolderManager.getNewTempFolder()
+		testFile = open(os.path.join(outerFolder, "testItem"), "w")
+		testFile.close()
+		
+		command = ["/bin/ls " + outerFolder + " 1>&2"]
 		process = managedSubprocess(command, shell=True)
 		
 		self.assertTrue(hasattr(process, 'stderr') and process.stderr is not None, 'managedSubprocess did not have a stderr item when it should have')
 		result = process.stderr.read()
-		expectedResult = "Library\n"
+		expectedResult = "testItem\n"
 		self.assertTrue(isinstance(process.stderrLen, int), 'managedSubprocess should have had an integer value for stdoutLen, rather it had: ' + str(process.stderrLen))
-		self.assertEqual(len(expectedResult), process.stderrLen, 'managedSubprocess should have had a value of %i for stdoutLen, rather it had: %i' % (len(expectedResult), process.stderrLen))
+		self.assertEqual(len(expectedResult), process.stderrLen, 'managedSubprocess should have had a length of %i for stdoutLen, rather it had a length of %i: %s' % (len(expectedResult), process.stderrLen, result))
 		self.assertEqual(result, expectedResult, 'managedSubprocess did not return the correct stderr for process "%s". Got "%s" rather than "%s"' % (" ".join(command), result, expectedResult))
 	
 	def test_processAsPlist(self):
