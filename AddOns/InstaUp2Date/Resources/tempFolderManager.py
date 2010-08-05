@@ -104,8 +104,8 @@ class tempFolderManager(object):
 				if os.path.exists(thisManagedItem):
 					myClass.cleanupItem( os.path.realpath(os.path.normpath(thisManagedItem)) )
 			
-			except Exception, e: # catch everything
-				sys.stderr.write('Unable to process the folder: "%s" got error: %s\n' % (thisManagedItem, str(e))) # ToDo: logging
+			except Exception, error: # catch everything
+				sys.stderr.write('Unable to process the folder: "%s" got error: %s\n' % (thisManagedItem, str(error))) # ToDo: logging
 				myClass.managedItems.remove(thisManagedItem)
 			
 			if thisManagedItem in myClass.managedItems:
@@ -181,8 +181,8 @@ class tempFolderManager(object):
 		for root, dirs, files in os.walk(targetPath, topdown=False):
 			try:
 				os.rmdir(root)
-			except: # ToDo: make this more specific
-				sys.stderr.write('Unable to delete folder: "%s" got error: %s' % (root, str(e))) # ToDo: logging
+			except Exception, error: # ToDo: make this more specific
+				sys.stderr.write('Unable to delete folder: "%s" got error: %s' % (root, str(error))) # ToDo: logging
 		
 		if removeManagedFolder is not None:
 			myClass.managedItems.remove(removeManagedFolder)
