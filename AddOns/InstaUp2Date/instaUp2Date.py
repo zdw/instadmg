@@ -10,7 +10,6 @@ import hashlib, urlparse, urllib, urllib2, subprocess, datetime
 from Resources.checksum				import checksumFileObject, checksum
 from Resources.displayTools			import statusHandler, translateBytes, secondsToReadableTime
 from Resources.tempFolderManager	import tempFolderManager
-#from 
 
 #------------------------------SETTINGS------------------------------
 
@@ -443,7 +442,7 @@ class installerPackage:
 	
 	#-------------------- Instance Methods ---------------------------
 	
-	def __init__(self, displayName, sourceLocation, checksumString, additionalCacheFolders=None):	
+	def __init__(self, displayName, sourceLocation, checksumString, additionalSourceFolders=None):	
 		
 		if self.cacheFolders is None or len(self.cacheFolders) == 0:
 			raise RuntimeWarning('The %s class\'s cache folders must be setup before getCacheFolder is called' % self.__class__.__name__)
@@ -474,22 +473,22 @@ class installerPackage:
 		
 		foldersToSearch = []
 		
-		# additionalCacheFolders
-		if additionalCacheFolders is None:
+		# additionalSourceFolders
+		if additionalSourceFolders is None:
 			pass
 		
-		elif isinstance(additionalCacheFolders, str) and os.path.isdir(additionalCacheFolders):
-			foldersToSearch.append( os.path.realpath(os.path.abspath(additionalCacheFolders)) )
+		elif isinstance(additionalSourceFolders, str) and os.path.isdir(additionalSourceFolders):
+			foldersToSearch.append( os.path.realpath(os.path.abspath(additionalSourceFolders)) )
 		
-		elif hasattr(additionalCacheFolders, '__iter__'):
-			for thisFolder in additionalCacheFolders:
+		elif hasattr(additionalSourceFolders, '__iter__'):
+			for thisFolder in additionalSourceFolders:
 				if not os.path.isdir(thisFolder):
-					raise ValueError('The folder given to %s as an additionalCacheFolders either did not exist or was not a folder: %s' % (self.__class__.__name__, thisFolder))
+					raise ValueError('The folder given to %s as an additionalSourceFolders either did not exist or was not a folder: %s' % (self.__class__.__name__, thisFolder))
 					
 					foldersToSearch.append( os.path.realpath(os.path.abspath(thisFolder)) )
 		
 		else:
-			raise ValueError('Unable to understand the additionalCacheFolders given: ' + str(additionalCacheFolders))
+			raise ValueError('Unable to understand the additionalSourceFolders given: ' + str(additionalSourceFolders))
 		
 		# values we need to find or create
 		cacheFilePath = None
@@ -515,7 +514,7 @@ class installerPackage:
 				
 				# if this is a name (ie: not a path), look in the caches for the name
 				if filePath.count("/") == 0:
-					cacheFilePath = self.findItem(filePath, checksumType, checksumValue, cacheFolders)
+					cacheFilePath = self.findItem(filePath, self.checksumType, self.checksumValue, additionalSourceFolders=foldersToSearch)
 					
 					if cacheFilePath is not None:
 						print("	Found in cache folder by file name")
@@ -548,7 +547,7 @@ class installerPackage:
 				# url to download
 				
 				# guess the name from the URL
-				cacheFilePath = self.findItem(os.path.basename(parsedSourceLocationURL.path), self.checksumType, self.checksumValue)
+				cacheFilePath = self.findItem(os.path.basename(parsedSourceLocationURL.path), self.checksumType, self.checksumValue, additionalSourceFolders=foldersToSearch)
 				if cacheFilePath is not None:
 					print("	Found in cache folder by the name in the URL")
 					
@@ -581,12 +580,12 @@ class installerPackage:
 						fileName = httpHeader.getheader("content-disposition").strip()
 					
 					# check to see if we already have a file with this name and checksum
-					cacheFilePath = self.findItem(fileName, self.checksumType, self.checksumValue)
+					cacheFilePath = self.findItem(fileName, self.checksumType, self.checksumValue, additionalSourceFolders=foldersToSearch)
 					
 					if cacheFilePath is not None:
 						print("	Found using name in a redirected URL or content disposition header")
 					
-					if cacheFilePath is None:
+					else:
 						# continue downloading into the main cache folder
 						hashGenerator = hashlib.new(self.checksumType)
 						
@@ -631,22 +630,22 @@ class installerPackage:
 		
 		sourceFolders = myClass.getSourceFolders()
 		
-		# additionalCacheFolders
+		# additionalSourceFolders
 		if additionalSourceFolders is None:
 			pass
 		
 		elif isinstance(additionalSourceFolders, str) and os.path.isdir(additionalSourceFolders):
 			sourceFolders.append( os.path.realpath(os.path.abspath(additionalSourceFolders)) )
 		
-		elif hasattr(additionalCacheFolders, '__iter__'):
+		elif hasattr(additionalSourceFolders, '__iter__'):
 			for thisFolder in additionalSourceFolders:
 				if not os.path.isdir(thisFolder):
-					raise ValueError('The folder given to %s as an additionalCacheFolders either did not exist or was not a folder: %s' % (self.__class__.__name__, thisFolder))
+					raise ValueError('The folder given to %s as an additionalSourceFolders either did not exist or was not a folder: %s' % (self.__class__.__name__, thisFolder))
 					
 					sourceFolders.append( os.path.realpath(os.path.abspath(thisFolder)) )
 		
 		else:
-			raise ValueError('Unable to understand the additionalCacheFolders given: ' + str(additionalSourceFolders))
+			raise ValueError('Unable to understand the additionalSourceFolders given: ' + str(additionalSourceFolders))
 		
 		processReporter = None
 		
