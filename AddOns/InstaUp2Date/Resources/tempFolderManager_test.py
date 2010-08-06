@@ -94,6 +94,13 @@ class setupTests(unittest.TestCase):
 		
 		# !!!! WORK HERE !!!!
 	
+	def test_getPath(self):
+		
+		managedItem = tempFolderManager()
+		
+		self.assertTrue(managedItem.getPath() is not None, 'On a simple tempFolderManager item getPath is returning None')
+		self.assertTrue(managedItem.getPath().startswith(tempFolderManager.getDefaultFolder()), 'The simple tempFolderManager items reply to getPath did not start with the default folder, but rather was: ' + managedItem.getPath())
+	
 	def test_plainFiles(self):
 		'''Test that a random file will be deleted'''
 		
@@ -217,7 +224,29 @@ class setupTests(unittest.TestCase):
 		
 		# remove the tempdir we made for the parent folder test
 		shutil.rmtree(secondParentFolder)
+	
+	def test_validSymlink(self):
+		'''Test that valid symlinks get cleared up'''
 		
+		thisTempFolder = tempFolderManager()
+		
+		# create a file to link to
+		open(os.path.join(thisTempFolder.getPath(), 'testFile'), 'w').close()
+		
+		# valid link
+		os.symlink('testFile', os.path.join(thisTempFolder.getPath(), 'validLink'))
+		
+		thisTempFolder.cleanup()
+	
+	def test_invalidSymlink(self):
+		'''Test that invalid symlinks get cleaned up'''
+		
+		thisTempFolder = tempFolderManager()
+		
+		# invalid link
+		os.symlink('thisFileShouldNotExist', os.path.join(thisTempFolder.getPath(), 'validLink'))
+		
+		thisTempFolder.cleanup()
 
 class setupTests_negative(unittest.TestCase):
 	

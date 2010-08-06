@@ -171,11 +171,19 @@ class tempFolderManager(object):
 				continue
 			
 			# delete all files, allowing things to fail
-			for thisFile in [os.path.join(root, internalFile) for internalFile in files]:
+			for thisFile in [os.path.join(root, internalName) for internalName in files]:
 				try:
 					os.unlink(thisFile)
 				except: # ToDo: make this more specific
 					pass # ToDo: log this
+			
+			# catch any symlinks
+			for thisFolder in [os.path.join(root, internalName) for internalName in dirs]:
+				if os.path.islink(thisFolder):
+					try:
+						os.unlink(thisFolder)
+					except: # ToDo: make this more specific
+						pass # ToDo: log this	
 		
 		# now that there are no mounted volumes, there should be no files, so delete the folders
 		for root, dirs, files in os.walk(targetPath, topdown=False):
@@ -263,14 +271,14 @@ class tempFolderManager(object):
 		return self
 	
 	def __init__(self, targetPath=None):
-		
-		targetPath = os.path.realpath(os.path.normpath(str(targetPath)))
-		
+				
 		if targetPath is None:
 			# create a new folder inside the default temporary folder
 			targetPath = tempfile.mkdtemp(prefix=self.tempFolderPrefix, dir=self.getDefaultFolder())
 		
-		elif not os.path.isdir(os.path.dirname(targetPath)):
+		targetPath = os.path.realpath(os.path.normpath(str(targetPath)))
+		
+		if not os.path.isdir(os.path.dirname(targetPath)):
 			raise ValueError('%s called with a targePath whose parent directory does not exist: %s' % (self.__class__.__name__, targetPath))
 		
 		elif not os.path.lexists(targetPath):

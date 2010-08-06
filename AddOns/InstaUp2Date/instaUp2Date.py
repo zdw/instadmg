@@ -254,7 +254,7 @@ class instaUpToDate:
 				print('''	Checksum:	%(checksumType)s:%(checksum)s
 	Source:		%(source)s
 	Cache:		%(cacheLocation)s
-''' % { "checksum":thisPackage.checksum, "checksumType":thisPackage.checksumType, "source":thisPackage.source, "cacheLocation":thisPackage.filePath })
+''' % { "checksum":thisPackage.checksumValue, "checksumType":thisPackage.checksumType, "source":thisPackage.source, "cacheLocation":thisPackage.filePath })
 				
 				self.packageGroups[currentSection].append(thisPackage)
 				
@@ -434,7 +434,7 @@ class installerPackage:
 	
 	displayName			= None		# arbitrary text string for display	
 	
-	checksum			= None
+	checksumValue		= None
 	checksumType		= None
 	
 	source				= None

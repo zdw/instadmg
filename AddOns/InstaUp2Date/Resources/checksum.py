@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-import os, sys, re, time, math
-import hashlib, urllib, urllib2, urlparse, tempfile, optparse
-import atexit, shutil, stat
+import os, time, hashlib, urllib, urllib2, urlparse, stat
+
 from displayTools import translateBytes, secondsToReadableTime, statusHandler
+from tempFolderManager import tempFolderManager
 
 def checksumFileObject(hashFileObject, targetFileObject, targetFileName, expectedLength, chunkSize=None, copyToPath=None, progressReporter=None):
 	
@@ -87,16 +87,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", out
 	cacheFolder = None
 	
 	if outputFolder is not None:
-		cacheFolder = tempfile.mkdtemp(prefix=tempFolderPrefix, dir='/tmp')
-		if cacheFolder is None:
-			raise Exception('Internal error: unable to create tempfolder')
-		
-		# make sure we cleanup after outselves
-		def cleanupTempFolder(cacheFolder):
-			if os.path.exists(cacheFolder) and os.path.isdir(cacheFolder):
-				# ToDo: log this
-				shutil.rmtree(cacheFolder, ignore_errors=True)
-		atexit.register(cleanupTempFolder, cacheFolder)
+		cacheFolder = tempFolderManager.getNewTempFolder()
 	
 	# warm up the checksummer
 	hashGenerator = hashlib.new(checksumType)
