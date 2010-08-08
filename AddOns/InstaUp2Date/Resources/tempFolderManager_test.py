@@ -247,6 +247,22 @@ class setupTests(unittest.TestCase):
 		os.symlink('thisFileShouldNotExist', os.path.join(thisTempFolder.getPath(), 'validLink'))
 		
 		thisTempFolder.cleanup()
+	
+	def test_noPermissions(self):
+		'''Items should be cleaned up, even if their permissions don't allow it'''
+		
+		# create and test an unwriteable folder
+		unwriteableFolder = tempFolderManager.getNewTempFolder()
+		os.chmod(unwriteableFolder, 0)
+		tempFolderManager.cleanupItem(unwriteableFolder)
+		self.assertFalse(os.path.exists(unwriteableFolder), 'After cleanupForExit the unwriteable folder should have been cleaned away')
+		
+		# create and test an unwriteable file
+		testFolder = tempFolderManager.getNewTempFolder()
+		open(os.path.join(testFolder, 'unwriteableFile'), 'w').close()
+		os.chmod(os.path.join(testFolder, 'unwriteableFile'), 0)
+		tempFolderManager.cleanupItem(testFolder)
+		self.assertFalse(os.path.exists(os.path.join(testFolder, 'unwriteableFile')), 'After cleanupForExit the unwriteable file should have been cleaned away')
 
 class setupTests_negative(unittest.TestCase):
 	

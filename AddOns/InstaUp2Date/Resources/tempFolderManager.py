@@ -30,7 +30,7 @@ class tempFolderManager(object):
 		
 		if targetFolder is None and myClass.defaultFolder is None:
 			# setup the system with a default value
-			targetFolder = tempfile.mkdtemp(prefix='InstaDMGTempFolder.', dir='/private/tmp')
+			targetFolder = tempfile.mkdtemp(prefix=myClass.tempFolderPrefix, dir='/private/tmp')
 			myClass.managedItems.append(targetFolder) # ToDo: log this
 			myClass.defaultFolder = targetFolder
 			return myClass.defaultFolder
@@ -161,6 +161,10 @@ class tempFolderManager(object):
 			except: # ToDo: make this more specific
 				pass # ToDo: log this
 		
+		# make sure that the permissions on the root folder are ok
+		elif not os.access(targetPath, os.R_OK | os.X_OK):
+			os.chmod(targetPath, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+		
 		# walk up the tree to remove any volumes mounted into the path
 		for root, dirs, files in os.walk(targetPath, topdown=True):
 			
@@ -173,22 +177,33 @@ class tempFolderManager(object):
 			# delete all files, allowing things to fail
 			for thisFile in [os.path.join(root, internalName) for internalName in files]:
 				try:
-					os.unlink(thisFile)
+					try:
+						os.unlink(thisFile)
+					except OSError:
+						# assume that this was a permissions error, and try to chmod it into cooperating
+						os.chmod(thisFile, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+						os.unlink(thisFile)
+				
 				except: # ToDo: make this more specific
 					pass # ToDo: log this
 			
 			# catch any symlinks
 			for thisFolder in [os.path.join(root, internalName) for internalName in dirs]:
+				# make sure we can make it into all sub-folders and delete them:
+				if not os.access(thisFolder, os.R_OK | os.X_OK):
+					os.chmod(thisFolder, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+				
 				if os.path.islink(thisFolder):
 					try:
 						os.unlink(thisFolder)
 					except: # ToDo: make this more specific
 						pass # ToDo: log this	
-		
+				
 		# now that there are no mounted volumes, there should be no files, so delete the folders
 		for root, dirs, files in os.walk(targetPath, topdown=False):
 			try:
 				os.rmdir(root)
+			
 			except Exception, error: # ToDo: make this more specific
 				sys.stderr.write('Unable to delete folder: "%s" got error: %s' % (root, str(error))) # ToDo: logging
 		
