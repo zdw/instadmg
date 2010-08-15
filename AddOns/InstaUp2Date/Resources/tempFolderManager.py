@@ -227,6 +227,17 @@ class tempFolderManager(object):
 		return
 	
 	@classmethod
+	def removeManagedItem(myClass, targetPath):
+		'''Remove an item from the list of managed items'''
+		
+		targetPath = os.path.realpath(os.path.normpath(str(targetPath)))
+		
+		if not targetPath in myClass.managedItems:
+			raise ValueError('removeManagedItem called with a targetPath that was not a managed path: ' + targetPath)
+		
+		myClass.managedItems.remove(targetPath)
+	
+	@classmethod
 	def getManagedPathForPath(myClass, targetPath):
 		'''Find any managed items that already house this path'''
 		

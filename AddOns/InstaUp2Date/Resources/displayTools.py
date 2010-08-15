@@ -4,89 +4,216 @@ import os, sys, time, math
 
 class statusHandler:
 	
-	linePrefix				= ''
-	linePrefixWritten		= True
+	throttleUpdateSeconds	= .125			# limit updates to once every this many seconds, 0 is constant updates
 	
-	statusMessage			= ''
+	outputChannel			= sys.stdout	
 	
-	updateMessage			= ''
-	unwrittenUpdateMessage	= None
+	taskMessage				= ''			# The overall task - always written on change, wipes out status and progress sections
+	statusMessage			= ''			# The phase in the task - always written on change, wipes out progress section
+	progressTemplate		= ''			# A template used to mark progress - always written on change
+							    			#	can use values: 
+							    			#		value (i or f)
+							    			#		valueInBytes (s)
+							    			#		expectedLength (i or f)
+							    			#		expectedLengthInBytes (s)
+							    			#		progressPercentage (i or f)
+							    			#		recentRateInBytes (s) - 
+							    			#	
+											#	examples:
+							    			#		' %(value)i of %(expectedLength)i'
+							    			#		' %%(percentage)i (%(recentRateInBytes)s)'
 	
-	outputChannel			= sys.stderr
+	_lastWrittenProgress	= ''			# what was last written, so we can unwrite it
+	_lastTimeWritten		= None			# timestamp when last written
+	_lastValueWritten		= None			# value when we last wrote
 	
-	throttleUpdateSeconds	= .125				# limit updates to once every this many seconds, 0 is constant updates
-	lastUpdateTime			= None
+	# values for progress message
+	_value					= None			# the central value
+	_expectedLength			= None			# used in caculating percentage done
 	
-	def __init__(self, outputChannel=None, linePrefix=None, statusMessage=None, updateMessage=None, throttleUpdateSeconds=None):
+	# so we don't double-tap the end
+	_lineFinished			= False
+	
+	# --- progress helper methods ---
+	
+	def _expectedLengthInBytes(self):
+		if self._expectedLength is None:
+			return ''
+		# ToDo: more paranoia
+		
+		return translateBytes(self._expectedLength)
+	
+	def _recentRateInBytes(self):
+		'''Get a fomatted string with the rate since we last reported'''
+		
+		# ToDo: paranoid checks
+		
+		currentTime = time.time()
+		
+		if None in [self._lastTimeWritten, self._value, self._lastValueWritten] or currentTime <= self._lastTimeWritten:
+			return 'N/A'
+		
+		return translateBytes((self._value - self._lastValueWritten)/(currentTime - self._lastTimeWritten)) + "/sec"
+	
+	def _progressPercentage(self):
+		'''Return the progress as a percentage of the total'''
+		
+		if self._expectedLength is None or self._expectedLength is 0:
+			return 0
+		
+		if self._value is None:
+			return 0
+		
+		return (float(self._value)/float(self._expectedLength)) * 100
+	
+	# ------ instance methods -------
+	
+	def __enter__(self):
+		return self
+	
+	def __init__(self, outputChannel=None, taskMessage='', statusMessage='', progressTemplate='', value=0, expectedLength=None, throttleUpdateSeconds=None):
+		
 		if outputChannel is not None:
 			self.outputChannel = outputChannel
 		
 		if throttleUpdateSeconds is not None:
 			self.throttleUpdateSeconds = float(throttleUpdateSeconds)
-		
-		self.linePrefix = linePrefix	# Note: we are delaying writing anything until we have something other than the prefix to write
-		self.linePrefixWritten = False
-		
-		self.lastUpdateTime = time.time()
-		
-		self.update(statusMessage, updateMessage)
+				
+		self.update(taskMessage=taskMessage, statusMessage=statusMessage, progressTemplate=progressTemplate, value=value, expectedLength=expectedLength)
 	
-	def update(self, statusMessage=None, updateMessage=None, forceOutput=False):
+	def __exit__(self, type, value, traceback):
+		self.finishLine()
+	
+	def update(self, taskMessage=None, statusMessage=None, progressTemplate=None, value=None, expectedLength=None, forceUpdate=False):
 		
-		lengthChange = 0
+		if self.throttleUpdateSeconds == 0:
+			forceUpdate = True
 		
-		if self.linePrefixWritten is False and self.linePrefix not in ['', None] and (statusMessage is not None or updateMessage is not None):
-			self.outputChannel.write(self.linePrefix)
-			self.linePrefixWritten = True
+		lengthToOverwrite = 0	# numbers of characters that need to be overwritten by spaces at the end of the line
+		
+		if taskMessage is not None:
+			
+			# delete everything written to this point
+			lengthToOverwrite = len(self.taskMessage) + len(self.statusMessage) + len(self._lastWrittenProgress)
+			
+			if self.outputChannel.isatty():
+				self.outputChannel.write('\b' * lengthToOverwrite)
+				self.outputChannel.write(' ' * lengthToOverwrite)
+				self.outputChannel.flush()
+				self.outputChannel.write('\b' * lengthToOverwrite)
+			else:
+				self.outputChannel.seek(lengthToOverwrite * -1, 1)
+			
+			# clean things out
+			self.statusMessage = ''
+			self._lastWrittenProgress = ''
+			self._value = None
+			self._expectedLength = None
+			
+			# write out the new value
+			self.outputChannel.write(taskMessage)
+			lengthToOverwrite -= len(taskMessage)
+			if lengthToOverwrite < 0:
+				lengthToOverwrite = 0
+			self.taskMessage = taskMessage
+			
+			# make sure we write out everything
+			forceUpdate = True
+			self._lastTimeWritten = time.time()
 		
 		if statusMessage is not None:
-			oldLength = len(self.statusMessage) + len(self.updateMessage)
-			self.outputChannel.write('\b' * oldLength)
+			# delete what we have written for taskMessage and progress
+			lengthToOverwrite += len(self.statusMessage) + len(self._lastWrittenProgress)
 			
-			self.statusMessage = str(statusMessage)
+			if self.outputChannel.isatty():
+				self.outputChannel.write('\b' * (len(self.statusMessage) + len(self._lastWrittenProgress)))
+				self.outputChannel.write(' ' * (len(self.statusMessage) + len(self._lastWrittenProgress)))
+				self.outputChannel.flush()
+				self.outputChannel.write('\b' * (len(self.statusMessage) + len(self._lastWrittenProgress)))
+			else:
+				self.outputChannel.seek(lengthToOverwrite * -1, 1)
 			
-			if updateMessage is not None:
-				self.updateMessage = str(updateMessage)
-				self.unwrittenUpdateMessage = None
+			# cleanup progress
+			self._lastWrittenProgress = ''
+			self._value = None
+			self._expectedLength = None
+			
+			# write out the new value
+			self.outputChannel.write(statusMessage)
+			lengthToOverwrite -= len(statusMessage)
+			if lengthToOverwrite < 0:
+				lengthToOverwrite = 0
+			
+			self.statusMessage = statusMessage
+			self._lastTimeWritten = time.time()
+		
+		if value is not None:
+			self._value = float(value) # ToDo: what if None is the desired value?
+		
+		if expectedLength is not None:
+			self._expectedLength = float(expectedLength)
+			forceUpdate = True
+		
+		if progressTemplate is not None or value is not None:
+			
+			if self._lastTimeWritten is None:
+				forceUpdate = True
+			
+			if progressTemplate is not None:
+				self.progressTemplate = progressTemplate
+				forceUpdate = True
+			
+			if forceUpdate is True or (time.time() - self._lastTimeWritten) > self.throttleUpdateSeconds:
 				
-			elif self.unwrittenUpdateMessage is not None:
-				self.updateMessage = self.unwrittenUpdateMessage
-				self.unwrittenUpdateMessage = None
-			
-			lengthChange = oldLength - len(self.statusMessage) - len(self.updateMessage)
-			self.outputChannel.write(self.statusMessage + self.updateMessage)
+				# ToDo: optimize for progressTemplate being empty
+				
+				# delete what we have written for progress
+				lengthToOverwrite += len(self._lastWrittenProgress)
+				if self.outputChannel.isatty():
+					self.outputChannel.write('\b' * len(self._lastWrittenProgress))
+					self.outputChannel.write(' ' * len(self._lastWrittenProgress))
+					self.outputChannel.flush()
+					self.outputChannel.write('\b' * len(self._lastWrittenProgress))
+				else:
+					self.outputChannel.seek(lengthToOverwrite * -1, 1)
+				
+				if self.progressTemplate is not '':
+					# write out the new value
+					self._lastWrittenProgress = self.progressTemplate % {
+						'value' : self._value,
+						'valueInBytes' : translateBytes(self._value),
+						'expectedLength' : self._expectedLength,
+						'expectedLengthInBytes' : self._expectedLengthInBytes(),
+						'progressPercentage' : self._progressPercentage(),
+						'recentRateInBytes' : self._recentRateInBytes()
+					}
+					self.outputChannel.write(self._lastWrittenProgress)
+					lengthToOverwrite -= len(self._lastWrittenProgress)
+					if lengthToOverwrite < 0:
+						lengthToOverwrite = 0
+					
+				# update internal watchers
+				self._lastValueWritten = self._value
+				self._lastTimeWritten = time.time()
 		
-		elif updateMessage is not None:
-			
-			if forceOutput is False and self.throttleUpdateSeconds != 0 and (time.time() - self.lastUpdateTime) < self.throttleUpdateSeconds:
-				self.unwrittenUpdateMessage = updateMessage
-				return # limit writing to the terminal, to keep it from absorbing too much cpu
-			
-			self.unwrittenUpdateMessage = None
-			
-			oldLength = len(self.updateMessage)
-			self.outputChannel.write('\b' * oldLength)
-			
-			self.updateMessage = str(updateMessage)
-			
-			lengthChange = oldLength - len(self.updateMessage)
-			self.outputChannel.write(self.updateMessage)
+		if lengthToOverwrite > 0:
+			if self.outputChannel.isatty():
+				self.outputChannel.write(' ' * lengthToOverwrite)
+				self.outputChannel.flush()
+				self.outputChannel.write('\b' * lengthToOverwrite)
+			else:
+				self.outputChannel.truncate()
 		
-		elif forceOutput is True:
-			oldLength = len(self.statusMessage) + len(self.updateMessage)
-			
-			if self.unwrittenUpdateMessage is not None:
-				self.updateMessage = self.unwrittenUpdateMessage
-				self.unwrittenUpdateMessage = None
-			
-			self.outputChannel.write('\b' * oldLength)
-			self.outputChannel.write(self.statusMessage + self.updateMessage)
-		
-		if lengthChange > 0:
-			self.outputChannel.write('%s%s' % (' ' * lengthChange, '\b' * lengthChange))
-		
-		self.lastUpdateTime = time.time()
 		self.outputChannel.flush()
+	
+	def finishLine(self):
+		'''Finish the line... adding a newline'''
+		
+		if self._lineFinished is False:
+			self.outputChannel.write('\n')
+			self.outputChannel.flush()
+		
+		self._lineFinished = True
 
 def secondsToReadableTime(seconds):
 
@@ -121,6 +248,10 @@ def secondsToReadableTime(seconds):
 	return responce.strip()
 
 def translateBytes(bytes):
+	
+	if bytes is None:
+		return 'None'
+	
 	if int(bytes) >= 1024*1024*1024*1024:
 		return "%.1f Terabytes" % (float(bytes)/(1024*1024*1024*1024))
 	elif int(bytes) >= 1024*1024*1024:
@@ -131,3 +262,4 @@ def translateBytes(bytes):
 		return "%.1f Kilobytes" % (float(bytes)/1024)
 	else:
 		return "%i Bytes" % bytes
+

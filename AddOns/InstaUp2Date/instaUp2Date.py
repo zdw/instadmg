@@ -9,6 +9,7 @@ import hashlib, urlparse, subprocess, datetime
 
 from Resources.tempFolderManager	import tempFolderManager
 from Resources.installerPackage		import installerPackage
+from Resources.commonExceptions		import FileNotFoundException, CatalogNotFoundException
 
 #------------------------------SETTINGS------------------------------
 
@@ -29,14 +30,6 @@ appleUpdatesFolderPath		= os.path.normpath(os.path.join(absPathToInstaDMGFolder,
 customPKGFolderPath			= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "InstallerFiles", "CustomPKG"))
 
 baseOSFolderPath			= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "InstallerFiles", "Base OS Disk"))
-
-#-----------------------------EXCEPTIONS-----------------------------
-
-class FileNotFoundException(Exception):
-	pass
-
-class CatalogNotFoundException(FileNotFoundException):
-	pass
 
 #-------------------------------CLASSES------------------------------
 
@@ -137,7 +130,6 @@ class instaUpToDate:
 				
 		else:
 			raise Exception('%s called with a catalogFolder that could not be understood: %s' % (self.__class__, str(sectionFolders)))
-		
 		
 		# sectionFolders
 		if not hasattr(sectionFolders, '__iter__'):
@@ -249,11 +241,6 @@ class instaUpToDate:
 					sourceLocation = packageLineMatch.group("fileLocation"),
 					checksumString = packageLineMatch.group("fileChecksum"),
 				)
-				
-				print('''	Checksum:	%(checksumType)s:%(checksum)s
-	Source:		%(source)s
-	Cache:		%(cacheLocation)s
-''' % { "checksum":thisPackage.checksumValue, "checksumType":thisPackage.checksumType, "source":thisPackage.source, "cacheLocation":thisPackage.filePath })
 				
 				self.packageGroups[currentSection].append(thisPackage)
 				
@@ -411,11 +398,6 @@ def main ():
 	
 	options, catalogFiles = optionsParser.parse_args()
 	
-	# --- process options ---
-	
-	if options.catalogFolders is None:
-		options.catalogFolders = os.path.normpath(os.path.join(absPathToInstaDMGFolder, "AddOns", "InstaUp2Date", "CatalogFiles"))
-	
 	# --- police options ----
 	
 	if len(catalogFiles) < 1:
@@ -435,7 +417,10 @@ def main ():
 		optionsParser.error("When using the -p/--process flag this must be run as root (sudo is fine)")
 	
 	# --- process options ---
-	
+
+	if options.catalogFolders is None:
+		options.catalogFolders = os.path.normpath(os.path.join(absPathToInstaDMGFolder, "AddOns", "InstaUp2Date", "CatalogFiles"))
+		
 	baseCatalogFiles = []
 	for thisCatalogFile in catalogFiles:
 		try:
@@ -494,7 +479,9 @@ def main ():
 		thisController.setupInstaDMGFolders()
 		
 		# parse the tree of catalog files
+		print('Finding and validating the sources for ' + os.path.basename(catalogFilePath))
 		thisController.parseFile(catalogFilePath)
+		print('') # an empty line
 		
 		# add any additional catalogs to this one
 		for addOnCatalogFile in addOnCatalogFiles:

@@ -2,8 +2,6 @@
 
 import sys, os, re, time, subprocess, Foundation
 
-from Resources.checksum import checksum
-
 #import threading
 
 def getMountPointFromBSDName(diskBSDName):
