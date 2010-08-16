@@ -10,10 +10,11 @@ class tempFolderManager(object):
 	
 	classActivated			= False
 	
-	defaultFolder			= None				# used when no containing folder is given
-	managedItems			= []				# class-wide array, used in atexit cleanup
+	defaultFolder			= None					# used when no containing folder is given
+	managedItems			= []					# class-wide array, used in atexit cleanup
 	
-	tempFolderPrefix		= 'InstaDMGTemp'	# default name prefix for temporary folers
+	tempFolderPrefix		= 'InstaDMGTempFolder.'	# default name prefix for temporary folers
+	tempFilePrefix			= 'InstaDMGTempFile.'	# default name prefix for temporaty files
 	
 	#-------- instance properties ---------
 	
@@ -263,33 +264,57 @@ class tempFolderManager(object):
 				return thisMangedPath
 		
 		return None
-		
+	
 	@classmethod
-	def getNewTempFolder(myClass, parentFolder=None, prefix=None):
-		'''Create a new managed folder and return the path'''
+	def getNewTempItem(myClass, fileOrFolder, parentFolder=None, prefix=None):
+		'''Create a new managed file or folder and return the path'''
+		
+		if not fileOrFolder in ['file', 'folder']:
+			raise ValueError('getNewTempITem only accepts "file" or "folder" for the fileOrFolder attribute, was given: ' + str(fileOrFolder))
 		
 		pathToReturn = None
 		
 		if prefix is None:
-			prefix = myClass.tempFolderPrefix
+			if fileOrFolder == 'file':
+				prefix = myClass.tempFilePrefix
+			else:
+				prefix = myClass.tempFolderPrefix
 		
 		if parentFolder is None:
-			# create a new folder inside the current default one
-			pathToReturn = tempfile.mkdtemp(dir=myClass.getDefaultFolder(), prefix=prefix)
+			# create a new folder/file inside the current default one
+			parentFolder = myClass.getDefaultFolder()
 		
 		elif not os.path.isdir(str(parentFolder)):
 			raise ValueError('getNewTempFolder called with a parentFolder path that does not exist is is not a directory: ' + str(parentFolder))
 		
+		if fileOrFolder == 'file':
+			openFile, pathToReturn = tempfile.mkstemp(dir=parentFolder, prefix=prefix)
+			os.close(openFile)
 		else:
 			# create the new folder
 			pathToReturn = tempfile.mkdtemp(dir=parentFolder, prefix=prefix)
-			
-			if myClass.getManagedPathForPath(parentFolder) is None:
-				# this is an unmanaged path, and we need to add it
-				myClass.addManagedItem(pathToReturn)
+		
+		pathToReturn = os.path.realpath(os.path.normpath(pathToReturn))
+		
+		# make sure that this file/folder is in managed space
+		if myClass.getManagedPathForPath(pathToReturn) is None:
+			# this is an unmanaged path, and we need to add it
+			myClass.addManagedItem(pathToReturn)
 		
 		# return a fully normalized path
-		return os.path.realpath(os.path.normpath(pathToReturn))
+		return pathToReturn
+	
+	@classmethod
+	def getNewTempFolder(myClass, parentFolder=None, prefix=None):
+		'''Create a new managed file or folder and return the path'''
+		
+		return myClass.getNewTempItem('folder', parentFolder=parentFolder, prefix=prefix)
+	
+	@classmethod
+	def getNewTempFile(myClass, parentFolder=None, prefix=None):
+		'''Create a new managed file or folder and return the path'''
+		
+		return myClass.getNewTempItem('file', parentFolder=parentFolder, prefix=prefix)
 	
 	#---------- instance methods ----------
 	

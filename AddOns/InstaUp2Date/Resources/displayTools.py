@@ -21,7 +21,7 @@ class statusHandler:
 							    			#	
 											#	examples:
 							    			#		' %(value)i of %(expectedLength)i'
-							    			#		' %%(percentage)i (%(recentRateInBytes)s)'
+							    			#		' %(percentage)i%% (%(recentRateInBytes)s)'
 	
 	_lastWrittenProgress	= ''			# what was last written, so we can unwrite it
 	_lastTimeWritten		= None			# timestamp when last written
@@ -107,8 +107,6 @@ class statusHandler:
 			# clean things out
 			self.statusMessage = ''
 			self._lastWrittenProgress = ''
-			self._value = None
-			self._expectedLength = None
 			
 			# write out the new value
 			self.outputChannel.write(taskMessage)
@@ -135,8 +133,6 @@ class statusHandler:
 			
 			# cleanup progress
 			self._lastWrittenProgress = ''
-			self._value = None
-			self._expectedLength = None
 			
 			# write out the new value
 			self.outputChannel.write(statusMessage)
@@ -147,13 +143,24 @@ class statusHandler:
 			self.statusMessage = statusMessage
 			self._lastTimeWritten = time.time()
 		
-		if value is not None:
-			self._value = float(value) # ToDo: what if None is the desired value?
+		# set the value variable
+		if value is True:
+			pass # keep the value we already had
+		elif value is not None:
+			self._value = float(value)
+		elif taskMessage is not None or statusMessage is not None:
+			self._value = 0 # reset for a new phase
 		
-		if expectedLength is not None:
+		# set the expectedLength variable
+		if expectedLength is True:
+			pass # keep the value we already had
+		elif expectedLength is not None:
 			self._expectedLength = float(expectedLength)
 			forceUpdate = True
+		elif (taskMessage is not None) or (statusMessage is not None):
+			self._expectedLength = 0 # reset for a new phase
 		
+		# write out the progressMessage
 		if progressTemplate is not None or value is not None:
 			
 			if self._lastTimeWritten is None:

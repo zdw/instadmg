@@ -165,59 +165,113 @@ class installerPackageTests(installerPackageTestsSetup):
 	def cacheTestMethod(self, method):
 		'''Test findItem finding simple files in the cache'''
 		
-		# create a file with a known name and checksum, with the checksum in the path
+		# file with a known name and checksum, with the checksum in the path
 		checksumFilePath = os.path.join(self.firstSourceFolderPath, 'aFile sha1-f475597b627a4d580ec1619a94c7afb9cc75abe4.txt')
 		testFile = open(checksumFilePath, 'w')
 		testFile.write("a" * 400) # sha1 checksum: f475597b627a4d580ec1619a94c7afb9cc75abe4
 		testFile.close()
 		
-		# create a file with a known name and checksum, with the checksum in the path, inside a subfolder
+		# file with a known name and checksum, with the checksum in the path, inside a subfolder
 		checksumInSubfolderFilePath = os.path.join(self.firstSourceFolderPath, 'subfolder', 'bFile sha1-8bc1e4c5d467c10555dae3c4ea04471b856b23bc.txt')
 		os.mkdir(os.path.join(self.firstSourceFolderPath, 'subfolder'))
 		testFile = open(checksumInSubfolderFilePath, 'w')
 		testFile.write("b" * 150) # sha1 checksum: 8bc1e4c5d467c10555dae3c4ea04471b856b23bc
 		testFile.close()
 		
-		# create a file with a known name and checksum, without the checksum in the path
+		# file with a known name and checksum, without the checksum in the path
 		nameFilePath = os.path.join(self.firstSourceFolderPath, 'cFile.txt')
 		testFile = open(nameFilePath, 'w')
 		testFile.write("c" * 300) # sha1 checksum: bc5b916598902018a023717425314bee88ff7fe9
 		testFile.close()
 		
-		# create a file with a known name and checksum in a subfolder, without the checksum in the path
+		# file with a known name and checksum in a subfolder, without the checksum in the path
 		nameInSubfolderFilePath = os.path.join(self.firstSourceFolderPath, 'subfolder', 'dFile.txt')
 		testFile = open(nameInSubfolderFilePath, 'w')
 		testFile.write("d" * 180) # sha1 checksum: b07eaa471ef7af455e1079a59135b1ebac44a72e
 		testFile.close()
 		
+		# file with a known name in the second folder
+		nameInSecondSourceFolderFilePath = os.path.join(self.secondSourceFolderPath, 'eFile.txt')
+		testFile = open(nameInSecondSourceFolderFilePath, 'w')
+		testFile.write("E" * 40) # sha1 checksum: 981ee57582ef1b95fb2f87982280a6dd01f46cc8
+		testFile.close()
+		
+		# create two files, with the same name but different checksums, one in a subfolder
+		outerDifferentChecksumFilePath = os.path.join(self.secondSourceFolderPath, 'fFile.txt')
+		testFile = open(outerDifferentChecksumFilePath, 'w')
+		testFile.write("f" * 80) # sha1 checksum: c8280ce5bfab50ffac50bbca5e22540335708ad9
+		testFile.close()
+		
+		os.mkdir(os.path.join(self.secondSourceFolderPath, 'fFileFolder'))
+		innerDifferentChecksumFilePath = os.path.join(self.secondSourceFolderPath, 'fFileFolder', 'fFile.txt')
+		testFile = open(innerDifferentChecksumFilePath, 'w')
+		testFile.write("f" * 40) # sha1 checksum: e0bbc5c28208d8909a27a5890216e24da6eb8cd3
+		testFile.close()
+		
+		# two files with the same contents and name, but one inside a folder, and one at the root
+		outerSameChecksumFilePath = os.path.join(self.secondSourceFolderPath, 'gFile.txt')
+		testFile = open(outerSameChecksumFilePath, 'w')
+		testFile.write("g" * 177) # sha1 checksum: 9315056a35b92557f3180c7c53d33c80dca7095e
+		testFile.close()
+		
+		os.mkdir(os.path.join(self.secondSourceFolderPath, 'gFileFolder'))
+		innerSameChecksumFilePath = os.path.join(self.secondSourceFolderPath, 'gFileFolder', 'gFile.txt')
+		testFile = open(innerSameChecksumFilePath, 'w')
+		testFile.write("g" * 177) # sha1 checksum: 9315056a35b92557f3180c7c53d33c80dca7095e
+		testFile.close()
+		
+		# ToDo: absolute path
+		# ToDo: absolute path crossing a symlink
+		
+		
+		
+		
 		# find file by checksum
 		resultPath = method('aFile.txt', 'sha1', 'f475597b627a4d580ec1619a94c7afb9cc75abe4', progressReporter=None)
 		self.assertEqual(checksumFilePath, resultPath, 'findItem could not find the aFile by checksum, should have been "%s" but was: %s' % (checksumFilePath, resultPath))
 		
-		# find a subfile by checksum
+		# find a file in a folder by checksum
 		resultPath = method('bFile.txt', 'sha1', '8bc1e4c5d467c10555dae3c4ea04471b856b23bc', progressReporter=None)
-		self.assertEqual(checksumInSubfolderFilePath, resultPath, 'findItem could not find the aFile by checksum, should have been "%s" but was: %s' % (checksumInSubfolderFilePath, resultPath))
+		self.assertEqual(checksumInSubfolderFilePath, resultPath, 'findItem could not find the bFile inside a subfolder by checksum, should have been "%s" but was: %s' % (checksumInSubfolderFilePath, resultPath))
 		
 		# find a file by the name, indluding extension
 		resultPath = method('cFile.txt', 'sha1', 'bc5b916598902018a023717425314bee88ff7fe9', progressReporter=None)
-		self.assertEqual(nameFilePath, resultPath, 'findItem could not find the aFile by checksum, should have been "%s" but was: %s' % (nameFilePath, resultPath))
+		self.assertEqual(nameFilePath, resultPath, 'findItem could not find the cFile by the name, indluding extension, should have been "%s" but was: %s' % (nameFilePath, resultPath))
 		
 		# find a file by the name, minus the extension
 		resultPath = method('cFile', 'sha1', 'bc5b916598902018a023717425314bee88ff7fe9', progressReporter=None)
-		self.assertEqual(nameFilePath, resultPath, 'findItem could not find the aFile by checksum, should have been "%s" but was: %s' % (nameFilePath, resultPath))
+		self.assertEqual(nameFilePath, resultPath, 'findItem could not find the cFile by the name, minus the extension, should have been "%s" but was: %s' % (nameFilePath, resultPath))
 		
 		# find a file by the name, with a bad extension
 		resultPath = method('cFile.bad', 'sha1', 'bc5b916598902018a023717425314bee88ff7fe9', progressReporter=None)
-		self.assertEqual(nameFilePath, resultPath, 'findItem could not find the aFile by checksum, should have been "%s" but was: %s' % (nameFilePath, resultPath))
+		self.assertEqual(nameFilePath, resultPath, 'findItem could not find the cFile by the name, with a bad extension, should have been "%s" but was: %s' % (nameFilePath, resultPath))
 		
 		# find a file in a subfolder by the name, indluding extension
 		resultPath = method('dFile.txt', 'sha1', 'b07eaa471ef7af455e1079a59135b1ebac44a72e', progressReporter=None)
-		self.assertEqual(nameInSubfolderFilePath, resultPath, 'findItem could not find the aFile by checksum, should have been "%s" but was: %s' % (nameFilePath, resultPath))
+		self.assertEqual(nameInSubfolderFilePath, resultPath, 'findItem could not find the dFile in a subfolder by the name, indluding extension, should have been "%s" but was: %s' % (nameFilePath, resultPath))
 		
 		# find a file in a subfolder by the name, minus the extension
 		resultPath = method('dFile', 'sha1', 'b07eaa471ef7af455e1079a59135b1ebac44a72e', progressReporter=None)
-		self.assertEqual(nameInSubfolderFilePath, resultPath, 'findItem could not find the aFile by checksum, should have been "%s" but was: %s' % (nameFilePath, resultPath))
-	
+		self.assertEqual(nameInSubfolderFilePath, resultPath, 'findItem could not find the dFile in a subfolder by the name, minus the extension, should have been "%s" but was: %s' % (nameFilePath, resultPath))
+		
+		# find a file in the second source folder by the name, minus the extension
+		resultPath = method('eFile', 'sha1', '981ee57582ef1b95fb2f87982280a6dd01f46cc8', progressReporter=None)
+		self.assertEqual(nameInSecondSourceFolderFilePath, resultPath, 'findItem could not find the eFile in the second source folder by name without checksume, should have been "%s" but was: %s' % (nameInSecondSourceFolderFilePath, resultPath))
+		
+		# find the inner source file when there is one in the root with the same name but a differnt checksum
+		resultPath = method('fFile', 'sha1', 'e0bbc5c28208d8909a27a5890216e24da6eb8cd3', progressReporter=None)
+		self.assertEqual(innerDifferentChecksumFilePath, resultPath, 'findItem could not find the inner fFile by checksum, should have been "%s" but was: %s' % (innerDifferentChecksumFilePath, resultPath))
+		# find the outer source
+		resultPath = method('fFile', 'sha1', 'c8280ce5bfab50ffac50bbca5e22540335708ad9', progressReporter=None)
+		self.assertEqual(outerDifferentChecksumFilePath, resultPath, 'findItem could not find the outer fFile by checksum, should have been "%s" but was: %s' % (outerDifferentChecksumFilePath, resultPath))
+		
+		# find the inner source file by looking for it by a relative path
+		resultPath = method('gFileFolder/gFile.txt', 'sha1', '9315056a35b92557f3180c7c53d33c80dca7095e', progressReporter=None)
+		self.assertEqual(innerSameChecksumFilePath, resultPath, 'findItem could not find the inner gFile by relative path, should have been "%s" but was: %s' % (innerSameChecksumFilePath, resultPath))
+		# make sure that the outer file is found when not giving the relative path
+		resultPath = method('gFile.txt', 'sha1', '9315056a35b92557f3180c7c53d33c80dca7095e', progressReporter=None)
+		self.assertEqual(outerSameChecksumFilePath, resultPath, 'findItem could not find the outer gFile by name/checksum, should have been "%s" but was: %s' % (outerSameChecksumFilePath, resultPath))
+		
 	def test_findItemInCaches(self):
 		'''Test out the _findItemInCaches method'''
 		self.cacheTestMethod(installerPackage._findItemInCaches)
