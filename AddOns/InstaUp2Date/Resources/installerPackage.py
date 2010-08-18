@@ -152,7 +152,6 @@ class installerPackage:
 			itemPath = myClass.verifiedFiles['%s:%s' % (checksumType, checksumValue)]
 			
 			if progressReporter is not None:
-				#progressReporter.update(statusMessage='found previously at: %s' % itemPath)
 				progressReporter.update(statusMessage='found previously')
 				progressReporter.finishLine()
 			
@@ -172,7 +171,6 @@ class installerPackage:
 		if parsedNameOrLocation.scheme is '' and os.path.exists(nameOrLocation):
 			if checksumValue == checksum(nameOrLocation, checksumType=checksumType, progressReporter=progressReporter)['checksum']:
 				if progressReporter is not None:
-					progressReporter.update(statusMessage='found by path and verified in %s: %s' % (secondsToReadableTime(time.time() - startTime), itemPath))
 					progressReporter.update(statusMessage='found by path and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
 					progressReporter.finishLine()
 				
@@ -192,7 +190,6 @@ class installerPackage:
 			myClass.verifiedFiles['%s:%s' % (checksumType, checksumValue)] = itemPath
 			
 			if progressReporter is not None:
-				#progressReporter.update(statusMessage='found by name or checksum and verified in %s: %s' % (secondsToReadableTime(time.time() - startTime), itemPath))
 				progressReporter.update(statusMessage='found by name or checksum and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
 				progressReporter.finishLine()
 			return itemPath
@@ -227,7 +224,6 @@ class installerPackage:
 						myClass.verifiedFiles['%s:%s' % (checksumType, checksumValue)] = itemPath
 						
 						if progressReporter is not None:
-							#progressReporter.update(statusMessage='found by name in the content-disposition header and verified in %s: %s' % (secondsToReadableTime(time.time() - startTime), itemPath))
 							progressReporter.update(statusMessage='found by name in the content-disposition header and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
 							progressReporter.finishLine()
 						readFile.close()
@@ -242,7 +238,6 @@ class installerPackage:
 					myClass.verifiedFiles['%s:%s' % (checksumType, checksumValue)] = itemPath
 					
 					if progressReporter is not None:
-						#progressReporter.update(statusMessage='found by name in final URL: %s' % (displayName, itemPath))
 						progressReporter.update(statusMessage='found by name in final URL')
 						progressReporter.finishLine()
 					readFile.close()
