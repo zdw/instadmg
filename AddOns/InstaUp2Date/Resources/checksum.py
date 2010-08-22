@@ -2,7 +2,7 @@
 
 import os, time, hashlib, urllib, urllib2, urlparse, stat, tempfile, shutil
 
-from displayTools import translateBytes, secondsToReadableTime, statusHandler
+from displayTools import bytesToRedableSize, secondsToReadableTime, statusHandler
 from tempFolderManager import tempFolderManager
 
 def checksumFileObject(hashFileObject, targetFileObject, targetFileName, expectedLength, chunkSize=None, copyToPath=None, progressReporter=None):
@@ -274,7 +274,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", dis
 			processedBytes, processSeconds = checksumFileObject(hashGenerator, readFile, os.path.basename(location), targetLength, chunkSize=chunkSize, copyToPath=localCopyPath, progressReporter=progressReporter)
 			
 			if progressReporter is not None:
-				progressReporter.update(statusMessage='checksummed (%s) in %s (%s/sec)' % (translateBytes(processedBytes), secondsToReadableTime(processSeconds), translateBytes(processedBytes/processSeconds)))
+				progressReporter.update(statusMessage='checksummed (%s) in %s (%s/sec)' % (bytesToRedableSize(processedBytes), secondsToReadableTime(processSeconds), bytesToRedableSize(processedBytes/processSeconds)))
 			
 			readFile.close()
 			
@@ -349,7 +349,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", dis
 		processedBytes, processSeconds = checksumFileObject(hashGenerator, readFile, fileName, targetLength, copyToPath=localCopyPath, chunkSize=chunkSize, progressReporter=progressReporter)
 		
 		if progressReporter is not None:
-			progressReporter.update(statusMessage=" downloaded %s (%s) in %s (%s/sec)" % (fileName, translateBytes(processedBytes), secondsToReadableTime(processSeconds), translateBytes(processedBytes/processSeconds)))
+			progressReporter.update(statusMessage=" downloaded %s (%s) in %s (%s/sec)" % (fileName, bytesToRedableSize(processedBytes), secondsToReadableTime(processSeconds), bytesToRedableSize(processedBytes/processSeconds)))
 		
 		if localCopyPath is not None:
 			# change the file name to the real one, including the checksum if not suppressed

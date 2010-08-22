@@ -4,7 +4,7 @@ import os, re, time
 import hashlib, urlparse, urllib, urllib2
 
 from checksum				import checksumFileObject, checksum
-from displayTools			import statusHandler, translateBytes, secondsToReadableTime
+from displayTools			import statusHandler, bytesToRedableSize, secondsToReadableTime
 from commonExceptions		import FileNotFoundException
 
 
@@ -255,7 +255,7 @@ class installerPackage:
 				if expectedLength is None:
 					progressReporter.update(statusMessage='downloading ')
 				else:
-					progressReporter.update(statusMessage='downloading %s ' % translateBytes(expectedLength))
+					progressReporter.update(statusMessage='downloading %s ' % bytesToRedableSize(expectedLength))
 			
 			hashGenerator = hashlib.new(checksumType)
 			downloadTargetPath = os.path.join(myClass.getCacheFolder(), os.path.splitext(workingUrlName)[0] + " " + checksumType + "-" + checksumValue + os.path.splitext(workingUrlName)[1])
@@ -267,7 +267,7 @@ class installerPackage:
 				raise FileNotFoundException("Downloaded file did not match checksum: %s (%s vs. %s" % (nameOrLocation, hashGenerator.hexdigest(), checksumValue))
 			
 			if progressReporter is not None:
-				progressReporter.update(statusMessage='downloaded and verified %s in %s (%s/sec)' % (translateBytes(processedBytes), secondsToReadableTime(time.time() - startTime), translateBytes(processedBytes/processSeconds)))
+				progressReporter.update(statusMessage='downloaded and verified %s in %s (%s/sec)' % (bytesToRedableSize(processedBytes), secondsToReadableTime(time.time() - startTime), bytesToRedableSize(processedBytes/processSeconds)))
 				progressReporter.finishLine()
 			readFile.close()
 			return downloadTargetPath

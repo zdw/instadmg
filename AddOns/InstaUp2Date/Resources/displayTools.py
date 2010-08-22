@@ -49,7 +49,7 @@ class statusHandler:
 			return ''
 		# ToDo: more paranoia
 		
-		return translateBytes(self._expectedLength)
+		return bytesToRedableSize(self._expectedLength)
 	
 	def _recentRateInBytes(self):
 		'''Get a fomatted string with the rate since we last reported'''
@@ -61,7 +61,7 @@ class statusHandler:
 		if None in [self._lastTimeProgressWritten, self._value, self._lastValueWritten] or currentTime <= self._lastTimeProgressWritten:
 			return 'N/A'
 		
-		return translateBytes((self._value - self._lastValueWritten)/(currentTime - self._lastTimeProgressWritten)) + "/sec"
+		return bytesToRedableSize((self._value - self._lastValueWritten)/(currentTime - self._lastTimeProgressWritten)) + "/sec"
 	
 	def _progressPercentage(self):
 		'''Return the progress as a percentage of the total'''
@@ -168,7 +168,7 @@ class statusHandler:
 			
 			newProgressMessage = self.progressTemplate % {
 				'value' : self._value,
-				'valueInBytes' : translateBytes(self._value),
+				'valueInBytes' : bytesToRedableSize(self._value),
 				'expectedLength' : self._expectedLength,
 				'expectedLengthInBytes' : self._expectedLengthInBytes(),
 				'progressPercentage' : self._progressPercentage(),
@@ -236,7 +236,7 @@ def secondsToReadableTime(seconds):
 	
 	return responce.strip()
 
-def translateBytes(bytes):
+def bytesToRedableSize(bytes):
 	
 	if bytes is None:
 		return 'None'

@@ -1,5 +1,9 @@
 #!/usr/bin/python
 
+import os, subprocess
+
+from managedSubprocess import managedSubprocess
+
 class volumeManager():
 	
 	#---------- class properties ----------
@@ -16,7 +20,7 @@ class volumeManager():
 		'''Iterate through the subclasses of volumeManager to find the one that handles targetPath'''
 	
 	@classmethod
-	def unmountVolume(targetPath):
+	def unmountVolume(myClass, targetPath):
 		'''Unmount a volume or dmg mounted at the path given'''
 		
 		if not os.path.isdir(targetPath):
@@ -54,10 +58,7 @@ class volumeManager():
 				# ToDo: log this
 				
 				command = ['/usr/bin/hdiutil', 'eject', '-force', targetPath]
-				process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-				
-				if process.wait() != 0:
-					raise RuntimeError('The "%s" command failed to unmount the disk image. Stdout was:\n%s\nStderr was:\n%s' % (' '.join(command), process.stdout.read(), process.stderr.read()))
+				managedSubprocess(command)
 		
 		else:
 			# a non dmg mount point
@@ -70,10 +71,7 @@ class volumeManager():
 				# ToDo: log this
 				
 				command = ['/usr/sbin/diskutil', 'unmount', 'force', targetPath]
-				process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-				
-				if process.wait() != 0:
-					raise RuntimeError('The "%s" command failed to unmount the volume. Stdout was:\n%s\nStderr was:\n%s' % (' '.join(command), process.stdout.read(), process.stderr.read()))
+				managedSubprocess(command)
 	
 	#---------- instance methods ----------	
 

@@ -365,10 +365,6 @@ class instaUpToDate:
 	
 #--------------------------------MAIN--------------------------------
 
-def print_version(option, opt, value, optionsParser):
-	optionsParser.print_version()
-	sys.exit(0)
-
 def main ():
 	
 	# ------- defaults -------
@@ -378,10 +374,17 @@ def main ():
 	
 	# ---- parse options ----
 	
+	def print_version(option, opt, value, optionsParser):
+		optionsParser.print_version()
+		sys.exit(0)
+	
 	import optparse
 	optionsParser = optparse.OptionParser("%prog [options] catalogFile1 [catalogFile2 ...]", version="%%prog %s" % versionString)
+	optionsParser.remove_option('--version')
+
+	
 	optionsParser.add_option("-a", "--add-catalog", action="append", type="string", dest="addOnCatalogFiles", help="Add the items in this catalog file to all catalog files processed. Can be called multiple times", metavar="FILE_PATH")
-	optionsParser.add_option("-v", "", action="callback", callback=print_version, help="Print the version number and quit")
+	optionsParser.add_option("-v", "--version", action="callback", callback=print_version, help="Print the version number and quit")
 	
 	# instaDMG options
 	

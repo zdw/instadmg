@@ -266,7 +266,7 @@ class tempFolderManager(object):
 		return None
 	
 	@classmethod
-	def getNewTempItem(myClass, fileOrFolder, parentFolder=None, prefix=None):
+	def getNewTempItem(myClass, fileOrFolder, parentFolder=None, prefix=None, suffix=None):
 		'''Create a new managed file or folder and return the path'''
 		
 		if not fileOrFolder in ['file', 'folder']:
@@ -280,6 +280,9 @@ class tempFolderManager(object):
 			else:
 				prefix = myClass.tempFolderPrefix
 		
+		if suffix is None:
+			suffix=''
+		
 		if parentFolder is None:
 			# create a new folder/file inside the current default one
 			parentFolder = myClass.getDefaultFolder()
@@ -288,7 +291,7 @@ class tempFolderManager(object):
 			raise ValueError('getNewTempFolder called with a parentFolder path that does not exist is is not a directory: ' + str(parentFolder))
 		
 		if fileOrFolder == 'file':
-			openFile, pathToReturn = tempfile.mkstemp(dir=parentFolder, prefix=prefix)
+			openFile, pathToReturn = tempfile.mkstemp(dir=parentFolder, prefix=prefix, suffix=suffix)
 			os.close(openFile)
 		else:
 			# create the new folder
@@ -305,16 +308,16 @@ class tempFolderManager(object):
 		return pathToReturn
 	
 	@classmethod
-	def getNewTempFolder(myClass, parentFolder=None, prefix=None):
+	def getNewTempFolder(myClass, parentFolder=None, prefix=None, suffix=None):
 		'''Create a new managed file or folder and return the path'''
 		
-		return myClass.getNewTempItem('folder', parentFolder=parentFolder, prefix=prefix)
+		return myClass.getNewTempItem('folder', parentFolder=parentFolder, prefix=prefix, suffix=suffix)
 	
 	@classmethod
-	def getNewTempFile(myClass, parentFolder=None, prefix=None):
+	def getNewTempFile(myClass, parentFolder=None, prefix=None, suffix=None):
 		'''Create a new managed file or folder and return the path'''
 		
-		return myClass.getNewTempItem('file', parentFolder=parentFolder, prefix=prefix)
+		return myClass.getNewTempItem('file', parentFolder=parentFolder, prefix=prefix, suffix=suffix)
 	
 	#---------- instance methods ----------
 	
