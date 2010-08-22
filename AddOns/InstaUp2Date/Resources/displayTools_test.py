@@ -118,7 +118,7 @@ class test_statusHandler(unittest.TestCase):
 		self.compareOutput('After the first statusMessage', taskMessage + firstTest)
 		
 		self.outputHandler.update(statusMessage=secondTest)
-		self.compareOutput('After the first statusMessage', taskMessage + secondTest)
+		self.compareOutput('After the second statusMessage', taskMessage + secondTest)
 		
 		self.outputHandler.update(statusMessage=thidTest)
 		self.compareOutput('After the third statusMessage', taskMessage + thidTest)
@@ -139,8 +139,8 @@ class test_statusHandler(unittest.TestCase):
 		
 		taskMessage = 'This should be fun - '
 		
-		firstStatusMessage	= 'some times you feel like a nut :'
-		secondStatusMessage	= "some times you don't :"
+		firstStatusMessage	= 'some times you feel like a nut: '
+		secondStatusMessage	= "some times you don't: "
 		
 		staticProgressTemplate	= 'just a simple progress message'
 		messyProgressTemplate	= 'a progress message with things that look like substitutions %%s %%i %%f'

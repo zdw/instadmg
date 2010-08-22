@@ -1,38 +1,46 @@
 #!/usr/bin/env python
 
-import os, sys, time, math
+import os, sys, time, math, curses
+
+curses.setupterm()
+eraseToLineEndChar		= curses.tigetstr('el')
+gotoLineBeginingChar	= curses.tigetstr('cr')
+tabLength				= 8 # ToDo: figure out how to get this from the terminal
 
 class statusHandler:
 	
-	throttleUpdateSeconds	= .125			# limit updates to once every this many seconds, 0 is constant updates
+	throttleUpdateSeconds		= .125			# limit updates to once every this many seconds, 0 is constant updates
 	
-	outputChannel			= sys.stdout	
+	outputChannel				= sys.stdout	
 	
-	taskMessage				= ''			# The overall task - always written on change, wipes out status and progress sections
-	statusMessage			= ''			# The phase in the task - always written on change, wipes out progress section
-	progressTemplate		= ''			# A template used to mark progress - always written on change
-							    			#	can use values: 
-							    			#		value (i or f)
-							    			#		valueInBytes (s)
-							    			#		expectedLength (i or f)
-							    			#		expectedLengthInBytes (s)
-							    			#		progressPercentage (i or f)
-							    			#		recentRateInBytes (s) - 
-							    			#	
-											#	examples:
-							    			#		' %(value)i of %(expectedLength)i'
-							    			#		' %(percentage)i%% (%(recentRateInBytes)s)'
+	lastTaskMessage				= ''			# contents of last taskMessage written
+	lastStatusMessage			= ''			# ditto for statusMessage
+	lastProgressMessage			= ''			# ditto for lastProgressMessage
 	
-	_lastWrittenProgress	= ''			# what was last written, so we can unwrite it
-	_lastTimeWritten		= None			# timestamp when last written
-	_lastValueWritten		= None			# value when we last wrote
+	progressTemplate			= ''
+	# A template used to mark progress - always written on change
+	#	can use values: 
+	#		value (i or f)
+	#		valueInBytes (s)
+	#		expectedLength (i or f)
+	#		expectedLengthInBytes (s)
+	#		progressPercentage (i or f)
+	#		recentRateInBytes (s) - 
+	#	
+	#	examples:
+	#		' %(value)i of %(expectedLength)i'
+	#		' %(percentage)i%% (%(recentRateInBytes)s)'
+	
+	_lastWrittenProgress		= ''			# what was last written, so we can unwrite it
+	_lastTimeProgressWritten	= None			# timestamp when last written
+	_lastValueWritten			= None			# value when we last wrote
 	
 	# values for progress message
-	_value					= None			# the central value
-	_expectedLength			= None			# used in caculating percentage done
+	_value						= None			# the central value
+	_expectedLength				= None			# used in caculating percentage done
 	
 	# so we don't double-tap the end
-	_lineFinished			= False
+	_lineFinished				= False
 	
 	# --- progress helper methods ---
 	
@@ -50,10 +58,10 @@ class statusHandler:
 		
 		currentTime = time.time()
 		
-		if None in [self._lastTimeWritten, self._value, self._lastValueWritten] or currentTime <= self._lastTimeWritten:
+		if None in [self._lastTimeProgressWritten, self._value, self._lastValueWritten] or currentTime <= self._lastTimeProgressWritten:
 			return 'N/A'
 		
-		return translateBytes((self._value - self._lastValueWritten)/(currentTime - self._lastTimeWritten)) + "/sec"
+		return translateBytes((self._value - self._lastValueWritten)/(currentTime - self._lastTimeProgressWritten)) + "/sec"
 	
 	def _progressPercentage(self):
 		'''Return the progress as a percentage of the total'''
@@ -78,7 +86,11 @@ class statusHandler:
 		
 		if throttleUpdateSeconds is not None:
 			self.throttleUpdateSeconds = float(throttleUpdateSeconds)
-				
+		
+		# if the outputChannel is the terminal, go to the start of the line and erase everything
+		if self.outputChannel.isatty():
+			self.outputChannel.write(gotoLineBeginingChar + eraseToLineEndChar)
+		
 		self.update(taskMessage=taskMessage, statusMessage=statusMessage, progressTemplate=progressTemplate, value=value, expectedLength=expectedLength)
 	
 	def __exit__(self, type, value, traceback):
@@ -89,59 +101,39 @@ class statusHandler:
 		if self.throttleUpdateSeconds == 0:
 			forceUpdate = True
 		
-		lengthToOverwrite = 0	# numbers of characters that need to be overwritten by spaces at the end of the line
-		
 		if taskMessage is not None:
 			
-			# delete everything written to this point
-			lengthToOverwrite = len(self.taskMessage) + len(self.statusMessage) + len(self._lastWrittenProgress)
-			
+			# move the cursor back to the start position
 			if self.outputChannel.isatty():
-				self.outputChannel.write('\b' * lengthToOverwrite)
-				self.outputChannel.write(' ' * lengthToOverwrite)
-				self.outputChannel.flush()
-				self.outputChannel.write('\b' * lengthToOverwrite)
+				self.outputChannel.write(gotoLineBeginingChar + eraseToLineEndChar)
 			else:
-				self.outputChannel.seek(lengthToOverwrite * -1, 1)
+				self.outputChannel.seek(-1 * (len(self.lastTaskMessage) + len(self.lastStatusMessage) + len(self.lastProgressMessage)), 1)
 			
-			# clean things out
-			self.statusMessage = ''
-			self._lastWrittenProgress = ''
-			
-			# write out the new value
+			# write out the new taskMessage, and record it
 			self.outputChannel.write(taskMessage)
-			lengthToOverwrite -= len(taskMessage)
-			if lengthToOverwrite < 0:
-				lengthToOverwrite = 0
-			self.taskMessage = taskMessage
+			self.lastTaskMessage = taskMessage
 			
-			# make sure we write out everything
-			forceUpdate = True
-			self._lastTimeWritten = time.time()
+			# reset lastStatusMessage, lastProgressMessage, and progressTemplate
+			self.lastStatusMessage		= ''
+			self.lastProgressMessage	= ''
+			self.progressTemplate		= ''
 		
 		if statusMessage is not None:
-			# delete what we have written for taskMessage and progress
-			lengthToOverwrite += len(self.statusMessage) + len(self._lastWrittenProgress)
 			
+			# move the cursor back to the start position
 			if self.outputChannel.isatty():
-				self.outputChannel.write('\b' * (len(self.statusMessage) + len(self._lastWrittenProgress)))
-				self.outputChannel.write(' ' * (len(self.statusMessage) + len(self._lastWrittenProgress)))
-				self.outputChannel.flush()
-				self.outputChannel.write('\b' * (len(self.statusMessage) + len(self._lastWrittenProgress)))
+				lengthToErase = len((self.lastTaskMessage + self.lastStatusMessage + self.lastProgressMessage).expandtabs()) - len(self.lastTaskMessage.expandtabs())
+				self.outputChannel.write(('\b' * lengthToErase) + eraseToLineEndChar)
 			else:
-				self.outputChannel.seek(lengthToOverwrite * -1, 1)
+				self.outputChannel.seek(-1 * (len(self.lastStatusMessage) + len(self.lastProgressMessage)), 1)
 			
-			# cleanup progress
-			self._lastWrittenProgress = ''
-			
-			# write out the new value
+			# write out the new taskMessage and record it
 			self.outputChannel.write(statusMessage)
-			lengthToOverwrite -= len(statusMessage)
-			if lengthToOverwrite < 0:
-				lengthToOverwrite = 0
+			self.lastStatusMessage = statusMessage
 			
-			self.statusMessage = statusMessage
-			self._lastTimeWritten = time.time()
+			# reset lastProgressMessage and progressTemplate
+			self.lastProgressMessage	= ''
+			self.progressTemplate		= ''
 		
 		# set the value variable
 		if value is True:
@@ -160,56 +152,46 @@ class statusHandler:
 		elif (taskMessage is not None) or (statusMessage is not None):
 			self._expectedLength = 0 # reset for a new phase
 		
-		# write out the progressMessage
-		if progressTemplate is not None or value is not None:
-			
-			if self._lastTimeWritten is None:
-				forceUpdate = True
-			
-			if progressTemplate is not None:
-				self.progressTemplate = progressTemplate
-				forceUpdate = True
-			
-			if forceUpdate is True or (time.time() - self._lastTimeWritten) > self.throttleUpdateSeconds:
-				
-				# ToDo: optimize for progressTemplate being empty
-				
-				# delete what we have written for progress
-				lengthToOverwrite += len(self._lastWrittenProgress)
-				if self.outputChannel.isatty():
-					self.outputChannel.write('\b' * len(self._lastWrittenProgress))
-					self.outputChannel.write(' ' * len(self._lastWrittenProgress))
-					self.outputChannel.flush()
-					self.outputChannel.write('\b' * len(self._lastWrittenProgress))
-				else:
-					self.outputChannel.seek(lengthToOverwrite * -1, 1)
-				
-				if self.progressTemplate is not '':
-					# write out the new value
-					self._lastWrittenProgress = self.progressTemplate % {
-						'value' : self._value,
-						'valueInBytes' : translateBytes(self._value),
-						'expectedLength' : self._expectedLength,
-						'expectedLengthInBytes' : self._expectedLengthInBytes(),
-						'progressPercentage' : self._progressPercentage(),
-						'recentRateInBytes' : self._recentRateInBytes()
-					}
-					self.outputChannel.write(self._lastWrittenProgress)
-					lengthToOverwrite -= len(self._lastWrittenProgress)
-					if lengthToOverwrite < 0:
-						lengthToOverwrite = 0
-					
-				# update internal watchers
-				self._lastValueWritten = self._value
-				self._lastTimeWritten = time.time()
+		if progressTemplate is not None:
+			self.progressTemplate = progressTemplate
+			forceUpdate = True
 		
-		if lengthToOverwrite > 0:
+		if self._lastTimeProgressWritten is None:
+			forceUpdate = True
+		elif time.time() - self._lastTimeProgressWritten > self.throttleUpdateSeconds:
+			forceUpdate = True
+		
+		# write out the progressMessage
+		if self.progressTemplate is not None and forceUpdate is True:
+			
+			# ToDo: optimize for progressTemplate being empty
+			
+			newProgressMessage = self.progressTemplate % {
+				'value' : self._value,
+				'valueInBytes' : translateBytes(self._value),
+				'expectedLength' : self._expectedLength,
+				'expectedLengthInBytes' : self._expectedLengthInBytes(),
+				'progressPercentage' : self._progressPercentage(),
+				'recentRateInBytes' : self._recentRateInBytes()
+			}
+			
+			# move the cursor back and adjust the lengthToOverwrite
 			if self.outputChannel.isatty():
-				self.outputChannel.write(' ' * lengthToOverwrite)
-				self.outputChannel.flush()
-				self.outputChannel.write('\b' * lengthToOverwrite)
+				lengthToErase = len((self.lastTaskMessage + self.lastStatusMessage + self.lastProgressMessage).expandtabs()) - len((self.lastTaskMessage + self.lastStatusMessage).expandtabs())
+				self.outputChannel.write('\b' * lengthToErase)
 			else:
-				self.outputChannel.truncate()
+				self.outputChannel.seek(-1 * len(self.lastProgressMessage), 1)
+			
+			# write out the new progressMessage and record it
+			self.outputChannel.write(newProgressMessage)
+			self.lastProgressMessage = newProgressMessage
+			
+			# update lastTimeProgressWritten
+			self._lastTimeProgressWritten = time.time()
+			self._lastValueWritten = self._value
+		
+		if not self.outputChannel.isatty():
+			self.outputChannel.truncate()
 		
 		self.outputChannel.flush()
 	
@@ -269,4 +251,18 @@ def translateBytes(bytes):
 		return "%.1f Kilobytes" % (float(bytes)/1024)
 	else:
 		return "%i Bytes" % bytes
+
+if __name__ == '__main__':
+	myHandler = statusHandler(taskMessage='AAAA')
+	myHandler.update(taskMessage='a')
+	myHandler.finishLine()
+	
+	myHandler = statusHandler(statusMessage='BBBB')
+	myHandler.update(statusMessage='b')
+	myHandler.finishLine()
+	
+	myHandler = statusHandler(progressTemplate='CCCC')
+	myHandler.update(progressTemplate='c')
+	myHandler.finishLine()
+	
 

@@ -267,7 +267,7 @@ class installerPackageTests(installerPackageTestsSetup):
 		
 		# find the inner source file by looking for it by a relative path
 		resultPath = method('gFileFolder/gFile.txt', 'sha1', '9315056a35b92557f3180c7c53d33c80dca7095e', progressReporter=None)
-		self.assertEqual(innerSameChecksumFilePath, resultPath, 'findItem could not find the inner gFile by relative path, should have been "%s" but was: %s' % (innerSameChecksumFilePath, resultPath))
+		self.assertEqual(innerSameChecksumFilePath, resultPath, 'findItem using the %s method could not find the inner gFile by relative path, should have been "%s" but was: %s' % (method, innerSameChecksumFilePath, resultPath))
 		# make sure that the outer file is found when not giving the relative path
 		resultPath = method('gFile.txt', 'sha1', '9315056a35b92557f3180c7c53d33c80dca7095e', progressReporter=None)
 		self.assertEqual(outerSameChecksumFilePath, resultPath, 'findItem could not find the outer gFile by name/checksum, should have been "%s" but was: %s' % (outerSameChecksumFilePath, resultPath))
