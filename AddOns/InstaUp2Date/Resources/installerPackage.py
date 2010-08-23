@@ -147,6 +147,9 @@ class installerPackage:
 		
 		# ToDo: input validation 
 		
+		if nameOrLocation is None:
+			raise ValueError('Got None for the value of nameOrLocation')
+		
 		if progressReporter is True:
 			progressReporter = statusHandler(statusMessage='Searching cache folders for ' + nameOrLocation)
 		
@@ -257,7 +260,7 @@ class installerPackage:
 			self.displayName = displayName
 		elif displayName is None and sourceLocation is not None:
 			# default to the part that looks like a name in the path
-			displayName = os.path.basename(parsedSourceLocationURL.path)
+			self.displayName = os.path.basename(parsedSourceLocationURL.path)
 		else:
 			raise ValueError("Recieved an empty or invalid displayName: " + str(displayName))
 			
@@ -276,7 +279,7 @@ class installerPackage:
 	def findItem(self, additionalSourceFolders=None, progressReporter=True):
 		'''Look through the caches to find and verify this item, and download it if necessary'''
 		
-		foldersToSearch = []
+		foldersToSearch = self.getSourceFolders()
 		
 		# additionalSourceFolders
 		if additionalSourceFolders is None:
@@ -324,15 +327,16 @@ class installerPackage:
 		elif parsedPath.scheme is '' and self.source.count(os.sep):
 			for thisSourceFolder in foldersToSearch:
 				thisPath = os.path.join(thisSourceFolder, self.source)
-				if os.path.exists(thisPath) and self.checksumValue == checksum(thisPath, checksumType=self.checksumType, progressReporter=progressReporter):
-					self.filePath = os.path.realpath(os.path.abspath(self.source))
+				
+				if os.path.exists(thisPath) and self.checksumValue == checksum(thisPath, checksumType=self.checksumType, progressReporter=progressReporter)['checksum']:
+					self.filePath = os.path.realpath(os.path.abspath(thisPath))
 					if progressReporter is not None:
 						progressReporter.update(statusMessage='found by relative path in the source folders and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
 						progressReporter.finishLine()
 					return
 			
 			# from the current working directory
-			if os.path.exists(self.filePath) and self.checksumValue == checksum(self.filePath, checksumType=self.checksumType, progressReporter=progressReporter):
+			if os.path.exists(self.source) and self.checksumValue == checksum(self.source, checksumType=self.checksumType, progressReporter=progressReporter):
 				self.filePath = os.path.realpath(os.path.abspath(self.source))
 				if progressReporter is not None:
 					progressReporter.update(statusMessage='found by relative path and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
@@ -340,7 +344,7 @@ class installerPackage:
 				return
 			
 			# if we are here, then it does not work as a relative file path, so bail out
-			raise FileNotFoundException('No file/folder existed at the relative path: ' + self.filePath)
+			raise FileNotFoundException('No file/folder existed at the relative path: ' + self.source)
 		
 		# check the already verified items for this checksum
 		if '%s:%s' % (self.checksumType, self.checksumValue) in self.verifiedFiles:
@@ -361,8 +365,9 @@ class installerPackage:
 			self.filePath = foundPath
 			return
 		
+		workingName = self.displayName
+		
 		# get an idea of what the name is
-		workingName = None
 		if parsedPath.scheme in ['http', 'https']:
 			workingName = os.path.basename(parsedPath.path)
 		else:

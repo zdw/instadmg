@@ -4,7 +4,7 @@ import os, unittest, stat
 
 from installerPackage		import installerPackage
 from tempFolderManager 		import tempFolderManager
-
+from commonExceptions		import FileNotFoundException
 
 class installerPackageSetupTests(unittest.TestCase):
 	
@@ -132,6 +132,8 @@ class installerPackageTestsSetup(unittest.TestCase):
 	firstSourceFolderPath	= None
 	secondSourceFolderPath	= None
 	
+	testMaterials			= None
+	
 	def setUp(self):
 		'''Create folders for the cache folder and 2 source folders'''
 		self.cacheFolderPath		= tempFolderManager.getNewTempFolder()
@@ -142,28 +144,6 @@ class installerPackageTestsSetup(unittest.TestCase):
 		installerPackage.addSourceFolders([self.firstSourceFolderPath, self.secondSourceFolderPath])
 		
 		# ToDo: think about making sure we have an absolutely clean setup
-	
-	def tearDown(self):
-		'''Clean up the items we created for tests'''
-		
-		# cache folder
-		if installerPackage.cacheFolder == self.cacheFolderPath:
-			installerPackage.removeCacheFolder()
-		tempFolderManager.cleanupItem(self.cacheFolderPath)
-		
-		# source folders
-		if self.firstSourceFolderPath in installerPackage.sourceFolders:
-			installerPackage.removeSourceFolders(self.firstSourceFolderPath)
-		tempFolderManager.cleanupItem(self.firstSourceFolderPath)
-		if self.secondSourceFolderPath in installerPackage.sourceFolders:
-			installerPackage.removeSourceFolders(self.secondSourceFolderPath)
-		tempFolderManager.cleanupItem(self.secondSourceFolderPath)
-
-class installerPackageTests(installerPackageTestsSetup):
-	'''Test cases for installerPackage once it has been set up'''
-	
-	def cacheTestMethod(self, method):
-		'''Test findItem finding simple files in the cache'''
 		
 		# file with a known name and checksum, with the checksum in the path
 		checksumFilePath = os.path.join(self.firstSourceFolderPath, 'aFile sha1-f475597b627a4d580ec1619a94c7afb9cc75abe4.txt')
@@ -223,67 +203,99 @@ class installerPackageTests(installerPackageTestsSetup):
 		# ToDo: absolute path
 		# ToDo: absolute path crossing a symlink
 		
+		self.testMaterials = [
+			# this should be in the format:
+			# filename	- 	checksumType	-	checksumValue	-	desiredOutput	-	errorMessage
+			
+			# find file by checksum
+			{'fileName':'aFile.txt', 'checksumType':'sha1', 'checksumValue':'f475597b627a4d580ec1619a94c7afb9cc75abe4', 'filePath':checksumFilePath, 'errorMessage':'findItem could not find the aFile by checksum'},
+			
+			# find a file in a folder by checksum
+			{'fileName':'bFile.txt', 'checksumType':'sha1', 'checksumValue':'8bc1e4c5d467c10555dae3c4ea04471b856b23bc', 'filePath':checksumInSubfolderFilePath, 'errorMessage':'findItem could not find the bFile inside a subfolder by checksum'},
+			
+			# find a file by the name, indluding extension
+			{'fileName':'cFile.txt', 'checksumType':'sha1', 'checksumValue':'bc5b916598902018a023717425314bee88ff7fe9', 'filePath':nameFilePath, 'errorMessage':'findItem could not find the cFile by the name, indluding extension'},
+			
+			# find a file by the name, minus the extension
+			{'fileName':'cFile', 'checksumType':'sha1', 'checksumValue':'bc5b916598902018a023717425314bee88ff7fe9', 'filePath':nameFilePath, 'errorMessage':'findItem could not find the cFile by the name, minus the extension'},
+			
+			# find a file by the name, with a bad extension
+			{'fileName':'cFile.bad', 'checksumType':'sha1', 'checksumValue':'bc5b916598902018a023717425314bee88ff7fe9', 'filePath':nameFilePath, 'errorMessage':'findItem could not find the cFile by the name, with a bad extension'},
+			
+			# find a file in a subfolder by the name, indluding extension
+			{'fileName':'dFile.txt', 'checksumType':'sha1', 'checksumValue':'b07eaa471ef7af455e1079a59135b1ebac44a72e', 'filePath':nameInSubfolderFilePath, 'errorMessage':'findItem could not find the dFile in a subfolder by the name, indluding extension'},
+			
+			# find a file in a subfolder by the name, minus the extension
+			{'fileName':'dFile', 'checksumType':'sha1', 'checksumValue':'b07eaa471ef7af455e1079a59135b1ebac44a72e', 'filePath':nameInSubfolderFilePath, 'errorMessage':'findItem could not find the dFile in a subfolder by the name, minus the extension'},
+			
+			# find a file in the second source folder by the name, minus the extension
+			{'fileName':'eFile', 'checksumType':'sha1', 'checksumValue':'981ee57582ef1b95fb2f87982280a6dd01f46cc8', 'filePath':nameInSecondSourceFolderFilePath, 'errorMessage':'findItem could not find the eFile in the second source folder by name without checksume'},
+			
+			# find the inner source file when there is one in the root with the same name but a differnt checksum
+			{'fileName':'fFile', 'checksumType':'sha1', 'checksumValue':'e0bbc5c28208d8909a27a5890216e24da6eb8cd3', 'filePath':innerDifferentChecksumFilePath, 'errorMessage':'findItem could not find the inner fFile by checksum'},
+			
+			# find the outer source
+			{'fileName':'fFile', 'checksumType':'sha1', 'checksumValue':'c8280ce5bfab50ffac50bbca5e22540335708ad9', 'filePath':outerDifferentChecksumFilePath, 'errorMessage':'findItem could not find the outer fFile by checksum'},
+			
+			# find the inner source file by looking for it by a relative path
+			{'fileName':'gFileFolder/gFile.txt', 'checksumType':'sha1', 'checksumValue':'9315056a35b92557f3180c7c53d33c80dca7095e', 'filePath':innerSameChecksumFilePath, 'errorMessage':'findItem could not find the inner gFile by relative path'},
+			
+			# make sure that the outer file is found when not giving the relative path
+			{'fileName':'gFile.txt', 'checksumType':'sha1', 'checksumValue':'9315056a35b92557f3180c7c53d33c80dca7095e', 'filePath':outerSameChecksumFilePath, 'errorMessage':'findItem could not find the outer gFile by name/checksum'},
+		]
+
+	def tearDown(self):
+		'''Clean up the items we created for tests'''
 		
+		# cache folder
+		if installerPackage.cacheFolder == self.cacheFolderPath:
+			installerPackage.removeCacheFolder()
+		tempFolderManager.cleanupItem(self.cacheFolderPath)
 		
-		
-		# find file by checksum
-		resultPath = method('aFile.txt', 'sha1', 'f475597b627a4d580ec1619a94c7afb9cc75abe4', progressReporter=None)
-		self.assertEqual(checksumFilePath, resultPath, 'findItem could not find the aFile by checksum, should have been "%s" but was: %s' % (checksumFilePath, resultPath))
-		
-		# find a file in a folder by checksum
-		resultPath = method('bFile.txt', 'sha1', '8bc1e4c5d467c10555dae3c4ea04471b856b23bc', progressReporter=None)
-		self.assertEqual(checksumInSubfolderFilePath, resultPath, 'findItem could not find the bFile inside a subfolder by checksum, should have been "%s" but was: %s' % (checksumInSubfolderFilePath, resultPath))
-		
-		# find a file by the name, indluding extension
-		resultPath = method('cFile.txt', 'sha1', 'bc5b916598902018a023717425314bee88ff7fe9', progressReporter=None)
-		self.assertEqual(nameFilePath, resultPath, 'findItem could not find the cFile by the name, indluding extension, should have been "%s" but was: %s' % (nameFilePath, resultPath))
-		
-		# find a file by the name, minus the extension
-		resultPath = method('cFile', 'sha1', 'bc5b916598902018a023717425314bee88ff7fe9', progressReporter=None)
-		self.assertEqual(nameFilePath, resultPath, 'findItem could not find the cFile by the name, minus the extension, should have been "%s" but was: %s' % (nameFilePath, resultPath))
-		
-		# find a file by the name, with a bad extension
-		resultPath = method('cFile.bad', 'sha1', 'bc5b916598902018a023717425314bee88ff7fe9', progressReporter=None)
-		self.assertEqual(nameFilePath, resultPath, 'findItem could not find the cFile by the name, with a bad extension, should have been "%s" but was: %s' % (nameFilePath, resultPath))
-		
-		# find a file in a subfolder by the name, indluding extension
-		resultPath = method('dFile.txt', 'sha1', 'b07eaa471ef7af455e1079a59135b1ebac44a72e', progressReporter=None)
-		self.assertEqual(nameInSubfolderFilePath, resultPath, 'findItem could not find the dFile in a subfolder by the name, indluding extension, should have been "%s" but was: %s' % (nameFilePath, resultPath))
-		
-		# find a file in a subfolder by the name, minus the extension
-		resultPath = method('dFile', 'sha1', 'b07eaa471ef7af455e1079a59135b1ebac44a72e', progressReporter=None)
-		self.assertEqual(nameInSubfolderFilePath, resultPath, 'findItem could not find the dFile in a subfolder by the name, minus the extension, should have been "%s" but was: %s' % (nameFilePath, resultPath))
-		
-		# find a file in the second source folder by the name, minus the extension
-		resultPath = method('eFile', 'sha1', '981ee57582ef1b95fb2f87982280a6dd01f46cc8', progressReporter=None)
-		self.assertEqual(nameInSecondSourceFolderFilePath, resultPath, 'findItem could not find the eFile in the second source folder by name without checksume, should have been "%s" but was: %s' % (nameInSecondSourceFolderFilePath, resultPath))
-		
-		# find the inner source file when there is one in the root with the same name but a differnt checksum
-		resultPath = method('fFile', 'sha1', 'e0bbc5c28208d8909a27a5890216e24da6eb8cd3', progressReporter=None)
-		self.assertEqual(innerDifferentChecksumFilePath, resultPath, 'findItem could not find the inner fFile by checksum, should have been "%s" but was: %s' % (innerDifferentChecksumFilePath, resultPath))
-		# find the outer source
-		resultPath = method('fFile', 'sha1', 'c8280ce5bfab50ffac50bbca5e22540335708ad9', progressReporter=None)
-		self.assertEqual(outerDifferentChecksumFilePath, resultPath, 'findItem could not find the outer fFile by checksum, should have been "%s" but was: %s' % (outerDifferentChecksumFilePath, resultPath))
-		
-		# find the inner source file by looking for it by a relative path
-		resultPath = method('gFileFolder/gFile.txt', 'sha1', '9315056a35b92557f3180c7c53d33c80dca7095e', progressReporter=None)
-		self.assertEqual(innerSameChecksumFilePath, resultPath, 'findItem using the %s method could not find the inner gFile by relative path, should have been "%s" but was: %s' % (method, innerSameChecksumFilePath, resultPath))
-		# make sure that the outer file is found when not giving the relative path
-		resultPath = method('gFile.txt', 'sha1', '9315056a35b92557f3180c7c53d33c80dca7095e', progressReporter=None)
-		self.assertEqual(outerSameChecksumFilePath, resultPath, 'findItem could not find the outer gFile by name/checksum, should have been "%s" but was: %s' % (outerSameChecksumFilePath, resultPath))
-		
+		# source folders
+		if self.firstSourceFolderPath in installerPackage.sourceFolders:
+			installerPackage.removeSourceFolders(self.firstSourceFolderPath)
+		tempFolderManager.cleanupItem(self.firstSourceFolderPath)
+		if self.secondSourceFolderPath in installerPackage.sourceFolders:
+			installerPackage.removeSourceFolders(self.secondSourceFolderPath)
+		tempFolderManager.cleanupItem(self.secondSourceFolderPath)
+
+class installerPackageTests(installerPackageTestsSetup):
+	'''Test cases for installerPackage once it has been set up'''
+	
 	def test_findItemInCaches(self):
 		'''Test out the _findItemInCaches method'''
-		self.cacheTestMethod(installerPackage._findItemInCaches)
-
+		
+		for thisTest in self.testMaterials:
+			resultPath = installerPackage._findItemInCaches(thisTest['fileName'], thisTest['checksumType'], thisTest['checksumValue'], progressReporter=None)
+			thisTest['resultPath'] = resultPath
+			self.assertEqual(thisTest['filePath'], resultPath, thisTest['errorMessage'] + ', should have been "%(filePath)s" but was: %(resultPath)s' % thisTest)
+	
 	def test_findItem(self):
 		'''Test out both local files and downloads with the findItem method'''
 		
-		self.cacheTestMethod(installerPackage.findItem)
+		# perform all of the the local file tests
+		for thisTest in self.testMaterials:
+			thisPackage = installerPackage(thisTest['fileName'], thisTest['checksumType'] + ":" + thisTest['checksumValue'], displayName=None)
+			
+			try:
+				thisPackage.findItem(progressReporter=None)
+			except FileNotFoundException, error:
+				self.fail(thisTest['errorMessage'] + ', was unable to find a package - ' + str(error))
+			
+			thisTest['resultPath'] = thisPackage.getItemLocalPath()
+			self.assertEqual(thisTest['filePath'], thisPackage.getItemLocalPath(), thisTest['errorMessage'] + ', should have been "%(filePath)s" but was: %(resultPath)s' % thisTest)
 		
 		# download a file
-		resultPath = installerPackage.findItem('http://images.apple.com/support/iknow/images/downloads_software_update.png', 'sha1', '4d200d3fc229d929ea9ed64a9b5e06c5be733b38', progressReporter=None)
-		self.assertEqual(os.path.join(installerPackage.getCacheFolder(), 'downloads_software_update sha1-4d200d3fc229d929ea9ed64a9b5e06c5be733b38.png'), resultPath, "Downloading a file from Apple's site returned: " + str(resultPath))
+		thisPackage = installerPackage('http://images.apple.com/support/iknow/images/downloads_software_update.png', 'sha1:4d200d3fc229d929ea9ed64a9b5e06c5be733b38', displayName=None)
+		try:
+			thisPackage.findItem(progressReporter=None)
+			self.assertEqual(os.path.join(installerPackage.getCacheFolder(), 'downloads_software_update sha1-4d200d3fc229d929ea9ed64a9b5e06c5be733b38.png'), thisPackage.getItemLocalPath(), "Downloading a file from Apple's site returned: " + str(thisPackage.getItemLocalPath()))
+		except FileNotFoundException, error:
+			self.fail(thisTest['errorMessage'] + ', was unable to find a package - ' + str(error))
+		
+		#resultPath = installerPackage.findItem('http://images.apple.com/support/iknow/images/downloads_software_update.png', 'sha1', '4d200d3fc229d929ea9ed64a9b5e06c5be733b38', progressReporter=None)
+		#self.assertEqual(os.path.join(installerPackage.getCacheFolder(), 'downloads_software_update sha1-4d200d3fc229d929ea9ed64a9b5e06c5be733b38.png'), resultPath, "Downloading a file from Apple's site returned: " + str(resultPath))
 			
 	# ToDo: test downloads
 	# ToDo: test optional folders
