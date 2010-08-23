@@ -48,9 +48,11 @@ class instaUpToDate:
 	
 	#--------------------Instance Variables---------------------------
 	
+	catalogFilePath			= None	# the main catalog file
+	
 	sectionFolders			= None
 	
-	packageGroups 			= None	# a Hash, init-ed in cleanInstaDMGFolders
+	packageGroups 			= None	# a Hash
 	parsedFiles 			= None	# an Array, for loop checking
 	
 	# defaults
@@ -111,12 +113,19 @@ class instaUpToDate:
 		
 	#------------------------Functions--------------------------------
 	
-	def __init__(self, sectionFolders, catalogFolders):
+	def __init__(self, catalogFilePath, sectionFolders, catalogFolders):
 		
-		# being a little paranoid... setting up section folders structure
-		self.sectionFolders = []
-		self.catalogFolders	= []
-		self.packageGroups	= {}
+		# set up section folders structure
+		self.sectionFolders 		= []
+		self.catalogFolders			= []
+		self.packageGroups			= {}
+		self.catalogFileSettings	= {}
+		self.parsedFiles			= []
+				
+		# catalogFilePath
+		if not os.path.exists(catalogFilePath):
+			raise FileNotFoundException('The catalog file does not exist: ' + str(catalogFilePath))
+		self.catalogFilePath = catalogFilePath
 		
 		# catalogFolders
 		if isinstance(catalogFolders, str) and os.path.isdir(catalogFolders):
@@ -164,11 +173,11 @@ class instaUpToDate:
 			
 			self.sectionFolders.append(newSection)
 		
-		self.catalogFileSettings	= {}
-		self.parsedFiles			= []
-		
 		# --- runtime checks ----
 		assert os.path.isfile(os.path.join(absPathToInstaDMGFolder, "instadmg.bash")), "InstaDMG was not where it was expected to be: %s" % os.path.join(absPathToInstaDMGFolder, "instadmg.bash")
+	
+	def getMainCatalogName(self):
+		return os.path.splitext(os.path.basename(self.catalogFilePath))[0]
 	
 	def parseFile(self, fileLocation):
 		
@@ -242,6 +251,8 @@ class instaUpToDate:
 					checksumString = packageLineMatch.group("fileChecksum"),
 				)
 				
+				print('\t' + packageLineMatch.group("displayName"))
+				
 				self.packageGroups[currentSection].append(thisPackage)
 				
 				continue
@@ -250,7 +261,14 @@ class instaUpToDate:
 			raise Exception('Error in config file: %s line number: %i\n%s' % (fileLocation, lineNumber, line)) # TODO: improve error handling
 			
 		inputfile.close()
+	
+	def findItems(self):
+		'''Find all the items verify their checksums, and download anything that is missing'''
 		
+		for thisSectionName in self.packageGroups:
+			for thisItem in self.packageGroups[thisSectionName]:
+				thisItem.findItem()
+	
 	def arrangeFolders(self, sectionFolders=None):
 		"Create the folder structure in the InstaDMG areas, and pop in soft-links to the items in the cache folder"
 		
@@ -356,7 +374,7 @@ class instaUpToDate:
 		if outputFolder is not None:
 			instaDMGCommand += ["-o", outputFolder]
 
-		print("Running InstaDMG: %s\n\n" % " ".join(instaDMGCommand))
+		print("\nRunning InstaDMG: %s\n" % " ".join(instaDMGCommand))
 		# we should be in the same directory as InstaDMG
 		
 		subprocess.call(instaDMGCommand)
@@ -474,21 +492,30 @@ def main ():
 	
 	# ----- run process -----
 	
+	controllers = []
+	# create the InstaUp2Date controllers
 	for catalogFilePath in baseCatalogFiles:
-		
-		thisController = instaUpToDate(sectionFolders, options.catalogFolders)
-		
-		# setup for the run
-		thisController.setupInstaDMGFolders()
-		
-		# parse the tree of catalog files
-		print('Finding and validating the sources for ' + os.path.basename(catalogFilePath))
+		controllers.append(instaUpToDate(catalogFilePath, sectionFolders, options.catalogFolders)) # note: we have already sanitized catalogFilePath
+	
+	# process the catalog files
+	for thisController in controllers:
+		print('\nParsing the catalog files for ' + thisController.getMainCatalogName())
 		thisController.parseFile(catalogFilePath)
-		print('') # an empty line
 		
 		# add any additional catalogs to this one
 		for addOnCatalogFile in addOnCatalogFiles:
 			thisController.parseFile(addOnCatalogFile)
+	
+	# find all of the items
+	for thisController in controllers:
+		print('\nFinding and validating the sources for ' + thisController.getMainCatalogName())
+		thisController.findItems()
+	
+	# run the job
+	for thisController in controllers:
+		
+		# empty the folders
+		thisController.setupInstaDMGFolders()
 		
 		# create the folder strucutres needed
 		thisController.arrangeFolders(sectionFolders=sectionFolders)
@@ -496,7 +523,6 @@ def main ():
 		if options.processWithInstaDMG == True:
 			# the run succeded, and it has been requested to run InstaDMG
 			thisController.runInstaDMG(scratchFolder=options.instadmgScratchFolder, outputFolder=options.instadmgOutputFolder)
-		
 		
 #------------------------------END MAIN------------------------------
 

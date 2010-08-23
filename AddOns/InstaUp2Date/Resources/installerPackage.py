@@ -56,6 +56,17 @@ class installerPackage:
 		return myClass.cacheFolder
 	
 	@classmethod
+	def addItemToVerifiedFiles(myClass, checksumString, itemPath):
+		
+		if checksumString.count(':') != 1:
+			raise ValueError('Checksum string does not look valid: ' + checksumString)
+		
+		if not os.path.exists(itemPath):
+			raise ValueError('Item does not exist: ' + itemPath)
+		
+		myClass.verifiedFiles[checksumString] = itemPath
+	
+	@classmethod
 	def removeCacheFolder(myClass):
 		'''Remove the current class cache folder, usefull mostly in testing'''
 		
@@ -130,150 +141,6 @@ class installerPackage:
 			
 			if thisFolder == myClass.cacheFolder:
 				myClass.cacheFolder = None
-	
-	@classmethod
-	def findItem(myClass, nameOrLocation, checksumType, checksumValue, displayName=None, additionalSourceFolders=None, progressReporter=True):
-		'''Look through the caches for this file'''
-		
-		startTime = time.time()
-		
-		if not isinstance(checksumType, str) or not isinstance(checksumValue, str):
-			raise ValueError('Recieved a value for the checksumType or checksumValue that was not useable: %s:%s' % (checksumType, checksumValue))
-		
-		if displayName is None:
-			displayName = os.path.basename(nameOrLocation)
-		
-		# setup the reporter if needed
-		if progressReporter is True:
-			progressReporter = statusHandler(taskMessage="\t" + displayName + " ")
-		
-		# check the already verified items for this checksum
-		if '%s:%s' % (checksumType, checksumValue) in myClass.verifiedFiles:
-			itemPath = myClass.verifiedFiles['%s:%s' % (checksumType, checksumValue)]
-			
-			if progressReporter is not None:
-				progressReporter.update(statusMessage='found previously')
-				progressReporter.finishLine()
-			
-			return itemPath
-		
-		# remove file:// if it is the nameOrLocation
-		if nameOrLocation.startswith('file://'):
-			nameOrLocation = nameOrLocation[len('file://'):]
-		
-		parsedNameOrLocation = urlparse.urlparse(nameOrLocation)
-		
-		# fail out if we don't support this method
-		if parsedNameOrLocation.scheme not in ['', 'http', 'https']:
-			raise ValueError('findItem can not process urls types other than http, https, or file')
-		
-		# check if this is an absolute path, or one relative to pwd
-		if parsedNameOrLocation.scheme is '' and os.path.exists(nameOrLocation):
-			if checksumValue == checksum(nameOrLocation, checksumType=checksumType, progressReporter=progressReporter)['checksum']:
-				if progressReporter is not None:
-					progressReporter.update(statusMessage='found by path and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
-					progressReporter.finishLine()
-				
-				return os.path.realpath(os.path.abspath(nameOrLocation))
-		
-		# look for the item in the cache by name
-		workingName = None
-		if parsedNameOrLocation.scheme in ['http', 'https']:
-			workingName = os.path.basename(parsedNameOrLocation.path)
-		else:
-			workingName = os.path.basename(nameOrLocation)
-		if progressReporter is not None:
-			progressReporter.update(statusMessage='looking in the source folders by guessed name and checksum')
-		itemPath = myClass._findItemInCaches(workingName, checksumType, checksumValue, displayName=displayName, additionalSourceFolders=additionalSourceFolders, progressReporter=progressReporter)
-		if itemPath is not None:
-			# add the item to the found items
-			myClass.verifiedFiles['%s:%s' % (checksumType, checksumValue)] = itemPath
-			
-			if progressReporter is not None:
-				progressReporter.update(statusMessage='found by name or checksum and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
-				progressReporter.finishLine()
-			return itemPath
-		
-		if parsedNameOrLocation.scheme in ['http', 'https']:
-			
-			if progressReporter is not None:
-				progressReporter.update(statusMessage='checking for a name from the server')
-			
-			# open a connection to try and figure out the file name from it
-			try:
-				readFile = urllib2.urlopen(nameOrLocation)
-			except IOError, error:
-				if hasattr(error, 'reason'):
-					raise Exception('Unable to connect to remote url: %s got error: %s' % (nameOrLocation, error.reason))
-				elif hasattr(error, 'code'):
-					raise Exception('Got status code: %s while trying to connect to remote url: %s' % (str(error.code), nameOrLocation))
-			
-			if readFile is None:
-				raise Exception("Unable to open file for checksumming: %s" % nameOrLocation)
-			
-			workingUrlName = workingName
-			
-			# try reading out the content-disposition header
-			httpHeader = readFile.info()
-			if httpHeader.has_key("content-disposition"):
-				workingUrlName = httpHeader.getheader("content-disposition").strip()
-				if workingUrlName is not workingName:
-					itemPath = myClass._findItemInCaches(workingUrlName, checksumType, checksumValue, displayName=displayName, additionalSourceFolders=additionalSourceFolders, progressReporter=progressReporter)
-					if itemPath is not None:
-						# add the item to the found items
-						myClass.verifiedFiles['%s:%s' % (checksumType, checksumValue)] = itemPath
-						
-						if progressReporter is not None:
-							progressReporter.update(statusMessage='found by name in the content-disposition header and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
-							progressReporter.finishLine()
-						readFile.close()
-						return itemPath
-			
-			# try the name in the final URL
-			workingUrlName = os.path.basename( urllib.unquote(urlparse.urlparse(readFile.geturl()).path) )
-			if workingUrlName is not workingName:
-				itemPath = myClass._findItemInCaches(workingUrlName, checksumType, checksumValue, displayName=displayName, additionalSourceFolders=additionalSourceFolders, progressReporter=progressReporter)
-				if itemPath is not None:
-					# add the item to the found items
-					myClass.verifiedFiles['%s:%s' % (checksumType, checksumValue)] = itemPath
-					
-					if progressReporter is not None:
-						progressReporter.update(statusMessage='found by name in final URL')
-						progressReporter.finishLine()
-					readFile.close()
-					return itemPath
-			
-			# download the file into the cache
-			expectedLength = None
-			if httpHeader.has_key("content-length"):
-				try:
-					expectedLength = int(httpHeader.getheader("content-length"))
-				except:
-					pass
-			
-			if progressReporter is not None:
-				if expectedLength is None:
-					progressReporter.update(statusMessage='downloading ')
-				else:
-					progressReporter.update(statusMessage='downloading %s ' % bytesToRedableSize(expectedLength))
-			
-			hashGenerator = hashlib.new(checksumType)
-			downloadTargetPath = os.path.join(myClass.getCacheFolder(), os.path.splitext(workingUrlName)[0] + " " + checksumType + "-" + checksumValue + os.path.splitext(workingUrlName)[1])
-			processedBytes, processSeconds = checksumFileObject(hashGenerator, readFile, workingUrlName, expectedLength, copyToPath=downloadTargetPath, progressReporter=progressReporter)
-			
-			if hashGenerator.hexdigest() != checksumValue:
-				os.unlink(downloadTargetPath)
-				readFile.close()
-				raise FileNotFoundException("Downloaded file did not match checksum: %s (%s vs. %s" % (nameOrLocation, hashGenerator.hexdigest(), checksumValue))
-			
-			if progressReporter is not None:
-				progressReporter.update(statusMessage='downloaded and verified %s in %s (%s/sec)' % (bytesToRedableSize(processedBytes), secondsToReadableTime(time.time() - startTime), bytesToRedableSize(processedBytes/processSeconds)))
-				progressReporter.finishLine()
-			readFile.close()
-			return downloadTargetPath
-		
-		# if we have not found anything, then we are out of luck
-		raise FileNotFoundException('Could not locate the item: ' + nameOrLocation)
 	
 	@classmethod
 	def _findItemInCaches(myClass, nameOrLocation, checksumType, checksumValue, displayName=None, additionalSourceFolders=None, progressReporter=True): 
@@ -364,22 +231,35 @@ class installerPackage:
 	
 	#-------------------- Instance Methods ---------------------------
 	
-	def __init__(self, displayName, sourceLocation, checksumString, additionalSourceFolders=None):	
+	def __init__(self, sourceLocation, checksumString, displayName=None):	
 		
 		if self.cacheFolder is None or not isinstance(self.sourceFolders, list) or len(self.sourceFolders) == 0:
 			raise RuntimeWarning('The %s class\'s cache folders must be setup before getCacheFolder is called' % self.__class__.__name__)
 		
-		# displayName
-		if isinstance(displayName, str):
-			self.displayName = displayName
-		else:
-			raise ValueError("Recieved an empty or invalid displayName: " + str(displayName))
-		
 		# sourceLocation
 		if isinstance(sourceLocation, str):
+			# remove file:// if it is the sourceLocation
+			if sourceLocation.startswith('file://'):
+				sourceLocation = nameOrLocation[len('file://'):]
+		
 			self.source = sourceLocation
 		else:
 			raise ValueError("Recieved an empty or invalid sourceLocation: " + str(sourceLocation))
+		
+		parsedSourceLocationURL = urlparse.urlparse(sourceLocation)
+		
+		# fail out if we don't support this method
+		if parsedSourceLocationURL.scheme not in ['', 'http', 'https']:
+			raise ValueError('findItem can not process urls types other than http, https, or file')
+					
+		# displayName
+		if isinstance(displayName, str):
+			self.displayName = displayName
+		elif displayName is None and sourceLocation is not None:
+			# default to the part that looks like a name in the path
+			displayName = os.path.basename(parsedSourceLocationURL.path)
+		else:
+			raise ValueError("Recieved an empty or invalid displayName: " + str(displayName))
 			
 		# checksum and checksumType
 		if isinstance(checksumString, str) and checksumString.count(":") > 0:
@@ -392,6 +272,9 @@ class installerPackage:
 				raise Exception('Hash type: %s is not supported by hashlib' % self.checksumType)
 		else:
 			raise ValueError('Recieved an empty or invalid checksumString: ' + str(checksumString))
+	
+	def findItem(self, additionalSourceFolders=None, progressReporter=True):
+		'''Look through the caches to find and verify this item, and download it if necessary'''
 		
 		foldersToSearch = []
 		
@@ -412,7 +295,181 @@ class installerPackage:
 		else:
 			raise ValueError('Unable to understand the additionalSourceFolders given: ' + str(additionalSourceFolders))
 		
-		# values we need to find or create
+		# setup the reporter if needed
+		if progressReporter is True:
+			progressReporter = statusHandler(taskMessage="\t" + self.displayName + " ")
+		
+		# start the timer
+		startTime = time.time()
+		parsedPath = urlparse.urlparse(self.source)
+		
+		# try it as an absolute path
+		if parsedPath.scheme is '' and os.path.isabs(self.source):
+			if os.path.exists(self.source):
+				result = checksum(self.source, checksumType=self.checksumType, progressReporter=progressReporter)
+				if self.checksumValue == result['checksum']:
+					self.filePath = os.path.realpath(os.path.abspath(self.source))
+					if progressReporter is not None:
+						progressReporter.update(statusMessage='found by absolute path and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
+						progressReporter.finishLine()
+					return
+				else:
+					raise FileNotFoundException('The item at the path given does not match the checksum given: ' + self.filePath)
+					
+			else:
+				# the file does not exist, so we could not find it where it was supposed to be, fail rather than search further
+				raise FileNotFoundException('No file/folder existed at the absolute path: ' + self.filePath)
+				
+		# try looking for it as a relative path from the search folders and cwd
+		elif parsedPath.scheme is '' and self.source.count(os.sep):
+			for thisSourceFolder in foldersToSearch:
+				thisPath = os.path.join(thisSourceFolder, self.source)
+				if os.path.exists(thisPath) and self.checksumValue == checksum(thisPath, checksumType=self.checksumType, progressReporter=progressReporter):
+					self.filePath = os.path.realpath(os.path.abspath(self.source))
+					if progressReporter is not None:
+						progressReporter.update(statusMessage='found by relative path in the source folders and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
+						progressReporter.finishLine()
+					return
+			
+			# from the current working directory
+			if os.path.exists(self.filePath) and self.checksumValue == checksum(self.filePath, checksumType=self.checksumType, progressReporter=progressReporter):
+				self.filePath = os.path.realpath(os.path.abspath(self.source))
+				if progressReporter is not None:
+					progressReporter.update(statusMessage='found by relative path and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
+					progressReporter.finishLine()
+				return
+			
+			# if we are here, then it does not work as a relative file path, so bail out
+			raise FileNotFoundException('No file/folder existed at the relative path: ' + self.filePath)
+		
+		# check the already verified items for this checksum
+		if '%s:%s' % (self.checksumType, self.checksumValue) in self.verifiedFiles:
+			self.filePath = self.verifiedFiles['%s:%s' % (self.checksumType, self.checksumValue)]
+			if progressReporter is not None:
+				progressReporter.update(statusMessage='found previously')
+				progressReporter.finishLine()
+			return
+		
+		# try in the cache by displayName and checksum
+		foundPath = self._findItemInCaches(self.displayName, self.checksumType, self.checksumValue, displayName=self.displayName, additionalSourceFolders=additionalSourceFolders, progressReporter=progressReporter)
+		if foundPath is not None:
+			# add the item to the found items
+			self.addItemToVerifiedFiles('%s:%s' % (self.checksumType, self.checksumValue), foundPath)
+			if progressReporter is not None:
+				progressReporter.update(statusMessage='found by display name or checksum and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
+				progressReporter.finishLine()
+			self.filePath = foundPath
+			return
+		
+		# get an idea of what the name is
+		workingName = None
+		if parsedPath.scheme in ['http', 'https']:
+			workingName = os.path.basename(parsedPath.path)
+		else:
+			workingName = self.source
+		
+		# look for the item in the caches
+		if progressReporter is not None:
+			progressReporter.update(statusMessage='looking in the source folders by guessed name and checksum')
+		
+		# look by guessed name
+		foundPath = self._findItemInCaches(workingName, self.checksumType, self.checksumValue, displayName=self.displayName, additionalSourceFolders=additionalSourceFolders, progressReporter=progressReporter)
+		if foundPath is not None:
+			# add the item to the found items
+			self.addItemToVerifiedFiles('%s:%s' % (self.checksumType, self.checksumValue), foundPath)
+			if progressReporter is not None:
+				progressReporter.update(statusMessage='found by guessed name and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
+				progressReporter.finishLine()
+			self.filePath = foundPath
+			return
+		
+		# work on urls
+		if parsedPath.scheme in ['http', 'https']:
+			if progressReporter is not None:
+				progressReporter.update(statusMessage='checking for a name from the server')
+			
+			# open a connection to try and figure out the file name from it
+			try:
+				readFile = urllib2.urlopen(self.source)
+			except IOError, error:
+				if hasattr(error, 'reason'):
+					raise Exception('Unable to connect to remote url: %s got error: %s' % (self.source, error.reason))
+				elif hasattr(error, 'code'):
+					raise Exception('Got status code: %s while trying to connect to remote url: %s' % (str(error.code), self.source))
+			
+			if readFile is None:
+				raise Exception("Unable to open file for checksumming: %s" % self.source)
+			
+			workingUrlName = workingName
+			
+			# try reading out the content-disposition header
+			httpHeader = readFile.info()
+			if httpHeader.has_key("content-disposition"):
+				workingUrlName = httpHeader.getheader("content-disposition").strip()
+				if workingName is not workingName:
+					itemPath = myClass._findItemInCaches(workingUrlName, self.checksumType, self.checksumValue, displayName=self.displayName, additionalSourceFolders=additionalSourceFolders, progressReporter=progressReporter)
+					if itemPath is not None:
+						# add the item to the found items
+						self.addItemToVerifiedFiles('%s:%s' % (self.checksumType, self.checksumValue), itemPath)
+						
+						# set the value, and close up shop
+						self.filePath = itemPath
+						if progressReporter is not None:
+							progressReporter.update(statusMessage='found by name in the content-disposition header and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
+							progressReporter.finishLine()
+						readFile.close()
+						return
+			
+			# try the name in the final URL
+			workingUrlName = os.path.basename( urllib.unquote(urlparse.urlparse(readFile.geturl()).path) )
+			if workingUrlName is not workingName:
+				itemPath = self._findItemInCaches(workingUrlName, self.checksumType, self.checksumValue, displayName=self.displayName, additionalSourceFolders=additionalSourceFolders, progressReporter=progressReporter)
+				if itemPath is not None:
+					# add the item to the found items
+					self.addItemToVerifiedFiles('%s:%s' % (self.checksumType, self.checksumValue), itemPath)
+						
+						# set the value, and close up shop
+					self.filePath = itemPath
+					if progressReporter is not None:
+						progressReporter.update(statusMessage='found by name in final URL')
+						progressReporter.finishLine()
+					readFile.close()
+					return itemPath
+			
+			# download the file into the cache
+			expectedLength = None
+			if httpHeader.has_key("content-length"):
+				try:
+					expectedLength = int(httpHeader.getheader("content-length"))
+				except:
+					pass
+			
+			if progressReporter is not None:
+				if expectedLength is None:
+					progressReporter.update(statusMessage='downloading ')
+				else:
+					progressReporter.update(statusMessage='downloading %s ' % bytesToRedableSize(expectedLength))
+			
+			hashGenerator = hashlib.new(self.checksumType)
+			downloadTargetPath = os.path.join(self.getCacheFolder(), os.path.splitext(workingUrlName)[0] + " " + self.checksumType + "-" + self.checksumValue + os.path.splitext(workingUrlName)[1])
+			processedBytes, processSeconds = checksumFileObject(hashGenerator, readFile, workingUrlName, expectedLength, copyToPath=downloadTargetPath, progressReporter=progressReporter)
+			
+			if hashGenerator.hexdigest() != self.checksumValue:
+				os.unlink(downloadTargetPath)
+				readFile.close()
+				raise FileNotFoundException("Downloaded file did not match checksum: %s (%s vs. %s)" % (self.source, hashGenerator.hexdigest(), self.checksumValue))
+		
+			if progressReporter is not None:
+				progressReporter.update(statusMessage='downloaded and verified %s in %s (%s/sec)' % (bytesToRedableSize(processedBytes), secondsToReadableTime(time.time() - startTime), bytesToRedableSize(processedBytes/processSeconds)))
+				progressReporter.finishLine()
+			readFile.close()
+			self.filePath = downloadTargetPath
+			return
+		
+		# if we have not found anything, then we are out of luck
+		raise FileNotFoundException('Could not locate the item: ' + self.source)
+		
+		
 		cacheFilePath = self.findItem(sourceLocation, self.checksumType, self.checksumValue, displayName=displayName, additionalSourceFolders=additionalSourceFolders, progressReporter=True)
 		
 		if cacheFilePath is None:
@@ -420,3 +477,6 @@ class installerPackage:
 		
 		# at this point we know that we have a file at cacheFilePath
 		self.filePath = cacheFilePath
+	
+	def getItemLocalPath(self):
+		return self.filePath
