@@ -60,12 +60,7 @@ if __name__ == "__main__":
 				progressReporter = statusHandler(taskMessage=os.path.basename(location) + " ")
 			
 		data = checksum(location, checksumType=options.checksumAlgorithm, progressReporter=progressReporter, outputFolder=options.outputFolder, checksumInFileName=options.checksumInFileName)
-		
-		dataLine = ''
-		if 'cacheLocation' in data:
-			dataLine = "\t".join(["", os.path.splitext(data['name'])[0], data['cacheLocation'], data['checksumType'] + ":" + data['checksum']])
-		else:
-			dataLine = "\t".join(["", os.path.splitext(data['name'])[0], location, data['checksumType'] + ":" + data['checksum']])
+		dataLine = "\t".join(["", os.path.splitext(data['name'])[0], location, data['checksumType'] + ":" + data['checksum']])
 		
 		if progressReporter is not None:
 			progressReporter.update(taskMessage=dataLine)
