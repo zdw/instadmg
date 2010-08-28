@@ -7,9 +7,10 @@
 import os, sys, re
 import hashlib, urlparse, subprocess, datetime
 
-from Resources.tempFolderManager	import tempFolderManager
-from Resources.installerPackage		import installerPackage
-from Resources.commonExceptions		import FileNotFoundException, CatalogNotFoundException
+import Resources.commonConfiguration	as commonConfiguration
+from Resources.tempFolderManager		import tempFolderManager
+from Resources.installerPackage			import installerPackage
+from Resources.commonExceptions			import FileNotFoundException, CatalogNotFoundException
 
 #------------------------------SETTINGS------------------------------
 
@@ -24,12 +25,8 @@ addedSectionTypes			= [ "Apple Updates", "Third Party Software", "Third Party Se
 
 #------------------------RUNTIME ADJUSTMENTS-------------------------
 
-absPathToInstaDMGFolder		= os.path.normpath(os.path.join( os.path.abspath(os.path.dirname(sys.argv[0])), "../../" ))
-
-appleUpdatesFolderPath		= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "InstallerFiles", "BaseUpdates"))
-customPKGFolderPath			= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "InstallerFiles", "CustomPKG"))
-
-baseOSFolderPath			= os.path.normpath(os.path.join(absPathToInstaDMGFolder, "InstallerFiles", "Base OS Disk"))
+appleUpdatesFolderPath		= os.path.join(commonConfiguration.pathToInstaDMGFolder, "InstallerFiles", "BaseUpdates")
+customPKGFolderPath			= os.path.join(commonConfiguration.pathToInstaDMGFolder, "InstallerFiles", "CustomPKG")
 
 #-------------------------------CLASSES------------------------------
 
@@ -174,7 +171,7 @@ class instaUpToDate:
 			self.sectionFolders.append(newSection)
 		
 		# --- runtime checks ----
-		assert os.path.isfile(os.path.join(absPathToInstaDMGFolder, "instadmg.bash")), "InstaDMG was not where it was expected to be: %s" % os.path.join(absPathToInstaDMGFolder, "instadmg.bash")
+		assert os.path.isfile(commonConfiguration.pathToInstaDMG), "InstaDMG was not where it was expected to be: %s" % commonConfiguration.pathToInstaDMG
 	
 	def getMainCatalogName(self):
 		return os.path.splitext(os.path.basename(self.catalogFilePath))[0]
@@ -353,7 +350,7 @@ class instaUpToDate:
 		
 		# Todo: create a routine to validate things before the run
 		
-		instaDMGCommand	= [ os.path.join(absPathToInstaDMGFolder, "instadmg.bash"), "-f" ]
+		instaDMGCommand	= [ commonConfiguration.pathToInstaDMG, "-f" ]
 		
 		if self.catalogFileSettings.has_key("ISO Language Code"):
 			instaDMGCommand += ["-i", self.catalogFileSettings["ISO Language Code"]]
@@ -440,7 +437,7 @@ def main ():
 	# --- process options ---
 
 	if options.catalogFolders is None:
-		options.catalogFolders = os.path.normpath(os.path.join(absPathToInstaDMGFolder, "AddOns", "InstaUp2Date", "CatalogFiles"))
+		options.catalogFolders = commonConfiguration.standardCatalogFolder
 		
 	baseCatalogFiles = []
 	for thisCatalogFile in catalogFiles:
@@ -468,15 +465,15 @@ def main ():
 		]
 	else:
 		sectionFolders = [
-			{"folderPath":os.path.join(absPathToInstaDMGFolder, "InstallerFiles/BaseUpdates"), "sections":["OS Updates", "System Settings"]},
-			{"folderPath":os.path.join(absPathToInstaDMGFolder, "InstallerFiles/CustomPKG"), "sections":["Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings"]}
+			{"folderPath":os.path.join(commonConfiguration.pathToInstaDMGFolder, "InstallerFiles", "BaseUpdates"), "sections":["OS Updates", "System Settings"]},
+			{"folderPath":os.path.join(commonConfiguration.pathToInstaDMGFolder, "InstallerFiles", "CustomPKG"), "sections":["Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings"]}
 		]
 	
 	if options.cacheFolder is None:
-		options.cacheFolder = os.path.join(absPathToInstaDMGFolder, "Caches/InstaUp2DateCache")
+		options.cacheFolder = commonConfiguration.standardCacheFolder
 	
 	if options.searchFolders is None:
-		options.searchFolders = os.path.join(absPathToInstaDMGFolder, "InstallerFiles/InstaUp2DatePackages")
+		options.searchFolders = commonConfiguration.standardUserItemsFolder
 	
 	# ----- setup system ----
 	

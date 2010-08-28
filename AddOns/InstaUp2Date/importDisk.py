@@ -1,24 +1,18 @@
 #!/usr/bin/env python
 
-import sys, os, re, time, subprocess, Foundation
+import sys, os, time, Foundation
 
 #import threading
+
+import Resources.commonConfiguration	as commonConfiguration
+from Resources.managedSubprocess	import managedSubprocess
 
 def getMountPointFromBSDName(diskBSDName):
 	''' Return the mount point for an given disk '''
 	
 	diskutilArguments = ['/usr/sbin/diskutil', 'info', '-plist', diskBSDName]
-	diskutilProcess = subprocess.Popen(diskutilArguments, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	if diskutilProcess.wait() != 0:
-		sys.stderr.write('Error: Getting the info on disk %s failed with error: %s\n' % (diskBSDName, diskutilProcess.stderr.read()))
-		sys.exit(5)
-	
-	diskutilOutput = diskutilProcess.stdout.read()
-	plistNSData = Foundation.NSString.stringWithString_(diskutilOutput).dataUsingEncoding_(Foundation.NSUTF8StringEncoding)
-	plistData, format, error = Foundation.NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(plistNSData, Foundation.NSPropertyListImmutable, None, None)
-	if error:
-		sys.stderr.write('Error: Unable to convert the diskuitl info output for %s to a plist, got error: %s\nOutput was:\n%s\n' % (error, diskBSDName, diskutilOutput))
-		sys.exit(6)
+	diskutilProcess = managedSubprocess(diskutilArguments, processAsPlist=True)
+	plistData = diskutilProcess.getPlistObject()
 	
 	if not "MountPoint" in plistData:
 		sys.stderr.write('Error: The output from diksutil list of %s does not look right:\n%s\n' % (diskBSDName, diskutilOutput))
@@ -69,26 +63,16 @@ def getMacOSVersionAndBuildOfMountPoint(mountPoint):
 	return (plistData["ProductUserVisibleVersion"], plistData["ProductBuildVersion"])
 
 def getPossibleMountPoints():
-	possibleDisks = []
 	
 	diskutilArguments = ['/usr/sbin/diskutil', 'list', '-plist']
-	diskutilProcess = subprocess.Popen(diskutilArguments, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	if diskutilProcess.wait() != 0:
-		sys.stderr.write('Error: Listing the disks failed with error: %s\n' % diskutilProcess.stderr.read())
-		sys.exit(1)
-	
-	diskutilOutput = diskutilProcess.stdout.read()
-	plistNSData = Foundation.NSString.stringWithString_(diskutilOutput).dataUsingEncoding_(Foundation.NSUTF8StringEncoding)
-	plistData, format, error = Foundation.NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(plistNSData, Foundation.NSPropertyListImmutable, None, None)
-	if error:
-		sys.stderr.write('Error: Unable to convert the diskutil list output to a plist, got error: %s\nOutput was:\n%s\n' % (error, diskutilOutput))
-		sys.exit(2)
+	diskutilProcess = managedSubprocess(diskutilArguments, processAsPlist=True)
+	plistData = diskutilProcess.getPlistObject()
 	
 	if not "AllDisks" in plistData or not isinstance(plistData["AllDisks"], Foundation.NSCFArray):
-		sys.stderr.write('Error: The output from diksutil list does not look right:\n%s\n' % diskutilOutput)
-		sys.exit(3)
+		raise RuntimeError('Error: The output from diksutil list does not look right:\n%s\n' % diskutilOutput)  
 	
-	wholeDiskPattern = re.compile('^disk\d+$')	
+	possibleDisks = []
+	
 	for thisDisk in plistData["AllDisks"]:
 		
 		# exclude the base disks
@@ -244,12 +228,11 @@ def main():
 	
 	# Search for an image that already has this OS Build
 	# ToDo: get the setup for this from a central place
-	# get the path to InstallerDisks relative to this script: ../../InstallerFiles/InstallerDiscs
 	outputFolder = options.outputFolder
 	if outputFolder == None and options.legacyMode == False:
-		outputFolder = os.path.normpath( os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])), "../../InstallerFiles/InstallerDiscs") )
+		outputFolder = commonConfiguration.standardOSDiscFolder
 	elif options.legacyMode == True:
-		outputFolder = os.path.normpath( os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])), "../../InstallerFiles/BaseOS") )
+		outputFolder = commonConfiguration.legacyOSDiscFolder
 	
 	if not os.path.isdir(outputFolder):
 		sys.stderr.write('Error: The chosen output folder does not exist or is not a folder: %s\n' % outputFolder)
@@ -279,26 +262,19 @@ def main():
 			print("Canceling")
 			sys.exit()
 	
-	print('Creating image: "%s" from disc at: "%s"' % (targetPath, chosenMountPoint))
+	print('Creating image from disc at: "%s"' % (targetPath, chosenMountPoint))
 	
 	diskFormat = 'UDZO' # default to zlib
 	if options.compressionType == "bzip2":
 		diskFormat = 'UDBZ'
 	
-	diskutilCommand = ['/usr/bin/hdiutil', 'create', '-ov', '-srcowners', 'on', '-srcfolder', chosenMountPoint, '-format', diskFormat]
+	diskutilArguments = ['/usr/bin/hdiutil', 'create', '-ov', '-srcowners', 'on', '-srcfolder', chosenMountPoint, '-format', diskFormat]
 	if options.compressionType == "zlib":
 		# go for more compression
-		diskutilCommand.append('-imagekey')
-		diskutilCommand.append('zlib-level=6')
-	diskutilCommand.append(targetPath)
-	
-	diskutilProcess = subprocess.Popen(diskutilCommand, stdout=open("/dev/null", "w"), stderr=subprocess.PIPE)
-	sys.stdout.write("diskutil process running...")
-	sys.stdout.flush()
-	
-	if diskutilProcess.wait() > 0:
-		sys.stderr.write('\nError: diskutil returned error code: %s\nFrom command: %s\nError message:\n%s\n' % (diskutilProcess.returncode, " ".join(diskutilCommand), diskutilProcess.stderr.read()))
-		sys.exit(21)
+		diskutilArguments.append('-imagekey')
+		diskutilArguments.append('zlib-level=6')
+	diskutilArguments.append(targetPath)
+	diskutilProcess = managedSubprocess(diskutilArguments)
 
 	print(" completed in %i seconds" % int(time.time() - startTime))
 	sys.exit(0)

@@ -2,13 +2,14 @@
 
 import unittest, os, sys
 
-from displayTools_test import *
 from checksum_test import *
+from commonConfiguration_test import *
+from displayTools_test import *
+from installerPackage_test import *
 from managedSubprocess_test import *
 from tempFolderManager_test import *
 from testingHelpers_test import *
 from volumeManager_test import *
-from installerPackage_test import *
 
 # ToDo: automate finding the tests
 

@@ -73,7 +73,12 @@ class volumeManager():
 				command = ['/usr/sbin/diskutil', 'unmount', 'force', targetPath]
 				managedSubprocess(command)
 	
-	#---------- instance methods ----------	
+	#---------- instance methods ----------
+	
+	def __init__(self, targetPath):
+		
+		if not os.path.ismount(targetPath):
+			raise ValueError('VolumeManager requires mount points ')
 
 class dmgManager(volumeManager):
 	
