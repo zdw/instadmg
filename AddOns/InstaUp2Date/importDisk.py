@@ -1,99 +1,13 @@
 #!/usr/bin/env python
 
-import sys, os, time, Foundation
+import sys, os, time
 
 #import threading
 
 import Resources.commonConfiguration	as commonConfiguration
-from Resources.managedSubprocess	import managedSubprocess
-
-def getMountPointFromBSDName(diskBSDName):
-	''' Return the mount point for an given disk '''
-	
-	diskutilArguments = ['/usr/sbin/diskutil', 'info', '-plist', diskBSDName]
-	diskutilProcess = managedSubprocess(diskutilArguments, processAsPlist=True)
-	plistData = diskutilProcess.getPlistObject()
-	
-	if not "MountPoint" in plistData:
-		sys.stderr.write('Error: The output from diksutil list of %s does not look right:\n%s\n' % (diskBSDName, diskutilOutput))
-		sys.exit(7)
-	
-	if plistData["MountPoint"] == None or plistData["MountPoint"] == "":
-		return None
-	
-	return plistData["MountPoint"]
-
-
-def getInstallerDiskType(mountPoint):
-	''' This returns "MacOS X Client" for client versions, "MacOS X Server" for server versions, or None if this is not an installer disk '''
-	 
-	if not os.path.ismount(mountPoint):
-		sys.stderr.write('Error: The path "%s" is not a mount point.\n' % mountPoint)
-		sys.exit(8)
-	
-	# Note: this is the exact path that instadmg looks for
-	if os.path.exists( os.path.join(mountPoint, "System/Installation/Packages/MacOSXServerInstall.mpkg") ):
-		return "MacOS X Server"
-	
-	elif os.path.exists( os.path.join(mountPoint, "System/Installation/Packages/OSInstall.mpkg") ):
-		return "MacOS X Client"
-		
-	return None
-
-
-def getMacOSVersionAndBuildOfMountPoint(mountPoint):
-	if not os.path.ismount(mountPoint):
-		sys.stderr.write('Error: The path "%s" is not a mount point\n' % mountPoint)
-		sys.exit(10)
-	
-	if not os.path.isfile(os.path.join(mountPoint, "System/Library/CoreServices/SystemVersion.plist")):
-		sys.stderr.write('Warning: "%s" does not seem to be a MacOS volume.\n' % mountPoint)
-		return None
-	
-	plistNSData = Foundation.NSData.dataWithContentsOfFile_(os.path.join(mountPoint, "System/Library/CoreServices/SystemVersion.plist"))
-	plistData, format, error = Foundation.NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(plistNSData, Foundation.NSPropertyListMutableContainersAndLeaves, None, None)
-	if error:
-		sys.stderr.write('Error: Unable to get ther version of MacOS on volume: "%s". Error was: %s\n' % (mountPoint, error))
-		sys.exit(11)
-	
-	if not ("ProductBuildVersion" in plistData and "ProductUserVisibleVersion" in plistData):
-		sys.stderr.write('Error: Unable to get the version, build, or type of MacOS on volume: "%s"' % mountPoint)
-		sys.exit(12)
-	
-	return (plistData["ProductUserVisibleVersion"], plistData["ProductBuildVersion"])
-
-def getPossibleMountPoints():
-	
-	diskutilArguments = ['/usr/sbin/diskutil', 'list', '-plist']
-	diskutilProcess = managedSubprocess(diskutilArguments, processAsPlist=True)
-	plistData = diskutilProcess.getPlistObject()
-	
-	if not "AllDisks" in plistData or not isinstance(plistData["AllDisks"], Foundation.NSCFArray):
-		raise RuntimeError('Error: The output from diksutil list does not look right:\n%s\n' % diskutilOutput)  
-	
-	possibleDisks = []
-	
-	for thisDisk in plistData["AllDisks"]:
-		
-		# exclude the base disks
-		if wholeDiskPattern.search(thisDisk):
-			continue
-		
-		# exclude unmounted disks
-		mountPoint = getMountPointFromBSDName(thisDisk)
-		if mountPoint == None:
-			continue
-		
-		# exclude the root mount
-		if mountPoint == "/":
-			continue
-		
-		if getInstallerDiskType(mountPoint) == None:
-			continue
-		
-		possibleDisks.append(mountPoint)
-	
-	return possibleDisks
+import Resources.displayTools			as displayTools
+from Resources.managedSubprocess		import managedSubprocess
+from Resources.volumeManager			import volumeManager
 
 #class puppetStringsMonitor(threading.Thread):
 #	inputItem	= None
@@ -153,24 +67,29 @@ def main():
 	
 	if len(args) == 0:
 		
-		mountPoints = getPossibleMountPoints()
+		mountPoints = {}
+		# remove the non-installer options
+		for thisMountPoint in volumeManager.getMountedVolumes():
+			try:
+				installerType = volumeManager.getInstallerDiskType(thisMountPoint)
+				mountPoints[thisMountPoint] = installerType
+			except ValueError:
+				continue
 		
 		if len(mountPoints) == 0:
 			sys.stderr.write('Error: There were no possible disks to image\n')
 			sys.exit(4)
 		
 		elif len(mountPoints) == 1 and options.automaticRun == True:
-			chosenMountPoint = mountPoints[0]
+			chosenMountPoint = mountPoints[mountPoints.keys()[0]]
 		
 		elif len(mountPoints) == 1:
-			choice = raw_input('Only one mount point found: "%s". Create image? (Y/N):' % mountPoints[0])
+			choice = raw_input('Only one mount point found: "%s". Create image? (Y/N):' % mountPoints.keys()[0])
 			if choice.lower() == "y" or choice.lower() == "yes":
-				chosenMountPoint = mountPoints[0]
+				chosenMountPoint = mountPoints.keys()[0]
 			else:
 				print("Canceling")
 				sys.exit()
-				
-			chosenMountPoint = mountPoints[0]
 			
 		elif options.automaticRun == True:
 			sys.stderr.write('Error: There was more than one avalible disk in an automatic run. Can only run in automatic mode when there is only one option.\n')
@@ -178,10 +97,12 @@ def main():
 		
 		else:
 			print('The following mounts are avalible: ')
-			for i in range(len(mountPoints)):
-				(version, build) = getMacOSVersionAndBuildOfMountPoint(mountPoints[i])
-				installerType = getInstallerDiskType(mountPoints[i])
-				print('  %s%s %s (%s)\t%s' % ((str(i + 1) + ")").ljust(4, " "), installerType, version, build, mountPoints[i]))
+			i = 1
+			mountPointsList = mountPoints.keys()
+			for thisMountPoint in mountPointsList:
+				(version, build) = volumeManager.getMacOSVersionAndBuildOfVolume(thisMountPoint)
+				print('  %s%s %s (%s)\t%s' % ((str(i) + ")").ljust(4, " "), mountPoints[thisMountPoint], version, build, thisMountPoint))
+				i += 1
 			choice = raw_input('Please select a volume by typeing in the number that precedes it: ')
 			try:
 				choice = int(choice)
@@ -192,7 +113,7 @@ def main():
 				sys.stderr.write('Error: Input "%s" was not a valid option\n' % choice)
 				sys.exit(14)
 			
-			chosenMountPoint = mountPoints[choice - 1]
+			chosenMountPoint = mountPointsList[choice - 1]
 	
 	elif len(args) == 1:
 		# user has supplied the mount point to use
@@ -202,7 +123,7 @@ def main():
 			sys.stderr.write('Error: The path "%s" is not a mount point\n' % inputPath)
 			sys.exit(15)
 		
-		if getInstallerDiskType(inputPath) == None:
+		if volumeManager.getInstallerDiskType(inputPath) == None:
 			sys.stderr.write('Error: The path "%s" is not an installer disk\n' % inputPath)
 			sys.exit(16)
 		
@@ -212,8 +133,8 @@ def main():
 		sys.stderr.write('Error: Can only process a single disk at a time\n' % choice)
 		sys.exit(17)
 	
-	chosenOSVersion, chosenOSBuild = getMacOSVersionAndBuildOfMountPoint(chosenMountPoint)
-	chosenOSType = getInstallerDiskType(chosenMountPoint)
+	chosenOSVersion, chosenOSBuild = volumeManager.getMacOSVersionAndBuildOfVolume(chosenMountPoint)
+	chosenOSType = volumeManager.getInstallerDiskType(chosenMountPoint)
 	
 	chosenFileName = options.outputFileName
 	if chosenFileName == None and options.legacyMode == False:
@@ -224,7 +145,6 @@ def main():
 	# append .dmg if it is not already there
 	if not (os.path.splitext(chosenFileName)[1].lower() == ".dmg"):
 		chosenFileName = chosenFileName + ".dmg"
-	
 	
 	# Search for an image that already has this OS Build
 	# ToDo: get the setup for this from a central place
@@ -254,15 +174,15 @@ def main():
 				print("Canceling")
 				sys.exit()
 				
-	# Note: at this point it is alright to overwrite the file if it exists
+	# Note: at this point it is all-right to overwrite the file if it exists
 	
 	if options.automaticRun == False:
-		choice = raw_input('Ready to produce "%s" from the volume "%s".\nContinue? (Y/N):' % (chosenFileName, chosenMountPoint))
+		choice = raw_input('Ready to produce "%s" from the volume "%s".\n\tContinue? (Y/N):' % (chosenFileName, chosenMountPoint))
 		if not (choice.lower() == "y" or choice.lower() == "yes"):
 			print("Canceling")
 			sys.exit()
 	
-	print('Creating image from disc at: "%s"' % (targetPath, chosenMountPoint))
+	myStatusHandler = displayTools.statusHandler(taskMessage='Creating image from disc at: %s' % chosenMountPoint)
 	
 	diskFormat = 'UDZO' # default to zlib
 	if options.compressionType == "bzip2":
@@ -275,8 +195,8 @@ def main():
 		diskutilArguments.append('zlib-level=6')
 	diskutilArguments.append(targetPath)
 	diskutilProcess = managedSubprocess(diskutilArguments)
-
-	print(" completed in %i seconds" % int(time.time() - startTime))
+	
+	myStatusHandler.update(taskMessage='Image "%s" created in %s' % (chosenFileName, displayTools.secondsToReadableTime(time.time() - startTime)))
 	sys.exit(0)
 
 if __name__ == "__main__":

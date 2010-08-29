@@ -2,7 +2,7 @@
 
 import os, sys, stat, atexit, tempfile
 
-from volumeManager import volumeManager
+from managedSubprocess import managedSubprocess
 
 class tempFolderManager(object):
 	
@@ -15,6 +15,7 @@ class tempFolderManager(object):
 	
 	tempFolderPrefix		= 'InstaDMGTempFolder.'	# default name prefix for temporary folers
 	tempFilePrefix			= 'InstaDMGTempFile.'	# default name prefix for temporaty files
+	mountPointPrefix		= 'InstaDMGMountPoint.'	# default name prefix for mount points
 	
 	#-------- instance properties ---------
 	
@@ -95,6 +96,60 @@ class tempFolderManager(object):
 			return myClass.setDefaultFolder(None)
 	
 	@classmethod
+	def unmountVolume(myClass, targetPath):
+		'''Unmount a volume or dmg mounted at the path given'''
+		
+		if not os.path.ismount(targetPath):
+			raise ValueError('unmountVolume valled on a path that was not a mount point: ' + targetPath)
+		
+		targetPath = os.path.realpath(os.path.normpath(targetPath))
+		
+		# check to see if this is a disk image
+		isMountedDMG = False
+		command = ['/usr/bin/hdiutil', 'info', '-plist']
+		process = managedSubprocess(command, processAsPlist=True)
+		plistData = process.getPlistObject()
+		
+		if not hasattr(plistData, 'has_key') or not plistData.has_key('images') or not hasattr(plistData['images'], '__iter__'):
+			raise RuntimeError('The "%s" output does not have an "images" array as expected. Output was:\n%s' % (' '.join(command), output))
+		
+		for thisImage in plistData['images']:
+		
+			if not hasattr(thisImage, '__iter__') or not thisImage.has_key('system-entities') or not hasattr(thisImage['system-entities'], '__iter__'):
+				raise RuntimeError('The "%s" output had an image entry that was not formed as expected. Output was:\n%s' % (' '.join(command), output))
+			
+			for thisEntry in thisImage['system-entities']:
+				if thisEntry.has_key('mount-point') and os.path.samefile(thisEntry['mount-point'], targetPath):
+					isMountedDMG = True
+					break
+			if isMountedDMG is True: break
+		
+		if isMountedDMG is True:
+			# ToDo: log this
+			command = ['/usr/bin/hdiutil', 'eject', targetPath]
+			process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			
+			if process.wait() != 0 and os.path.ismount(targetPath):
+				# try again with a bit more force
+				# ToDo: log this
+				
+				command = ['/usr/bin/hdiutil', 'eject', '-force', targetPath]
+				managedSubprocess(command)
+		
+		else:
+			# a non dmg mount point
+			# ToDo: log this
+			command = ['/usr/sbin/diskutil', 'unmount', targetPath]
+			process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			
+			if process.wait() != 0 and os.path.ismount(targetPath):
+				# try again with a bit more force
+				# ToDo: log this
+				
+				command = ['/usr/sbin/diskutil', 'unmount', 'force', targetPath]
+				managedSubprocess(command)
+	
+	@classmethod
 	def cleanupForExit(myClass):
 		'''Clean up everything, should be called by an atexit handler'''
 		
@@ -171,7 +226,7 @@ class tempFolderManager(object):
 			
 			# unmount the directory if it is a volume
 			if os.path.ismount(root):
-				volumeManager.unmountVolume(root) # ToDo: log this
+				unmountVolume(root) # ToDo: log this
 				dirs = [] # make sure we don't try to decend into folders that are no longer there
 				continue
 			
@@ -310,6 +365,12 @@ class tempFolderManager(object):
 	@classmethod
 	def getNewTempFolder(myClass, parentFolder=None, prefix=None, suffix=None):
 		'''Create a new managed file or folder and return the path'''
+		
+		return myClass.getNewTempItem('folder', parentFolder=parentFolder, prefix=prefix, suffix=suffix)
+	
+	@classmethod
+	def getNewMountPoint(myClass, parentFolder=None, prefix=None, suffix=None):
+		'''Create a new folder as a mount point'''
 		
 		return myClass.getNewTempItem('folder', parentFolder=parentFolder, prefix=prefix, suffix=suffix)
 	

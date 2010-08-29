@@ -189,6 +189,14 @@ class setupTests(unittest.TestCase):
 		self.assertEquals(tempFolderManager.managedItems, [], 'cleanupAtExit left the managedItems variable with a value: ' + str(tempFolderManager.managedItems))
 		self.assertTrue(tempFolderManager.defaultFolder	is None, 'cleanupAtExit left the defaultFolder variable with a value: ' + str(tempFolderManager.defaultFolder))
 	
+	def test_getNewMountPoint(self):
+		'''Test the creation and deleteion of a mount point'''
+		
+		folderPath = tempFolderManager.getNewMountPoint()
+		self.assertTrue(folderPath is not None, 'Called with no options getNewMountPoint gave back None')
+		self.assertTrue(os.path.isdir(folderPath), 'Called with no options getNewMountPoint returned a string that was not a path to an existing folder: ' + str(folderPath))
+		self.assertTrue(tempFolderManager.getManagedPathForPath(folderPath) is not None, 'Called with no options getNewMountPoint returned a path that was not in any managed path (according to getManagedPathForPath): ' + folderPath)
+	
 	def test_getNewTempFolder(self):
 		'''Test the getNewTempFolder method'''
 		

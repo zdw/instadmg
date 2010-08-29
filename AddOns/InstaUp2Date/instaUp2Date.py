@@ -381,6 +381,7 @@ class instaUpToDate:
 #--------------------------------MAIN--------------------------------
 
 def main ():
+	import optparse
 	
 	# ------- defaults -------
 	
@@ -393,7 +394,7 @@ def main ():
 		optionsParser.print_version()
 		sys.exit(0)
 	
-	import optparse
+	
 	optionsParser = optparse.OptionParser("%prog [options] catalogFile1 [catalogFile2 ...]", version="%%prog %s" % versionString)
 	optionsParser.remove_option('--version')
 

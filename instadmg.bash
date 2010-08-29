@@ -1362,7 +1362,7 @@ log "Target OS: $TARGET_OS_NAME $TARGET_OS_REV ($TARGET_OS_REV_BUILD)" informati
 
 prepare_image
 
-# disable image caching on 10.6
+# disable chroot on 10.6
 if [ $OS_REV_MAJOR -eq 6 ]; then
 	log "Chroot jails do not currently work with 10.6, so disabling them" warning
 	DISABLE_CHROOT=true
