@@ -62,31 +62,41 @@ def main():
 	(options, args) = optionParser.parse_args()
 	
 	chosenMountPoint	= None
+	chosenOSType		= None
 	chosenOSVersion		= None
 	chosenOSBuild		= None
 	
+	chosenMount			= None
+	
 	if len(args) == 0:
 		
-		mountPoints = {}
-		# remove the non-installer options
+		possibleDiscsInfo = []
+		
+		# get a list of avalible installer disks
 		for thisMountPoint in volumeManager.getMountedVolumes():
+			
 			try:
 				installerType = volumeManager.getInstallerDiskType(thisMountPoint)
-				mountPoints[thisMountPoint] = installerType
+				
+				thisDiskInfo = volumeManager.getVolumeInfo(thisMountPoint)
+				thisDiskInfo['installerType'] = installerType
+				thisDiskInfo['macOSVersion'], thisDiskInfo['buildNumber'] = volumeManager.getMacOSVersionAndBuildOfVolume(thisMountPoint)
+				
+				possibleDiscsInfo.append(thisDiskInfo)
 			except ValueError:
 				continue
 		
-		if len(mountPoints) == 0:
+		if len(possibleDiscsInfo) == 0:
 			sys.stderr.write('Error: There were no possible disks to image\n')
 			sys.exit(4)
 		
-		elif len(mountPoints) == 1 and options.automaticRun == True:
-			chosenMountPoint = mountPoints[mountPoints.keys()[0]]
+		elif len(possibleDiscsInfo) == 1 and options.automaticRun == True:
+			chosenMount = possibleDiscsInfo[0]
 		
-		elif len(mountPoints) == 1:
-			choice = raw_input('Only one mount point found: "%s". Create image? (Y/N):' % mountPoints.keys()[0])
+		elif len(possibleDiscsInfo) == 1:
+			choice = raw_input('Only one mount point found: "%s" (%s) - %s %s (%s). Create image? (Y/N):' % (possibleDiscsInfo[0]['mountPath'], possibleDiscsInfo[0]['diskType'], possibleDiscsInfo[0]['installerType'], possibleDiscsInfo[0]['macOSVersion'], possibleDiscsInfo[0]['buildNumber']))
 			if choice.lower() == "y" or choice.lower() == "yes":
-				chosenMountPoint = mountPoints.keys()[0]
+				chosenMount = possibleDiscsInfo[0]
 			else:
 				print("Canceling")
 				sys.exit()
@@ -98,10 +108,8 @@ def main():
 		else:
 			print('The following mounts are avalible: ')
 			i = 1
-			mountPointsList = mountPoints.keys()
-			for thisMountPoint in mountPointsList:
-				(version, build) = volumeManager.getMacOSVersionAndBuildOfVolume(thisMountPoint)
-				print('  %s%s %s (%s)\t%s' % ((str(i) + ")").ljust(4, " "), mountPoints[thisMountPoint], version, build, thisMountPoint))
+			for thisMountPoint in possibleDiscsInfo:
+				print('	%-4.4s"%s" (%s) - %s %s (%s)' % (str(i) + ")", thisMountPoint['mountPath'], possibleDiscsInfo[i - 1]['diskType'], possibleDiscsInfo[i - 1]['installerType'], possibleDiscsInfo[i - 1]['macOSVersion'], possibleDiscsInfo[i - 1]['buildNumber']))
 				i += 1
 			choice = raw_input('Please select a volume by typeing in the number that precedes it: ')
 			try:
@@ -109,11 +117,11 @@ def main():
 			except:
 				sys.stderr.write('Error: Input "%s" is not an integer\n' % choice)
 				sys.exit(13)
-			if choice > len(mountPoints) or choice <= 0:
+			if choice > len(possibleDiscsInfo) or choice <= 0:
 				sys.stderr.write('Error: Input "%s" was not a valid option\n' % choice)
 				sys.exit(14)
 			
-			chosenMountPoint = mountPointsList[choice - 1]
+			chosenMount = possibleDiscsInfo[choice - 1]
 	
 	elif len(args) == 1:
 		# user has supplied the mount point to use
@@ -127,14 +135,17 @@ def main():
 			sys.stderr.write('Error: The path "%s" is not an installer disk\n' % inputPath)
 			sys.exit(16)
 		
-		chosenMountPoint = inputPath
-	
+		chosenOSVersion, chosenOSBuild = volumeManager.getMacOSVersionAndBuildOfVolume(inputPath)
+		chosenOSType = volumeManager.getInstallerDiskType(inputPath)
 	else:
 		sys.stderr.write('Error: Can only process a single disk at a time\n' % choice)
 		sys.exit(17)
 	
-	chosenOSVersion, chosenOSBuild = volumeManager.getMacOSVersionAndBuildOfVolume(chosenMountPoint)
-	chosenOSType = volumeManager.getInstallerDiskType(chosenMountPoint)
+	if chosenMount is not None:
+		chosenMountPoint = chosenMount['mountPath']
+		chosenOSVersion = chosenMount['macOSVersion']
+		chosenOSBuild = chosenMount['buildNumber']
+		chosenOSType = chosenMount['installerType']
 	
 	chosenFileName = options.outputFileName
 	if chosenFileName == None and options.legacyMode == False:

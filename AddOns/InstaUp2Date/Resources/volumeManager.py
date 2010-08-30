@@ -140,10 +140,10 @@ class volumeManager(object):
 		if not ("ProductBuildVersion" in plistData and "ProductUserVisibleVersion" in plistData):
 			raise RuntimeError(' Unable to get the version, build, or type of MacOS on volume:' + mountPoint)
 		
-		return (plistData["ProductUserVisibleVersion"], plistData["ProductBuildVersion"])
+		return (str(plistData["ProductUserVisibleVersion"]), str(plistData["ProductBuildVersion"]))
 	
 	@classmethod
-	def getInstallerDiskType(mountPoint):
+	def getInstallerDiskType(myClass, mountPoint):
 		'''Returns "MacOS X Client" for client versions, "MacOS X Server" for server versions, or raises a ValueError if this is not an installer disk'''
 		 
 		if not os.path.ismount(mountPoint):
