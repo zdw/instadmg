@@ -2,6 +2,7 @@
 
 import os, sys, stat, atexit, tempfile
 
+import pathHelpers
 from managedSubprocess import managedSubprocess
 
 class tempFolderManager(object):
@@ -12,6 +13,7 @@ class tempFolderManager(object):
 	
 	defaultFolder			= None					# used when no containing folder is given
 	managedItems			= []					# class-wide array, used in atexit cleanup
+	managedMounts			= []					# class-wide array, used in atexit cleanup
 	
 	tempFolderPrefix		= 'InstaDMGTempFolder.'	# default name prefix for temporary folers
 	tempFilePrefix			= 'InstaDMGTempFile.'	# default name prefix for temporaty files
@@ -41,7 +43,7 @@ class tempFolderManager(object):
 			# we are already setup, use the default folder
 			return myClass.defaultFolder
 		
-		targetFolder = os.path.realpath(os.path.normpath(str(targetFolder))) # this will deal with any trailing slashes
+		targetFolder = pathHelpers.normalizePath(targetFolder) # this will deal with any trailing slashes
 		
 		if not os.path.isdir(targetFolder):
 			raise ValueError('setDefaultFolder called with a path that was not an existing folder: ' + targetFolder)
@@ -102,7 +104,7 @@ class tempFolderManager(object):
 		if not os.path.ismount(targetPath):
 			raise ValueError('unmountVolume valled on a path that was not a mount point: ' + targetPath)
 		
-		targetPath = os.path.realpath(os.path.normpath(targetPath))
+		targetPath = pathHelpers.normalizePath(targetPath)
 		
 		# check to see if this is a disk image
 		isMountedDMG = False
@@ -150,26 +152,65 @@ class tempFolderManager(object):
 				managedSubprocess(command)
 	
 	@classmethod
+	def findManagedItemsInsideDirectory(myClass, targetDirectory):
+		'''Return a list of managed items below this path in rough order that they should be cleaned'''
+		
+		targetDirectory = pathHelpers.normalizePath(targetDirectory)
+		
+		if not os.path.isdir(targetDirectory) or os.path.islink(targetDirectory):
+			raise ValueError('findManagedItemsInsideDirectory requires a directory as the input, and it can not be a symlink' + str(targetDirectory))
+		
+		itemsToClean = []
+		if myClass.managedItems is not None:
+			for thisItem in myClass.managedItems:
+				if pathHelpers.pathInsideFolder(thisItem, targetDirectory):
+					itemsToClean.append(thisItem)
+		# Note: this should mean that once sorted and reversed that mounted items get taken care of before their mount-points
+		if myClass.managedMounts is not None:
+			for thisMount in myClass.managedMounts:
+				if pathHelpers.pathInsideFolder(thisMount, targetDirectory):
+					itemsToClean.append(thisMount)
+		
+		itemsToClean.sort() # items inside others should now be below their parents
+		itemsToClean.reverse() # the opposite should now be true
+		
+		return itemsToClean
+		
+	
+	@classmethod
 	def cleanupForExit(myClass):
 		'''Clean up everything, should be called by an atexit handler'''
 		
-		while myClass.managedItems is not None and len(myClass.managedItems) > 0:
-			thisManagedItem = myClass.managedItems[0]
-			
+		for itemToClean in myClass.findManagedItemsInsideDirectory('/'):
 			try:
-				if os.path.exists(thisManagedItem):
-					myClass.cleanupItem( os.path.realpath(os.path.normpath(thisManagedItem)) )
+				if os.path.exists(itemToClean):
+					myClass.cleanupItem(pathHelpers.normalizePath(itemToClean))
 			
-			except Exception, error: # catch everything
+			except ValueError, error:
+				pass # means the item does not exist
+			
+			except Exception, error: # catch everything else
 				sys.stderr.write('Unable to process the folder: "%s" got error: %s\n' % (thisManagedItem, str(error))) # ToDo: logging
-				myClass.managedItems.remove(thisManagedItem)
-			
-			if thisManagedItem in myClass.managedItems:
-				sys.stderr.write('Warning: had to skip "%s", it might not have been deleted!' % thisManagedItem) # ToDo: logging
-				myClass.managedItems.remove(thisManagedItem) # get out of bad loops
-			
-		if myClass.managedItems is not None and not len(myClass.managedItems) == 0:
+		
+		# check that everything has been cleaned
+		
+		if myClass.managedItems is None or myClass.managedMounts is None:
+			raise RuntimeError('At the end of cleanupForExit managedItems (%s) or managedMounts (%s) was None, this should not happen' % (str(myClass.managedItems), str(myClass.managedMounts)))
+		
+		elif len(myClass.managedItems) == 0 and len(myClass.managedMounts) == 0:
+			pass # the best case, nothing to do here
+		
+		elif len(myClass.managedItems) == 0 and len(myClass.managedMounts) != 0:
+			# just missed mount(s)
+			raise RuntimeError('cleanupForExit was unable to clean all of the mount points:\n\t' + '\n\t'.join(myClass.managedMounts)) # ToDo: logging and rethink this error classification
+		
+		elif len(myClass.managedItems) != 0 and len(myClass.managedMounts) == 0:
+			# just missed item(s)
 			raise RuntimeError('cleanupForExit was unable to clean all of the items:\n\t' + '\n\t'.join(myClass.managedItems)) # ToDo: logging and rethink this error classification
+		
+		else:
+			# both mounts and items (likely if there is a mount problem)
+			raise RuntimeError('cleanupForExit was unable to clean all of the items and mounts:\n\t' + '\n\t'.join(myClass.managedItems + myClass.managedMounts)) # ToDo: logging and rethink this error classification
 		
 		myClass.defaultFolder	= None
 	
@@ -177,100 +218,125 @@ class tempFolderManager(object):
 	def cleanupItem(myClass, targetPath):
 		'''Dispose of an item'''
 		
-		# ToDo: figure out how errors are handled in atexit
-		
 		if targetPath is None:
 			raise ValueError('cleanupItem called with an empty targetPath')
 		
+		targetPath = pathHelpers.normalizePath(targetPath)
+		
+		# -- confirm that this item is a managed item, or in a manged space
+		
+		managedItem		= False
+		managedMount	= False
+		managedSpace	= False
+		
+		if targetPath in myClass.managedItems:
+			managedItem = True
+			managedSpace = True
+		else:
+			for thisManagedSpace in myClass.managedItems:
+				if os.path.isdir(thisManagedSpace) and not os.path.islink(thisManagedSpace) and os.path.lexists(targetPath):
+					if pathHelpers.pathInsideFolder(targetPath, thisManagedSpace) and os.lstat(targetPath)[stat.ST_DEV] == os.lstat(thisManagedSpace)[stat.ST_DEV]:
+						managedSpace = True
+						break
+		
+		if targetPath in myClass.managedMounts:
+			managedMount = True
+		
+		if managedMount is False and managedSpace is False:
+			raise ValueError('cleanupItem handed a path that was not in a managed space or a managed mount: ' + targetPath)
+		
 		if not os.path.lexists(targetPath):
-			raise ValueError('cleanupItem called with a targetPath that does not exist: ' + targetPath)
+			if True in [managedItem, managedSpace]:
+				# the item no longer exists, we just have to clean it out of managedItems and/or managedMount
+				if managedItem is True:
+					myClass.managedItems.remove(targetPath)
+				if managedMount is True:
+					myClass.managedMounts.remove(targetPath)
+				
+				return
+			else:
+				raise ValueError('cleanupItem handed a path that does not exist: ' + targetPath)
 		
-		targetPath = os.path.realpath(os.path.normpath(str(targetPath)))
+		# -- find any managed items inside this one, and let them handle their business first
+		if os.path.isdir(targetPath) and not os.path.islink(targetPath):
+			for thisItem in myClass.findManagedItemsInsideDirectory(targetPath):
+				myClass.cleanupItem(thisItem)
 		
-		# check to make sure that this is something we are watching over or a subdirectory of something we are watching over, so we don't get bad calls to this
-		inManagedPath = False
-		removeManagedFolder = None
-		for thisPath in myClass.managedItems:
-			
-			normedPath = os.path.realpath(os.path.normpath(thisPath))
-			
-			if os.path.samefile(thisPath, targetPath):
-				# the exact path
-				inManagedPath = True
-				removeManagedFolder = thisPath
-			
-			elif targetPath.lower().startswith( normedPath.lower() + os.sep ) and os.lstat(targetPath)[stat.ST_DEV] == os.lstat(thisPath)[stat.ST_DEV]:
-				# a subpath on the same device
-				inManagedPath = True
-			
-			# check to see if there are managed items within this path - clean them first
-			elif normedPath.lower().startswith(targetPath.lower()) and os.lstat(targetPath)[stat.ST_DEV] == os.lstat(thisPath)[stat.ST_DEV]:
-				myClass.cleanupItem(thisPath)
+		# -- if this is a mount, unmount it
+		if os.path.ismount(targetPath):
+			myClass.unmountVolume(targetPath)
 		
-		if inManagedPath is not True:
-			raise ValueError('cleanupItem called with a targetPath that was not in a manged path: ' + targetPath)
-		
-		# catch things if it is a file or a link
-		if os.path.isfile(targetPath) or os.path.islink(targetPath):
-			try:
-				os.unlink(targetPath)
-			except: # ToDo: make this more specific
-				pass # ToDo: log this
-		
-		# make sure that the permissions on the root folder are ok
-		elif not os.access(targetPath, os.R_OK | os.X_OK):
-			os.chmod(targetPath, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-		
-		# walk up the tree to remove any volumes mounted into the path
-		for root, dirs, files in os.walk(targetPath, topdown=True):
+		# -- if this is in controlled space, wipe it
+		if managedSpace is True:
 			
-			# unmount the directory if it is a volume
-			if os.path.ismount(root):
-				unmountVolume(root) # ToDo: log this
-				dirs = [] # make sure we don't try to decend into folders that are no longer there
-				continue
-			
-			# delete all files, allowing things to fail
-			for thisFile in [os.path.join(root, internalName) for internalName in files]:
+			# handle the simple cases of a soft-link or a file
+			if os.path.islink(targetPath) or os.path.isfile(targetPath):
 				try:
-					try:
-						os.unlink(thisFile)
-					except OSError:
-						# assume that this was a permissions error, and try to chmod it into cooperating
-						os.chmod(thisFile, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
-						os.unlink(thisFile)
-				
-				except: # ToDo: make this more specific
-					pass # ToDo: log this
+					os.unlink(targetPath)
+				except OSError:
+					# assume that this was a permissions error, and try to chmod it into cooperating
+					os.chmod(thisFile, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+					os.unlink(thisFile)
 			
-			# catch any symlinks
-			for thisFolder in [os.path.join(root, internalName) for internalName in dirs]:
-				# make sure we can make it into all sub-folders and delete them:
-				if not os.access(thisFolder, os.R_OK | os.X_OK):
-					os.chmod(thisFolder, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+			# handle folders
+			else:
+				# make sure that the permissions on the root folder are ok
+				if not os.access(targetPath, os.R_OK | os.X_OK):
+					os.chmod(targetPath, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 				
-				if os.path.islink(thisFolder):
+				# walk up the tree to remove any volumes mounted into the path
+				for root, dirs, files in os.walk(targetPath, topdown=True):
+					
+					# unmount the directory if it is a volume
+					if os.path.ismount(root):
+						myClass.unmountVolume(root) # ToDo: log this
+						dirs = [] # make sure we don't try to decend into folders that are no longer there
+						continue
+					
+					# delete all files, continuing through failures
+					for thisFile in [os.path.join(root, internalName) for internalName in files]:
+						try:
+							try:
+								os.unlink(thisFile)
+							except OSError:
+								# assume that this was a permissions error, and try to chmod it into cooperating
+								os.chmod(thisFile, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+								os.unlink(thisFile)
+						
+						except: # ToDo: make this more specific
+							pass # ToDo: log this				
+				
+					# catch any symlinks
+					for thisFolder in [os.path.join(root, internalName) for internalName in dirs]:
+						# make sure we can make it into all sub-folders and delete them:
+						if not os.access(thisFolder, os.R_OK | os.X_OK):
+							os.chmod(thisFolder, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+						
+						if os.path.islink(thisFolder):
+							try:
+								os.unlink(thisFolder)
+							except: # ToDo: make this more specific
+								pass # ToDo: log this	
+				
+				# now that there are no mounted volumes, there should be no files, so delete the folders
+				for root, dirs, files in os.walk(targetPath, topdown=False):
 					try:
-						os.unlink(thisFolder)
-					except: # ToDo: make this more specific
-						pass # ToDo: log this	
-				
-		# now that there are no mounted volumes, there should be no files, so delete the folders
-		for root, dirs, files in os.walk(targetPath, topdown=False):
-			try:
-				os.rmdir(root)
-			
-			except Exception, error: # ToDo: make this more specific
-				sys.stderr.write('Unable to delete folder: "%s" got error: %s' % (root, str(error))) # ToDo: logging
+						os.rmdir(root)
+					except Exception, error: # ToDo: make this more specific
+						sys.stderr.write('Unable to delete folder: "%s" got error: %s' % (root, str(error))) # ToDo: logging
 		
-		if removeManagedFolder is not None:
-			myClass.managedItems.remove(removeManagedFolder)
+		# -- clean this out of both managedItems and managedMounts
+		if targetPath in myClass.managedItems:
+			myClass.managedItems.remove(targetPath)
+		if targetPath in myClass.managedMounts:
+			myClass.managedMounts.remove(targetPath)
+
 	
 	@classmethod
 	def addManagedItem(myClass, targetPath):
 		'''Add an item to be watched over'''
 		
-		targetPath = os.path.realpath(os.path.normpath(str(targetPath)))
+		targetPath = pathHelpers.normalizePath(targetPath)
 		
 		if not os.path.lexists(targetPath):
 			raise ValueError('addmanagedItem called with a targetPath that does not exist: ' + targetPath)
@@ -283,10 +349,16 @@ class tempFolderManager(object):
 		return
 	
 	@classmethod
+	def addManagedMount(myClass, mountPoint):
+		pass
+		
+		# ToDo: this
+	
+	@classmethod
 	def removeManagedItem(myClass, targetPath):
 		'''Remove an item from the list of managed items'''
 		
-		targetPath = os.path.realpath(os.path.normpath(str(targetPath)))
+		targetPath = pathHelpers.normalizePath(targetPath)
 		
 		if not targetPath in myClass.managedItems:
 			raise ValueError('removeManagedItem called with a targetPath that was not a managed path: ' + targetPath)
@@ -300,7 +372,7 @@ class tempFolderManager(object):
 		if targetPath is None or not isinstance(targetPath, str):
 			raise ValueError('getManagedPathForPath recieved a target path that it could not understand: ' + str(targetPath))
 		
-		targetPath = os.path.realpath(os.path.normpath(str(targetPath)))
+		targetPath = pathHelpers.normalizePath(targetPath)
 		
 		# rewind back through folders untill we get a path that actually exists
 		existingPath = targetPath
@@ -315,7 +387,7 @@ class tempFolderManager(object):
 			elif os.path.samefile(existingPath, thisMangedPath):
 				return thisMangedPath
 			
-			elif os.path.isdir(thisMangedPath) and existingPath.lower().startswith( os.path.realpath(os.path.normpath(thisMangedPath)).lower() + os.sep ) and os.lstat(existingPath)[stat.ST_DEV] == os.lstat(thisMangedPath)[stat.ST_DEV]:
+			elif os.path.isdir(thisMangedPath) and existingPath.lower().startswith( pathHelpers.normalizePath(thisMangedPath).lower() + os.sep ) and os.lstat(existingPath)[stat.ST_DEV] == os.lstat(thisMangedPath)[stat.ST_DEV]:
 				return thisMangedPath
 		
 		return None
@@ -352,7 +424,7 @@ class tempFolderManager(object):
 			# create the new folder
 			pathToReturn = tempfile.mkdtemp(dir=parentFolder, prefix=prefix)
 		
-		pathToReturn = os.path.realpath(os.path.normpath(pathToReturn))
+		pathToReturn = pathHelpers.normalizePath(pathToReturn)
 		
 		# make sure that this file/folder is in managed space
 		if myClass.getManagedPathForPath(pathToReturn) is None:
@@ -391,7 +463,7 @@ class tempFolderManager(object):
 			# create a new folder inside the default temporary folder
 			targetPath = tempfile.mkdtemp(prefix=self.tempFolderPrefix, dir=self.getDefaultFolder())
 		
-		targetPath = os.path.realpath(os.path.normpath(str(targetPath)))
+		targetPath = pathHelpers.normalizePath(targetPath)
 		
 		if not os.path.isdir(os.path.dirname(targetPath)):
 			raise ValueError('%s called with a targePath whose parent directory does not exist: %s' % (self.__class__.__name__, targetPath))

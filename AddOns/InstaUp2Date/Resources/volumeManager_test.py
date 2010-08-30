@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
-import unittest, re
+import os, re, unittest
 
 from volumeManager import volumeManager, dmgManager
 
 class volumeManagerTests(unittest.TestCase):
-	'''Test the diskUtility rotines to make sure they work'''
+	'''Test the diskUtility routines'''
 	
 	#def createImage(self):
 	#	'''Create a disk image and mount it'''
@@ -16,29 +16,29 @@ class volumeManagerTests(unittest.TestCase):
 		result = volumeManager.getVolumeInfo('/')
 		self.assertTrue(result is not None, 'getVolumeInfo returned None for the root volume')
 		
-		# disk-type
-		self.assertTrue('disk-type' in result, 'getVolumeInfo did not get a disk-type for the root volume')
-		self.assertEqual(result['disk-type'], 'Hard Drive', 'The boot volume disk-type was not "Hard Drive" as expected, but rather: ' + str(result['disk-type']))
+		# diskType
+		self.assertTrue('diskType' in result, 'getVolumeInfo did not get a diskType for the root volume')
+		self.assertEqual(result['diskType'], 'Hard Drive', 'The boot volume diskType was not "Hard Drive" as expected, but rather: ' + str(result['diskType']))
 		
-		# volume-format
-		self.assertTrue('volume-format' in result, 'getVolumeInfo did not get a volume-format for the root volume')
-		self.assertEqual(result['volume-format'], 'Mac OS Extended (Journaled)', 'The boot volume volume-format was not "Mac OS Extended (Journaled)" as expected, but rather: ' + str(result['volume-format']))
+		# volumeFormat
+		self.assertTrue('volumeFormat' in result, 'getVolumeInfo did not get a volumeFormat for the root volume')
+		self.assertEqual(result['volumeFormat'], 'Mac OS Extended (Journaled)', 'The boot volume volumeFormat was not "Mac OS Extended (Journaled)" as expected, but rather: ' + str(result['volumeFormat']))
 		
-		# mount-path
-		self.assertTrue('mount-path' in result, 'getVolumeInfo did not get a mount-path for the root volume')
-		self.assertEqual(result['mount-path'], '/', 'The boot volume volume-format was not "/" as expected, but rather: ' + str(result['mount-path']))
+		# mountPath
+		self.assertTrue('mountPath' in result, 'getVolumeInfo did not get a mountPath for the root volume')
+		self.assertEqual(result['mountPath'], '/', 'The boot volume volumeFormat was not "/" as expected, but rather: ' + str(result['mountPath']))
 		
-		# volume-name
-		self.assertTrue('volume-name' in result, 'getVolumeInfo did not get a volume-name for the root volume')
+		# volumeName
+		self.assertTrue('volumeName' in result, 'getVolumeInfo did not get a volumeName for the root volume')
 		
-		# disk-bsd-name
-		self.assertTrue('disk-bsd-name' in result, 'getVolumeInfo did not get a disk-bsd-name for the root volume')
-		self.assertTrue(result['disk-bsd-name'].startswith('disk'), 'The boot volume disk-bsd-name did not start with "disk" as expected, but rather was: ' + str(result['disk-bsd-name']))
+		# diskBsdName
+		self.assertTrue('diskBsdName' in result, 'getVolumeInfo did not get a diskBsdName for the root volume')
+		self.assertTrue(result['diskBsdName'].startswith('disk'), 'The boot volume diskBsdName did not start with "disk" as expected, but rather was: ' + str(result['diskBsdName']))
 		
-		# bsd-path
-		self.assertTrue('bsd-path' in result, 'getVolumeInfo did not get a bsd-path for the root volume')
-		self.assertTrue(result['bsd-path'].startswith('/dev/disk'), 'The boot volume bsd-path did not start with "/dev/disk" as expected, but rather was: ' + str(result['bsd-path']))
-		self.assertTrue(result['bsd-path'].startswith('/dev/' + result['disk-bsd-name'] + 's'), 'The boot volume bsd-path did not start with the disk-bsd-name (%s) as expected, but rather was: %s' % (result['disk-bsd-name'], str(result['bsd-path'])))
+		# bsdPath
+		self.assertTrue('bsdPath' in result, 'getVolumeInfo did not get a bsdPath for the root volume')
+		self.assertTrue(result['bsdPath'].startswith('/dev/disk'), 'The boot volume bsdPath did not start with "/dev/disk" as expected, but rather was: ' + str(result['bsdPath']))
+		self.assertTrue(result['bsdPath'].startswith('/dev/' + result['diskBsdName'] + 's'), 'The boot volume bsdPath did not start with the diskBsdName (%s) as expected, but rather was: %s' % (result['diskBsdName'], str(result['bsdPath'])))
 	
 	def test_getVolumeInfo_Applications(self):
 		'''Test that using getVolumeInfo on an item inside of a volume returns the volume's info'''
@@ -72,7 +72,33 @@ class volumeManagerTests(unittest.TestCase):
 		self.assertTrue(hasattr(mountedVolumes, '__iter__'), 'The output of getMountedVolumes including root was not an array')
 		self.assertTrue('/' in mountedVolumes, 'The output of getMountedVolumes including root did not include "/"')
 		
+		# test to make sure that everythign listed is a mount point
+		for thisMountPoint in mountedVolumes:
+			self.assertTrue(os.path.ismount(thisMountPoint), 'An item returned from getMountedVolumes was not a volume: ' + str(thisMountPoint))
 		
+		# confirm that root is excluded when it is not wanted
+		mountedVolumes = volumeManager.getMountedVolumes()
+		self.assertFalse('/' in mountedVolumes, 'The output of getMountedVolumes not including root still included "/"')
+	
+	def test_volumeManager_onRoot(self):
+		'''Test volumeManager by creating a new instance with root's path'''
+		
+		root = volumeManager('/')
+		
+		# diskType
+		self.assertTrue(root.diskType is not None, 'After being created with the root path, the volumeManager object did not have a diskType value')
+		self.assertEqual(root.diskType, 'Hard Drive', "After being created with the root path, the volumeManager object's diskType was not 'Hard Drive' as expectd, but rather: " + root.diskType)
+		
+		# mountPath
+		self.assertTrue(root.mountPath is not None, 'After being created with the root path, the volumeManager object did not have a mountPath value')
+		self.assertEqual(root.mountPath, '/', "After being created with the root path, the volumeManager object's mountPath was not '/' as expectd, but rather: " + root.mountPath)
+		
+		# volumeFormat
+		self.assertTrue(root.volumeFormat is not None, 'After being created with the root path, the volumeManager object did not have a volumeFormat value')
+		self.assertEqual(root.volumeFormat, 'Mac OS Extended (Journaled)', "After being created with the root path, the volumeManager object's volumeFormat was not 'Mac OS Extended (Journaled)' as expectd, but rather: " + root.volumeFormat)
+		
+		# isMounted
+		self.assertTrue(root.isMounted(), 'The root object is not reporting being mounted')
 		
 
 class volumeManagerTests_negative(unittest.TestCase):

@@ -197,6 +197,7 @@ def main():
 	diskutilProcess = managedSubprocess(diskutilArguments)
 	
 	myStatusHandler.update(taskMessage='Image "%s" created in %s' % (chosenFileName, displayTools.secondsToReadableTime(time.time() - startTime)))
+	myStatusHandler.finishLine()
 	sys.exit(0)
 
 if __name__ == "__main__":

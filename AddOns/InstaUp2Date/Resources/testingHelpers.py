@@ -24,10 +24,7 @@ def generateSomeContent(containerFolder, maxFilesInFolders=10, maxSizeofFiles=10
 		for i in range(random.randint(1, maxFilesInFolders)):
 			(tempFile, tempFileName) = tempfile.mkstemp(dir=containerFolder)
 			tempFileObject = os.fdopen(tempFile, "w+b")
-			
-			for i in range(random.randint(1, maxSizeofFiles)):
-				tempFileObject.write(random.choice(string.printable))
-			
+			tempFileObject.write(os.urandom(random.randint(1, maxSizeofFiles)))
 			tempFileObject.close()
 	
 	# build some sub-folders

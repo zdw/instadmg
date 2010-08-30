@@ -271,6 +271,10 @@ class setupTests(unittest.TestCase):
 		os.chmod(os.path.join(testFolder, 'unwriteableFile'), 0)
 		tempFolderManager.cleanupItem(testFolder)
 		self.assertFalse(os.path.exists(os.path.join(testFolder, 'unwriteableFile')), 'After cleanupForExit the unwriteable file should have been cleaned away')
+	
+#	def test_findManagedItemsInsideDirectory(self):
+#		
+#		# ToDo: write these tests
 
 class setupTests_negative(unittest.TestCase):
 	

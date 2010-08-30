@@ -9,10 +9,22 @@ class volumeManager(object):
 	
 	#---------- class properties ----------
 	
+	volumeTypesHandled	= ['Optical Disc', 'Hard Drive']
 	
 	#-------- instance properties ---------
 	
-	mountedPath		= None
+	diskType			= None
+	
+	mountPath			= None
+	
+	volumeName			= None
+	volumeUuid			= None
+	volumeFormat		= None		# eg: 'Mac OS Extended (Journaled)'
+	volumeSizeInBytes	= None
+	
+	bsdPath				= None		# eg: /dev/disk0s2
+	bsdName				= None		# eg: disk0s2
+	diskBsdName			= None		# label of the physical item (parent), eg: disk0
 	
 	#----------- class methods ------------
 	
@@ -24,7 +36,7 @@ class volumeManager(object):
 	
 	@classmethod
 	def getVolumeInfo(myClass, identifier):
-		'''Return the following information about the mount point, bsd name, or dev path provided: mount-path, volume-name, bsd-path, volume-format, disk-type, bsd-name, disk-bsd-name, volume-size-in-bytes, volume-uuid'''
+		'''Return the following information about the mount point, bsd name, or dev path provided: mountPath, volumeName, bsdPath, volumeFormat, diskType, bsdName, diskBsdName, volumeSizeInBytes, volumeUuid'''
 		
 		if not isinstance(identifier, str):
 			raise ValueError('getVolumeInfo requires a path, bsd name, or a dev path. Got: ' + str(identifier))
@@ -40,41 +52,41 @@ class volumeManager(object):
 		
 		result = {}
 		
-		# mount-path
+		# mountPath
 		if 'MountPoint' in volumeProperties:
-			result['mount-path'] = str(volumeProperties['MountPoint'])
+			result['mountPath'] = str(volumeProperties['MountPoint'])
 		
-		# volume-name
+		# volumeName
 		if 'VolumeName' in volumeProperties:
-			result['volume-name'] = str(volumeProperties['VolumeName'])
+			result['volumeName'] = str(volumeProperties['VolumeName'])
 		
-		# bsd-path
-		result['bsd-path'] = str(volumeProperties['DeviceNode'])
+		# bsdPath
+		result['bsdPath'] = str(volumeProperties['DeviceNode'])
 		
-		# bsd-name
-		result['bsd-name'] = str(result['bsd-path'])[len('/dev/'):]
+		# bsdName
+		result['bsdName'] = str(result['bsdPath'])[len('/dev/'):]
 		
-		# disk-bsd-name
-		result['disk-bsd-name'] = str(volumeProperties['ParentWholeDisk'])
+		# diskBsdName
+		result['diskBsdName'] = str(volumeProperties['ParentWholeDisk'])
 		
-		# volume-uuid
+		# volumeUuid
 		if 'VolumeUUID' in volumeProperties:
-			result['volume-uuid'] = str(volumeProperties['VolumeUUID'])
+			result['volumeUuid'] = str(volumeProperties['VolumeUUID'])
 		
-		# volume-size-in-bytes
-		result['volume-size-in-bytes'] = str(volumeProperties['TotalSize'])
+		# volumeSizeInBytes
+		result['volumeSizeInBytes'] = int(volumeProperties['TotalSize'])
 		
-		# volume-format
+		# volumeFormat
 		if 'FilesystemUserVisibleName' in volumeProperties:
-			result['volume-format'] = str(volumeProperties['FilesystemUserVisibleName'])
+			result['volumeFormat'] = str(volumeProperties['FilesystemUserVisibleName'])
 		
-		# disk-type
+		# diskType
 		if volumeProperties['BusProtocol'] == 'Disk Image':
-			result['disk-type'] = 'Disk Image'
+			result['diskType'] = 'Disk Image'
 		elif 'OpticalDeviceType' in volumeProperties:
-			result['disk-type'] = 'Optical Disc'
+			result['diskType'] = 'Optical Disc'
 		elif volumeProperties['BusProtocol'] in ['SATA', 'FireWire', 'USB']:
-			result['disk-type'] = 'Hard Drive'
+			result['diskType'] = 'Hard Drive'
 		else:
 			raise NotImplementedError('getVolumeInfo does not know how to deal with this volume:\n' + str(volumeProperties))
 		
@@ -98,17 +110,17 @@ class volumeManager(object):
 			thisVolumeInfo = volumeManager.getVolumeInfo(str(thisDisk))
 			
 			# exclude whole disks
-			if thisVolumeInfo['bsd-name'] == thisVolumeInfo['disk-bsd-name']:
+			if thisVolumeInfo['bsdName'] == thisVolumeInfo['diskBsdName']:
 				continue
 			
-			# exclude unmounted disks - not sure this ever happens
-			if not 'mount-path' in thisVolumeInfo:
+			# exclude unmounted disks
+			if not 'mountPath' in thisVolumeInfo or thisVolumeInfo['mountPath'] in [None, '']:
 				continue
-			# exclude the root mount
-			elif thisVolumeInfo['mount-path'] == '/' and excludeRoot == True:
+			# exclude the root mount if it is not requested
+			elif thisVolumeInfo['mountPath'] == '/' and excludeRoot == True:
 				continue
 			
-			possibleDisks.append(str(thisVolumeInfo['mount-path']))
+			possibleDisks.append(str(thisVolumeInfo['mountPath']))
 		
 		return possibleDisks
 	
@@ -147,51 +159,92 @@ class volumeManager(object):
 	
 	#---------- instance methods ----------
 	
-	def __init__(self, targetPath):
-		pass
+	def __init__(self, identifier):
+		
+		if not isinstance(identifier, str):
+			raise ValueError('%s requires a path, bsd name, or a dev path. Got: %s' % (self.__class__.__name__, str(identifier)))
+		
+		volumeInfo = None
+		try:
+			volumeInfo = self.getVolumeInfo(identifier)
+		except ValueError, error:
+			raise ValueError('%s requires a valid path, bsd name, or a dev path. Got: %s' % (self.__class__.__name__, str(identifier)))
+		
+		# confirm that this is a cd/dvd or a hard drive
+		if volumeInfo['diskType'] not in self.volumeTypesHandled:
+			raise ValueError('%s only handles the following types of disc: %s, this item (%s) was a %s and should have been handled by differnt subclass' % (self.__class__.__name__, str(self.volumeTypesHandled), str(identifier), volumeInfo['diskType']))
+		
+		# copy the values over into the item
+		for thisAttribute in volumeInfo.keys():
+			if not hasattr(self, thisAttribute):
+				raise NotImplementedError('%s does not yet have a "%s" property which getVolumeInfo records' % (self.__class__.__name__, thisAttribute))
+			setattr(self, thisAttribute, volumeInfo[thisAttribute])
+	
+	def isMounted(self):
+		
+		if self.mountPath is not None and os.path.ismount(self.mountPath):
+			return self.mountPath
+		
+		# ToDo: check with diskutil/hdiutil to see if it is actually mounted
+		
+		return None
 	
 	def unmount(self):
-		if self.mountedPath is None:
+		if self.mountPath is None:
 			return # ToDo: log this, maybe error out here
 		
-		if os.path.samefile("/", self.mountedPath):
+		if os.path.samefile("/", self.mountPath):
 			raise ValueError('Can not unmount the root partition, this is definatley a bug')
 		
-		if os.path.ismount(self.mountedPath):
-			tempFolderManager.unmountVolume(self.mountedPath)
+		if os.path.ismount(self.mountPath):
+			tempFolderManager.unmountVolume(self.mountPath)
 		# ToDo: otherwise check to see if it is mounted by dev entry
 		
-		self.mountedPath = None
+		self.mountPath = None
 
 class dmgManager(volumeManager):
 	
 	#---------- class properties ----------
 	
-	@classmethod
-	def createNewEmptyDMG(myClass, volumeName, size, volumeFormat='', mountPoint=None):
-		
-		raise NotImplementedError()
-		
-		# validate the input
-		
-		if mountPoint is None:
-			pass # nothing to do here
-		elif mountPoint is True:
-			# replace this with a temporary mount point
-			mountPoint = tempFolderManager.getNewMountPoint()
-		elif os.path.ismount(mountPoint) or os.path.isfile(mountPoint) or os.path.islink(mountPoint):
-			# we can't use this as a mount point
-			raise ValueError('createNewEmptyDMG can not put a mount point at the selected location: ' + str(mountPoint))
-		elif not os.path.exists(mountPoint) and os.path.isdir(os.path.dirname(mountPoint)):
-			# create the mount point and make sure we clean up after ourselves
-			os.mkdir(mountPoint)
-			tempFolderManager.addManagedItem(mountPoint)
-		elif os.path.isdir(mountPoint):
-			# only allow this if the directory is empty
-			if len(os.listdir(mountPoint)) > 0:
-				raise ValueError('createNewEmptyDMG can not mount something on a folder that already has contents')
-		
-		# ToDo: WORK HERE
+	volumeTypesHandled	= ['Disk Image']
+	
+	#-------- instance properties ---------
+	
+	filePath			= None		# path of the source file or bundle
+	
+	dmgFomat			= None		# eg: UDRW
+	writeable			= None
+	
+	dmgChecksumType		= None
+	dmgChecksumValue	= None
+	
+	#----------- class methods ------------
+	
+#	@classmethod
+#	def createNewEmptyDMG(myClass, volumeName, size, volumeFormat='', mountPoint=None):
+#		
+#		raise NotImplementedError()
+#		
+#		# validate the input
+#		
+#		if mountPoint is None:
+#			pass # nothing to do here
+#		elif mountPoint is True:
+#			# replace this with a temporary mount point
+#			mountPoint = tempFolderManager.getNewMountPoint()
+#		elif os.path.ismount(mountPoint) or os.path.isfile(mountPoint) or os.path.islink(mountPoint):
+#			# we can't use this as a mount point
+#			raise ValueError('createNewEmptyDMG can not put a mount point at the selected location: ' + str(mountPoint))
+#		elif not os.path.exists(mountPoint) and os.path.isdir(os.path.dirname(mountPoint)):
+#			# create the mount point and make sure we clean up after ourselves
+#			os.mkdir(mountPoint)
+#			tempFolderManager.addManagedItem(mountPoint)
+#		elif os.path.isdir(mountPoint):
+#			# only allow this if the directory is empty
+#			if len(os.listdir(mountPoint)) > 0:
+#				raise ValueError('createNewEmptyDMG can not mount something on a folder that already has contents')
+#		
+#		# ToDo: WORK HERE
 			
 	@classmethod
 	def verifyIsDMG(myClass, identifier, checksumDMG=False):
@@ -221,9 +274,9 @@ class dmgManager(volumeManager):
 	@classmethod
 	def getVolumeInfo(myClass, identifier):
 		'''Get the following information for a volume (if avalible) and return it as a hash:
-			file-path, dmg-format, writeable, dmg-checksum-type, dmg-checksum-value
+			filePath, dmgFormat, writeable, dmg-checksum-type, dmg-checksum-value
 		Additionally, provide information from the superclass if it is mounted:
-			volume-name, mount-points, bsd-label
+			volumeName, mount-points, bsd-label
 		'''
 		
 		if not isinstance(identifier, str):
@@ -234,11 +287,11 @@ class dmgManager(volumeManager):
 		try:
 			result = super(self.__class__, self).getVolumeInfo(identifier)
 			
-			if result['disk-type'] is not 'Disk Image':
-				raise ValueError("%s's getVolumeInfo method requires a disk image as the argument. Got a %s as the argument: %s" % (myClass.__name__, result['disk-type'], identifier))
+			if result['diskType'] is not 'Disk Image':
+				raise ValueError("%s's getVolumeInfo method requires a disk image as the argument. Got a %s as the argument: %s" % (myClass.__name__, result['diskType'], identifier))
 			
 			# if we are here, then the identifier must be the mounted path, or something in it
-			identifier = result['mount-path']
+			identifier = result['mountPath']
 			
 		except ValueError:
 			# this might be a pointer to the dmg file 
@@ -252,15 +305,15 @@ class dmgManager(volumeManager):
 			raise ValueError('The item given does not seem to be a DMG: ' + str(identifier))
 		dmgProperties = process.getPlistObject()
 		
-		# file-path
-		result['file-path'] = dmgProperties['Backing Store Information']['URL']
-		if result['file-path'].startswith('file://localhost'):
-			result['file-path'] = result['file-path'][len('file://localhost'):]
-		elif result['file-path'].startswith('file://'):
-			result['file-path'] = result['file-path'][len('file://'):]
+		# filePath
+		result['filePath'] = dmgProperties['Backing Store Information']['URL']
+		if result['filePath'].startswith('file://localhost'):
+			result['filePath'] = result['filePath'][len('file://localhost'):]
+		elif result['filePath'].startswith('file://'):
+			result['filePath'] = result['filePath'][len('file://'):]
 		
-		# dmg-format
-		result['dmg-format'] = dmgProperties['Format']
+		# dmgFormat
+		result['dmgFormat'] = dmgProperties['Format']
 		
 		# writable
 		if dmgProperties['Format'] in ['UDRW', 'UDSP', 'UDSB', 'RdWr']:
@@ -270,20 +323,123 @@ class dmgManager(volumeManager):
 		
 		# dmg-checksum-type
 		if 'Checksum Type' in dmgProperties:
-			result['dmg-checksum-type'] = dmgProperties['Checksum Type']
+			result['dmgChecksumType'] = dmgProperties['Checksum Type']
+		else:
+			result['dmgChecksumType'] = None # just in case we ever re-do this
 		
 		# dmg-checksum-value
 		if 'Checksum Value' in dmgProperties:
-			result['dmg-checksum-value'] = dmgProperties['Checksum Value']
+			result['dmgChecksumValue'] = dmgProperties['Checksum Value']
+		else:
+			result['dmgChecksumValue'] = None # just in case we ever re-do this
 		
 		return result
-
 	
-	#-------- instance properties ---------
+#	@classmethod
+#	def getMountedDMGFiles(myClass):
+#		
+#		hdiutilArguments = ['/usr/bin/hdiutil', 'list', '-plist']
+#		hdiutilProcess = managedSubprocess(diskutilArguments, processAsPlist=True)
+#		hdiutilOutput = diskutilProcess.getPlistObject()
+#		
+#		mountedFiles = []
+#		
+#		if 'images' in hdiutilOutput:
+#			for thisDMG in hdiutilOutput['images']:
+#				mountedFiles.append(str(thisDMG['image-path']))
+#		
+#		return mountedFiles
 	
-	filePath		= None		# path of the source file or bundle
-	
-	#----------- class methods ------------
+	@classmethod
+	def getDMGMountPoints(myClass, dmgFilePath):
+		
+		if not os.path.exists(dmgFilePath):
+			raise ValueError('getDMGMountPoint called with a dmgFilePath that does not exist: ' + dmgFilePath)
+		
+		hdiutilArguments = ['/usr/bin/hdiutil', 'list', '-plist']
+		hdiutilProcess = managedSubprocess(diskutilArguments, processAsPlist=True)
+		hdiutilOutput = diskutilProcess.getPlistObject()
+		
+		if 'images' in hdiutilOutput:
+			for thisDMG in hdiutilOutput['images']:
+				if os.path.samefile(thisDMG['image-path'], dmgFilePath):
+					mountPoints = []
+					
+					for thisEntry in thisDMG['system-entities']:
+						if 'mount-point' in thisEntry:
+							mountPoint.append(str(thisEntry['mount-point']))
+					
+					if len(mountPoints) > 0:
+						return mountPoints
+					
+					break
+		
+		return None
 	
 	#---------- instance methods ----------
+	
+	def isMounted(self):
+		'''Return True if hdiutil says this is mounted, False otherwise'''
+		
+		if self.filePath is None:
+			raise RuntimeError('isMounted called on an dmg that does not have a filePath setup, this should not happen')
+		
+		if self.getDMGMountPoints(self.filePath) is None:
+			return False
+		
+		return True
+	
+	def getMountPoint(self, returnAllMounts=False):
+		'''Return the first mount point, as diutil sees it, or all of them if asked. If it is not mounted return None'''
+		
+		if self.filePath is None:
+			raise RuntimeError('getMountPoint called on an dmg that does not have a filePath setup, this should not happen')
+		
+		mountPoints = self.getDMGMountPoints(self.filePath)
+		
+		if mountPoints is None or len(mountPoints) == 0:
+			return None
+		elif returnAllMounts is False:
+			return mountPoints[0]
+		else:
+			return mountPoints
+	
+	def mount(self, mountPoint=None, mountInFolder=None, mountReadWrite=False, shadowFile=None, checksumImage=False):
+		'''Mount this image'''
+		
+		# -- sanity check
+		
+		if self.filePath is None:
+			raise RuntimeError('mount called on an dmg that does not have a filePath setup, this should not happen')
+		
+		# -- validate input
+		
+		if mountPoint is not None and mountInFolder is not None:
+			raise ValueError('mount can only be called with mountPoint or mountInFolder, not both')
+		
+		elif mountPoint is not None and os.path.ismount(mountPoint):
+			raise ValueError('mount called with a mountPoint that is already a mount point: ' + mountPoint)
+		
+		elif mountPoint is not None and os.path.isdir(mountPoint):
+			if len(os.listdir(mountPoint)) != 0:
+				raise ValueError('mount called with a mountPoint that already has contents: %s (%s)' % (mountPoint, str(os.listdir(mountPoint))))
+		
+		elif mointPoint is not None and os.path.exists(mountPoint):
+			raise ValueError('mount called with a mountPoint that already exists and is not a folder: ' + mountPoint)
+		
+		elif mountPoint is not None:
+			tempFolderManager.add
+		
+		elif mountInFolder is not None and not os.path.isdir(mountInFolder):
+			raise ValueError('mount called with a mountInFolder path that is not a folder: ' + mountInFolder)
+		
+		elif mountInFolder is not None:
+			self.mountPoint = tempFolderManager.getNewMountPoint()
+		
+		else:
+			# create a default mount point
+			self.mountPoint = tempFolderManager.getNewMountPoint()
+		
+		
+		
 	
