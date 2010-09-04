@@ -176,10 +176,11 @@ class instaUpToDate:
 	def getMainCatalogName(self):
 		return os.path.splitext(os.path.basename(self.catalogFilePath))[0]
 	
-	def parseFile(self, fileLocation):
+	def parseFile(self, fileLocation=None):
 		
-		global allowedCatalogFileSettings
-					
+		if fileLocation is None:
+			fileLocation = self.catalogFilePath
+		
 		# the file passed could be an absolute path, a relative path, or a catalog file name
 		#	the first two are handled without a special section, but the name needs some work
 		
@@ -498,7 +499,7 @@ def main ():
 	# process the catalog files
 	for thisController in controllers:
 		print('\nParsing the catalog files for ' + thisController.getMainCatalogName())
-		thisController.parseFile(catalogFilePath)
+		thisController.parseFile()
 		
 		# add any additional catalogs to this one
 		for addOnCatalogFile in addOnCatalogFiles:
