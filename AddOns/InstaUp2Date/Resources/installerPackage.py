@@ -3,9 +3,11 @@
 import os, re, time
 import hashlib, urlparse, urllib, urllib2
 
+import pathHelpers
 from checksum				import checksumFileObject, checksum
 from displayTools			import statusHandler, bytesToRedableSize, secondsToReadableTime
 from commonExceptions		import FileNotFoundException
+from managedSubprocess		import managedSubprocess
 
 
 class installerPackage:
@@ -23,6 +25,64 @@ class installerPackage:
 	#--------------------- Class Methods -----------------------------
 	
 	# ToDo: manage the cache size
+	
+	@classmethod
+	def isValidInstaller(myClass, pkgPath, chrootPath=None, installerChoicesFilePath=None):
+		'''Use installer to check if a target looks like a valid pkg/mpkg'''
+		
+		pathToInstaller = '/usr/sbin/installer'
+		
+		# ---- validate and normalize input
+		
+		if pkgPath is None:
+			raise ValueError('The pkgPath given to isValidInstaller can not be none')
+		elif not os.path.isdir(pkgPath) and not os.path.isfile(pkgPath):
+			raise ValueError('The pkgPath given to isValidInstaller does not look correct: ' + str(pkgPath))
+		pkgPath = pathHelpers.normalizePath(pkgPath, followSymlink=True)
+		
+		if chrootPath is not None and not os.path.ismount(chrootPath):
+			raise ValueError('The chrootPath given to isValidInstaller must be a mount point, this was not: ' + str(chrootPath))
+		
+		if chrootPath is not None:
+			chrootPath = pathHelpers.normalizePath(chrootPath, followSymlink=True)
+		
+		if installerChoicesFilePath is not None and not os.path.isfile(installerChoicesFilePath):
+			raise ValueError('The installerChoicesFilePath given to isValidInstaller must be a file, this was not: ' + str(installerChoicesFilePath))
+		installerChoicesFilePath = pathHelpers.normalizePath(installerChoicesFilePath, followSymlink=True)
+		
+		# validate that the installer command is avalible
+		if chrootPath is None and not os.access(pathToInstaller, os.F_OK | os.X_OK):
+			raise RuntimeError('The installer command was not avalible where it was expected to be, or was not useable: ' + pathToInstaller)
+		elif chrootPath is not None and not os.access(os.path.join(chrootPath, pathToInstaller[1:]), os.F_OK | os.X_OK):
+			raise RuntimeError('The installer command was not avalible where it was expected to be, or was not useable: ' + os.path.join(chrootPath, pathToInstaller[1:]))
+		
+		# ---- build the command
+		
+		command = []
+		
+		if chrootPath is not None:
+			command += ['/usr/sbin/chroot', chrootPath]
+		
+		command += [pathToInstaller, '-pkginfo']
+		
+		if installerChoicesFilePath is not None:
+			command += ['-applyChoiceChangesXML', installerChoicesFilePath]
+		
+		command += ['-pkg', pkgPath, '-target', '.']
+		
+		# ---- run the command
+		
+		process = None
+		try:
+			if chrootPath is None:
+				process = managedSubprocess(command)
+			else:
+				process = managedSubprocess(command, cwd=chrootPath)
+		except:
+			return False
+		
+		# if installer did not have a problem, then it is very probably good
+		return True
 	
 	@classmethod
 	def setCacheFolder(myClass, newCacheFolder):
@@ -301,6 +361,8 @@ class installerPackage:
 		# setup the reporter if needed
 		if progressReporter is True:
 			progressReporter = statusHandler(taskMessage="\t" + self.displayName + " ")
+		elif progressReporter is False:
+			progressReporter = None
 		
 		# start the timer
 		startTime = time.time()

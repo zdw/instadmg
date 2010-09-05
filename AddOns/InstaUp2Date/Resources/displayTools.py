@@ -241,13 +241,15 @@ def bytesToRedableSize(bytes):
 	if bytes is None:
 		return 'None'
 	
-	if int(bytes) >= 1024*1024*1024*1024:
+	bytes = int(bytes)
+	
+	if bytes >= 1024*1024*1024*1024:
 		return "%.1f Terabytes" % (float(bytes)/(1024*1024*1024*1024))
-	elif int(bytes) >= 1024*1024*1024:
+	elif bytes >= 1024*1024*1024:
 		return "%.1f Gigabytes" % (float(bytes)/(1024*1024*1024))
-	elif int(bytes) >= 1024*1024:
+	elif bytes >= 1024*1024:
 		return "%.1f Megabytes" % (float(bytes)/(1024*1024))
-	elif int(bytes) >= 1024:
+	elif bytes >= 1024:
 		return "%.1f Kilobytes" % (float(bytes)/1024)
 	else:
 		return "%i Bytes" % bytes

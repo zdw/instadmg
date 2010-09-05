@@ -1,14 +1,70 @@
 #!/usr/bin/python
 
-import os, unittest, stat
+import os, unittest, stat, urllib
 
 from installerPackage		import installerPackage
+
+import commonConfiguration
 from tempFolderManager 		import tempFolderManager
 from commonExceptions		import FileNotFoundException
+from volumeManager			import dmgManager
+
+class packageTesting(unittest.TestCase):
+	
+	samplePackagePath = None
+	
+	def getSamplePackage(self):
+		'''Find or pull down a known sample .pkg and source it'''
+		
+		if self.samplePackagePath is not None:
+			return self.samplePackagePath
+		
+		# download a smaller update from Apple if it is not already cached
+		installerPackage.setCacheFolder(tempFolderManager.getNewTempFolder())
+		installerPackage.addSourceFolders(commonConfiguration.standardCacheFolder)
+		sampleItemDMG = installerPackage('http://support.apple.com/downloads/DL792/en_US/AirPortClientUpdate2009001.dmg', 'sha1:168065c8bf2e6530a3053899ac7a6a210e9397d7')
+		sampleItemDMG.findItem(progressReporter=False)
+		
+		# mount the image
+		mountPoint = dmgManager.mountImage(sampleItemDMG.getItemLocalPath(), mountReadWrite=False)
+		
+		samplePackagePath = os.path.join(mountPoint, 'AirPortClientUpdate2009001.pkg')
+		assert os.path.exists(samplePackagePath)
+		
+		self.samplePackagePath = samplePackagePath
+		
+		return samplePackagePath
+	
+	def test_isValidInstaller(self):
+		'''A simple test to see if the isValidInstaller works on a valid installer''' 
+		
+		pathToTestFile = self.getSamplePackage()
+		
+		self.assertTrue(installerPackage.isValidInstaller(pathToTestFile), '')
+	
+#	def test_isValidInstaller_chroot(self):
+#		
+#		if os.getuid() != 0:
+#			if hasattr(unittest, 'skip'):
+#				self.skip('chroot tests only work when run as root')
+#			return # we can't test here if the
+#		
+#		pathToTestFile = self.getSamplePackage()
+#		
+#		self.assertTrue(installerPackage.isValidInstaller(pathToTestFile))
+
+class packageTesting_negative(unittest.TestCase):
+	
+	def test_isValidInstaller_negaitve(self):
+		pass
+	
+	def test_isValidInstaller_chroot(self):
+		
+		pass
 
 class installerPackageSetupTests(unittest.TestCase):
 	
-	def test_cacheSetup(self):
+	def test_isValidInstaller_chroot_negative(self):
 		'''Test setting up cache folder'''
 		
 		cacheFolderPath = tempFolderManager.getNewTempFolder()
@@ -310,10 +366,12 @@ class installerPackageTest_negative(installerPackageTestsSetup):
 		self.assertRaises(ValueError, installerPackage.setCacheFolder, [])
 		self.assertRaises(ValueError, installerPackage.setCacheFolder, '/bin/ls') # Not a folder
 		
-		# a folder that is not writeable
-		unwriteableFolder = tempFolderManager.getNewTempFolder()
-		os.chmod(unwriteableFolder, 0)
-		self.assertRaises(ValueError, installerPackage.setCacheFolder, unwriteableFolder)
+		if os.getuid() != 0: # this test is meaningless for root
+		
+			# a folder that is not writeable
+			unwriteableFolder = tempFolderManager.getNewTempFolder()
+			os.chmod(unwriteableFolder, 0)
+			self.assertRaises(ValueError, installerPackage.setCacheFolder, unwriteableFolder)
 	
 	def test_findItem_negaitve(self):
 		'''Test findItem with bad values'''

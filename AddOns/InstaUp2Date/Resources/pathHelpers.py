@@ -2,7 +2,7 @@
 
 import os
 
-def normalizePath(inputPath):
+def normalizePath(inputPath, followSymlink=False):
 	
 	inputPath = str(inputPath)
 	
@@ -16,7 +16,10 @@ def normalizePath(inputPath):
 	while inputPath.endswith(os.sep) and not inputPath.endswith('\\' + os.sep):
 		inputPath = inputPath[:-1]
 	
-	return os.path.join(os.path.realpath(os.path.dirname(inputPath)), os.path.basename(inputPath))
+	if followSymlink is True:
+		return os.path.realpath(inputPath)
+	else:
+		return os.path.join(os.path.realpath(os.path.dirname(inputPath)), os.path.basename(inputPath))
 
 
 def pathInsideFolder(testPath, testFolder):

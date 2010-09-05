@@ -2,6 +2,7 @@
 
 import os, subprocess, Foundation
 
+import pathHelpers
 from managedSubprocess import managedSubprocess
 from tempFolderManager import tempFolderManager
 
@@ -258,14 +259,14 @@ class dmgManager(volumeManager):
 		
 		command = ['/usr/bin/hdiutil', 'imageinfo', str(identifier)]
 		try:
-			process = managedSubprocess(command, processAsPlist=True)
+			process = managedSubprocess(command)
 		except RuntimeError:
 			return False
 		
 		if checksumDMG is True:
 			command = ['/usr/bin/hdiutil', 'verify', str(identifier)]
 			try:
-				process = managedSubprocess(command, processAsPlist=True)
+				process = managedSubprocess(command)
 			except RuntimeError:
 				return False
 		
@@ -376,6 +377,114 @@ class dmgManager(volumeManager):
 		
 		return None
 	
+	@classmethod
+	def mountImage(myClass, dmgFile, mountPoint=None, mountInFolder=None, mountReadWrite=None, shadowFile=None, paranoidMode=False):
+		'''Mount an image'''
+		
+		# -- validate input
+		
+		# dmgFile
+		if dmgFile is None or not os.path.exists(dmgFile) or os.path.ismount(dmgFile):
+			raise ValueError('mountImage requires dmgFile be a path to a file, got: ' + dmgFile)
+		dmgFile = pathHelpers.normalizePath(dmgFile, followSymlink=True)
+		
+		# mountPoint/mountInFolder
+		if mountPoint is not None and mountInFolder is not None:
+			raise ValueError('mountImage can only be called with mountPoint or mountInFolder, not both')
+		
+		elif mountPoint is not None and os.path.ismount(mountPoint):
+			raise ValueError('mountImage called with a mountPoint that is already a mount point: ' + mountPoint)
+		
+		elif mountPoint is not None and os.path.isdir(mountPoint):
+			if len(os.listdir(mountPoint)) != 0:
+				raise ValueError('mountImage called with a mountPoint that already has contents: %s (%s)' % (mountPoint, str(os.listdir(mountPoint))))
+		
+		elif mountPoint is not None and os.path.exists(mountPoint):
+			raise ValueError('mountImage called with a mountPoint that already exists and is not a folder: ' + mountPoint)
+		
+		elif mountPoint is not None:
+			tempFolderManager.add
+		
+		elif mountInFolder is not None and not os.path.isdir(mountInFolder):
+			raise ValueError('mountImage called with a mountInFolder path that is not a folder: ' + mountInFolder)
+		
+		elif mountInFolder is not None:
+			mountPoint = tempFolderManager.getNewMountPoint()
+		
+		else:
+			# create a default mount point
+			mountPoint = tempFolderManager.getNewMountPoint()
+		mountPoint = pathHelpers.normalizePath(mountPoint, followSymlink=True)
+		
+		# mountReadWrite
+		if mountReadWrite not in [None, True, False]:
+			raise ValueError('The only valid options for mountReadWrite are True or False')
+		
+		# shadowFile
+		if shadowFile is True:
+			# generate a temporary one
+			shadowFile = tempFolderManager.getNewTempFile(suffix='.shadow')
+			
+		elif shadowFile is not None:
+			shadowFile = pathHelpers.normalizePath(shadowFile, followSymlink=True)
+			
+			if os.path.isfile(shadowFile): # work here
+				pass # just use the file
+			
+			elif os.path.isdir(shadowFile):
+				# a directory to put the shadow file in
+				shadowFile = tempFolderManager.getNewTempFile(parentFolder=shadowFile, suffix='.shadow')
+			
+			elif os.path.isdir(os.path.dirname(shadowFile)):
+				# the path does not exist, but the directory it is in looks good
+				pass
+			
+			else:
+				# not valid
+				raise ValueError('The path given for the shadow file does not look valid: ' + str(shadowFile))
+		
+		# paranoidMode
+		if paranoidMode not in [True, False]:
+			raise ValueError('checksumImage must be either True, or False. Got: ' + str(paranoidMode))		
+		
+		# -- construct the command
+		
+		command = ['/usr/bin/hdiutil', 'attach', dmgFile, '-plist', '-mountpoint', mountPoint, '-nobrowse', '-owners', 'on']
+		
+		if mountReadWrite is True and shadowFile is None and self.writeable is False:
+			shadowFile = tempFolderManager.getNewTempFile(suffix='.shadow')
+		elif mountReadWrite is False and shadowFile is None:
+			command += ['-readonly']
+		
+		if paranoidMode is False:
+			command += ['-noverify', '-noautofsck']
+		else:
+			command += ['-verify', '-autofsck']
+		
+		if shadowFile is not None:
+			command += ['-shadow', shadowFile]
+		
+		# -- run the command
+		
+		process = managedSubprocess(command, processAsPlist=True)
+		mountInfo = process.getPlistObject()
+		
+		actualMountedPath = None
+		
+		for thisEntry in mountInfo['system-entities']:
+			if 'mount-point' in thisEntry:
+				if actualMountedPath != None and os.path.ismount(actualMountedPath):
+					# ToDo: think all of this through, prefereabley before it is needed
+					raise Exception('This item (%s) seems to be mounted at two places , this is possible, but now that it is happening larkost needs to work on this' % self.filePath)
+				
+				actualMountedPath = thisEntry['mount-point'] # ToDo: make sure that this is the mount point we requested
+				break # assume that there is only one mountable item... otherwise we are hosed already
+		
+		if actualMountedPath is None:
+			raise RuntimeError('Error: image could not be mounted')
+		
+		return actualMountedPath
+	
 	#---------- instance methods ----------
 	
 	def isMounted(self):
@@ -404,7 +513,7 @@ class dmgManager(volumeManager):
 		else:
 			return mountPoints
 	
-	def mount(self, mountPoint=None, mountInFolder=None, mountReadWrite=False, shadowFile=None, checksumImage=False):
+	def mount(self, mountPoint=None, mountInFolder=None, mountReadWrite=None, shadowFile=None, paranoidMode=False):
 		'''Mount this image'''
 		
 		# -- sanity check
@@ -412,33 +521,23 @@ class dmgManager(volumeManager):
 		if self.filePath is None:
 			raise RuntimeError('mount called on an dmg that does not have a filePath setup, this should not happen')
 		
-		# -- validate input
+		# -- run command
 		
-		if mountPoint is not None and mountInFolder is not None:
-			raise ValueError('mount can only be called with mountPoint or mountInFolder, not both')
+		self.mountPath = self.mountImage(self.filePath, mountPoint, mountInFolder, mountReadWrite, shadowFile, paranoidMode)
 		
-		elif mountPoint is not None and os.path.ismount(mountPoint):
-			raise ValueError('mount called with a mountPoint that is already a mount point: ' + mountPoint)
+
 		
-		elif mountPoint is not None and os.path.isdir(mountPoint):
-			if len(os.listdir(mountPoint)) != 0:
-				raise ValueError('mount called with a mountPoint that already has contents: %s (%s)' % (mountPoint, str(os.listdir(mountPoint))))
 		
-		elif mointPoint is not None and os.path.exists(mountPoint):
-			raise ValueError('mount called with a mountPoint that already exists and is not a folder: ' + mountPoint)
 		
-		elif mountPoint is not None:
-			tempFolderManager.add
 		
-		elif mountInFolder is not None and not os.path.isdir(mountInFolder):
-			raise ValueError('mount called with a mountInFolder path that is not a folder: ' + mountInFolder)
 		
-		elif mountInFolder is not None:
-			self.mountPoint = tempFolderManager.getNewMountPoint()
 		
-		else:
-			# create a default mount point
-			self.mountPoint = tempFolderManager.getNewMountPoint()
+		
+
+		
+		
+			
+			
 		
 		
 		

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import os, sys, stat, atexit, tempfile
+import os, sys, stat, atexit, tempfile, subprocess
 
 import pathHelpers
 from managedSubprocess import managedSubprocess
@@ -190,7 +190,7 @@ class tempFolderManager(object):
 				pass # means the item does not exist
 			
 			except Exception, error: # catch everything else
-				sys.stderr.write('Unable to process the folder: "%s" got error: %s\n' % (thisManagedItem, str(error))) # ToDo: logging
+				sys.stderr.write('Unable to process the folder: "%s" got error: %s\n' % (itemToClean, str(error))) # ToDo: logging
 		
 		# check that everything has been cleaned
 		
