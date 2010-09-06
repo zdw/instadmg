@@ -40,7 +40,7 @@ class simpleTests(unittest.TestCase):
 		self.assertTrue(hasattr(process, 'stderr') and process.stderr is not None, 'managedSubprocess did not have a stderr item when it should have')
 		result = process.stderr.read()
 		expectedResult = "testItem\n"
-		self.assertTrue(isinstance(process.stderrLen, int), 'managedSubprocess should have had an integer value for stdoutLen, rather it had: ' + str(process.stderrLen))
+		self.assertTrue(isinstance(process.stderrLen, int), 'managedSubprocess should have had an integer value for stderrLen, rather it had: ' + str(process.stderrLen))
 		self.assertEqual(len(expectedResult), process.stderrLen, 'managedSubprocess should have had a length of %i for stdoutLen, rather it had a length of %i: %s' % (len(expectedResult), process.stderrLen, result))
 		self.assertEqual(result, expectedResult, 'managedSubprocess did not return the correct stderr for process "%s". Got "%s" rather than "%s"' % (" ".join(command), result, expectedResult))
 	

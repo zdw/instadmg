@@ -22,7 +22,7 @@ class volumeManagerTests(unittest.TestCase):
 		
 		# volumeFormat
 		self.assertTrue('volumeFormat' in result, 'getVolumeInfo did not get a volumeFormat for the root volume')
-		self.assertEqual(result['volumeFormat'], 'Mac OS Extended (Journaled)', 'The boot volume volumeFormat was not "Mac OS Extended (Journaled)" as expected, but rather: ' + str(result['volumeFormat']))
+		self.assertEqual(result['volumeFormat'], 'Journaled HFS+', 'The boot volume volumeFormat was not "Journaled HFS+" as expected, but rather: ' + str(result['volumeFormat']))
 		
 		# mountPath
 		self.assertTrue('mountPath' in result, 'getVolumeInfo did not get a mountPath for the root volume')
@@ -95,7 +95,7 @@ class volumeManagerTests(unittest.TestCase):
 		
 		# volumeFormat
 		self.assertTrue(root.volumeFormat is not None, 'After being created with the root path, the volumeManager object did not have a volumeFormat value')
-		self.assertEqual(root.volumeFormat, 'Mac OS Extended (Journaled)', "After being created with the root path, the volumeManager object's volumeFormat was not 'Mac OS Extended (Journaled)' as expectd, but rather: " + root.volumeFormat)
+		self.assertEqual(root.volumeFormat, 'Journaled HFS+', "After being created with the root path, the volumeManager object's volumeFormat was not 'Mac OS Extended (Journaled)' as expectd, but rather: " + root.volumeFormat)
 		
 		# isMounted
 		self.assertTrue(root.isMounted(), 'The root object is not reporting being mounted')

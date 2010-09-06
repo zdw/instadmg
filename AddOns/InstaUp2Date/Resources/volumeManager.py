@@ -78,8 +78,8 @@ class volumeManager(object):
 		result['volumeSizeInBytes'] = int(volumeProperties['TotalSize'])
 		
 		# volumeFormat
-		if 'FilesystemUserVisibleName' in volumeProperties:
-			result['volumeFormat'] = str(volumeProperties['FilesystemUserVisibleName'])
+		if 'FilesystemName' in volumeProperties:
+			result['volumeFormat'] = str(volumeProperties['FilesystemName'])
 		
 		# diskType
 		if volumeProperties['BusProtocol'] == 'Disk Image':

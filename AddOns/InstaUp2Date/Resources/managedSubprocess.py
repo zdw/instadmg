@@ -24,8 +24,8 @@ class managedSubprocess(subprocess.Popen):
 		
 		self.wait()
 		
-		self.stdoutLen = os.fstat(stdout.fileno()).st_size
-		self.stderrLen = os.fstat(stderr.fileno()).st_size
+		self.stdoutLen = int(os.fstat(stdout.fileno()).st_size)
+		self.stderrLen = int(os.fstat(stderr.fileno()).st_size)
 		stderr.seek(0) # the fstats seeks to the end
 		stdout.seek(0)
 		
