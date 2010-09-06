@@ -73,9 +73,9 @@ TESTING_TARGET_VOLUME_DEV=''					# the mount point to be used when restoring, sh
 # Default Names
 DMG_BASE_NAME=`/usr/bin/uuidgen`				# Name of the intermediary image
 
-MOUNT_FOLDER_TEMPLATE="InstaDMG_temp_folder.XXXXXX"
-MOUNT_POINT_TEMPLATE="mount_point.XXXXXX"
-SOURCE_FOLDER_TEMPLATE="package.XXXXXX"
+MOUNT_FOLDER_TEMPLATE="idmg.XXXX"
+MOUNT_POINT_TEMPLATE="idmg_mp.XXXX"
+SOURCE_FOLDER_TEMPLATE="idmg_pkg.XXXX"
 
 ASR_OUPUT_FILE_NAME="${CREATE_DATE}.dmg"		# Name of the final image file
 ASR_FILESYSTEM_NAME="InstaDMG"					# Name of the filesystem in the final image
@@ -315,87 +315,39 @@ mount_dmg() {
 	#	$3 - mount name (optional)
 	#	$4 - mount options (optional)
 	
-	set +o nounset
-	
 	LATEST_IMAGE_MOUNT=''
 	
 	if [ -z "$1" ]; then
 		log "Internal error: mount_dmg called without a source file" error
+		exit 1
 	fi
 	if [ ! -f "$1" ]; then
-		log "Internal error: mount_dmg called with invalid source file: $1" error
+		log "Internal error: mount_dmg called with invalid source file: $1" error]
+		exit 1
 	fi
 	
-	# Get the absolute path to the image, resolving any chain of symlinks
-	DMG_PATH="$1"
-	while [ -h "$DMG_PATH" ]; do
-		NEW_LINK=`/usr/bin/readlink "$DMG_PATH"`
-		if [[ "$NEW_LINK" == /* ]]; then
-			DMG_PATH="$NEW_LINK"
-		else
-			BASE_LINK=`/usr/bin/dirname "$DMG_PATH"`
-			DMG_PATH="$BASE_LINK/$NEW_LINK"
-		fi
-	done
-	DMG_PATH=$( cd $( dirname "$DMG_PATH" ); echo "`pwd`/`basename "$DMG_PATH"`" )
-	
-	# Test to see if the image is already mounted
-	
-	# Get a list of mounted images
-	MOUNTED_IMAGES=`/usr/bin/hdiutil info -plist | /usr/bin/awk '/<key>image-path<\/key>/ { getline; gsub(/[[:space:]]*\<\/?string>/,""); print }'`
-	IMAGE_MOUNT_POINTS=`/usr/bin/hdiutil info -plist | /usr/bin/awk '/<key>mount-point<\/key>/ { getline; gsub(/[[:space:]]*\<\/?string>/,""); print }'`
-	
-	# convert to arrays
-	IFS=$'\n'
-	MOUNTED_IMAGES=( $MOUNTED_IMAGES )
-	IMAGE_MOUNT_POINTS=( $IMAGE_MOUNT_POINTS )
-	
-	# check to see if this is the same iage
-	for (( mountCounter = 0 ; mountCounter < ${#MOUNTED_IMAGES[@]} ; mountCounter++ )); do
-		if [ "$MOUNTED_IMAGES[$mountCounter]" == "$DMG_PATH" ]; then
-			# The image is already mounted
-			log "Disk image $DMG_PATH was already mounted at $TEMP_MOUNT_POINT" detail
-			LATEST_IMAGE_MOUNT=$IMAGE_MOUNT_POINTS[$mountCounter]
-			return 1
-		fi
-	done
-	
-	# We now know it is not currently mounted
-	
-	# If there was no mount point given, make a new one
 	if [ -z "$2" ]; then
-		# Create a new mount point in the shield directory
-		TEMP_MOUNT_POINT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
+		IMAGE_MOUNT_OUTPUT=`AddOns/InstaUp2Date/Resources/dmgMountHelper.py "$1" --mount-read-only --parent-folder "$HOST_MOUNT_FOLDER" 2>&1`
 	else
-		TEMP_MOUNT_POINT="$2"
+		IMAGE_MOUNT_OUTPUT=`AddOns/InstaUp2Date/Resources/dmgMountHelper.py "$1" --mount-read-only --mount-point "$2" 2>&1`
 	fi
 	
-	# Test the mount point
-	if [ ! -d "$TEMP_MOUNT_POINT" ]; then
-		log "Internal error: mount_dmg called with invalid mount point: $TEMP_MOUNT_POINT" error
+	if [ $? -ne 0 ]; then
+		log "Unable to mount $2: $IMAGE_MOUNT_OUTPUT" error
+		exit 1
 	fi
 	
-	# Log the mount attempt
+	LATEST_IMAGE_MOUNT="$IMAGE_MOUNT_OUTPUT"
+	
+	# Log the mount
 	if [ -z $3 ]; then
-		log "Mounting disk image from $DMG_PATH at $TEMP_MOUNT_POINT" detail
+		log "Mounted disk image from $1 at $IMAGE_MOUNT_OUTPUT" detail
 	else
-		log "Mounting $3 ($DMG_PATH) at $TEMP_MOUNT_POINT" detail
-	fi
-	
-	# Mount the image
-	if [ $ENABLE_NON_PARANOID_MODE == true ]; then
-		/usr/bin/hdiutil attach "$DMG_PATH" -nobrowse -noautofsck -noverify $4 -owners on -mountpoint "$TEMP_MOUNT_POINT" 2>/dev/null 1>/dev/null
-	else
-		/usr/bin/hdiutil attach "$DMG_PATH" -nobrowse $4 -owners on -mountpoint "$TEMP_MOUNT_POINT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+		log "Mounted $3 ($1) at $IMAGE_MOUNT_OUTPUT" detail
 	fi
 	
 	# Add the disk to the list of mount points
-	MOUNTED_DMG_MOUNT_POINTS[${#MOUNTED_DMG_MOUNT_POINTS[@]}]="$TEMP_MOUNT_POINT"
-	
-	set -o nounset
-	
-	LATEST_IMAGE_MOUNT="$TEMP_MOUNT_POINT"
-	return 0
+	MOUNTED_DMG_MOUNT_POINTS[${#MOUNTED_DMG_MOUNT_POINTS[@]}]="$LATEST_IMAGE_MOUNT"
 }
 
 unmount_dmg() {
@@ -675,6 +627,10 @@ mount_cached_image() {
 		return
 	fi
 	
+	
+	
+	
+	
 	# Create mount point for the (read-only) target
 	TARGET_IMAGE_MOUNT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
 	/bin/chmod og+x "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user through
@@ -934,7 +890,7 @@ install_packages_from_folder() {
 				/bin/chmod og+x "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user through
 				PACKAGE_DMG_MOUNT="$TARGET"
 				log "	Mounting the package dmg: $DMG_INTERNAL_NAME ($ORIGINAL_TARGET) at: $TARGET" information
-				mount_dmg "$PACKAGE_DMG_FILE" "$TARGET" "" "-readonly"
+				mount_dmg "$PACKAGE_DMG_FILE" "$TARGET"
 				
 				if [ $DISABLE_CHROOT == false ]; then
 					# get the chroot target string, in case we use it
