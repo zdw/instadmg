@@ -2,40 +2,12 @@
 
 import subprocess, time
 
-from Resources.tempFolderManager import tempFolderManager
-from Resources.managedSubprocess import managedSubprocess
-from Resources.displayTools import secondsToReadableTime, bytesToRedableSize
-
-def mountDMG(thisSourceFile, mountPoint=None, shadowFile=None):
-	
-	# ToDo: handle the case when mountPoint is not given
-	
-	if mountPoint is None:
-		mountPoint = tempFolderManager.getNewTempFolder()
-	
-	if shadowFile is True:
-		shadowFile = tempFolderManager.getNewTempFile(prefix="shadowFile", suffix=".shadow")
-		os.unlink(shadowFile)
-		
-	print('	Mounting: %s at %s' % (thisSourceFile, mountPoint))
-	
-	command = ['/usr/bin/hdiutil', 'attach', '-mountpoint', mountPoint, '-noverify', '-noautofsck', '-nobrowse', '-owners', 'on', '-readonly', '-plist', thisSourceFile]
-	if shadowFile is not None:
-		command += ['-shadow', shadowFile]
-	
-	process = managedSubprocess(command, processAsPlist=True)
-	plist = process.getPlistObject()
-	
-	# find the path it is mounted at
-	if not 'system-entities' in plist:
-		raise Exception('hdiutil output did not look right on mount. Data:\n%s' % output)
-	
-	for systemEntry in plist['system-entities']:
-		if 'mount-point' in systemEntry:
-			return systemEntry['mount-point']
-	
-	# if we get here, then we have failed
-	raise Exception('Unable to figure out the mount point for: %s\n%s' % (thisSourceFile, output))
+import Resources.pathHelpers			as pathHelpers
+import Resources.commonConfiguration	as commonConfiguration
+from Resources.tempFolderManager		import tempFolderManager
+from Resources.managedSubprocess		import managedSubprocess
+from Resources.displayTools				import secondsToReadableTime, bytesToRedableSize
+from volumeManager						import dmgManager
 
 def unmountDMG(mountPoint):
 	
@@ -102,7 +74,7 @@ if __name__ == "__main__":
 		restorePoint = diskutilOutput['DeviceNode']
 	
 	if len(arguments) == 0:
-		arguments.append(os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "../OutputFiles")))
+		arguments.append(os.path.join(pathToInstaDMGFolder, "OutputFiles"))
 	
 	sourceFiles = {}
 	
@@ -116,10 +88,10 @@ if __name__ == "__main__":
 				if not thisFile.lower().endswith(".dmg"):
 					continue
 				
-				resolvedPath = os.path.realpath(os.path.join(thisArgument, thisFile))
+				resolvedPath = pathHelpers.normalizePath(os.path.join(thisArgument, thisFile), followSymlink=True)
 				
-				if isValidDMG( resolvedPath ):
-					foundFiles.append( resolvedPath )
+				if dmgManager.verifyIsDMG(resolvedPath):
+					foundFiles.append(resolvedPath)
 				else:
 					sys.stderr.write("Warning: file is not a valid dmg: %s\n" % resolvedPath)
 			
@@ -131,7 +103,7 @@ if __name__ == "__main__":
 				sys.exit(1)
 		
 		elif os.path.isfile(thisArgument):
-			resolvedPath = os.path.realpath(thisArgument)
+			resolvedPath = pathHelpers.normalizePath(thisArgument, followSymlink=True)
 			
 			if isValidDMG( resolvedPath ):
 				sourceFiles[resolvedPath] = True
@@ -226,7 +198,9 @@ if __name__ == "__main__":
 			print("\n" + thisSourceOption["message"] + "\n------------------")
 			
 			if "mountImage" in thisSourceOption and thisSourceOption["mountImage"] == True:
-				mountDMG(thisSourceFile, mountPoint=tempMountPoint, shadowFile=True)
+				
+				print('	Mounting: %s at %s' % (thisSourceFile, tempMountPoint))
+				dmgManager.mountImage(thisSourceFile, mountPoint=tempMountPoint, shadowFile=True):
 				
 				# fsck the file to rebuild the file catalog
 				#command = ['/sbin/fsck_hfs', '-r', tempMountPoint]
@@ -311,7 +285,7 @@ if __name__ == "__main__":
 					os.unlink(asrTargetFile) # cleanup the targetFile
 			
 			if "mountImage" in thisSourceOption and thisSourceOption["mountImage"] == True:
-				unmountDMG(tempMountPoint)
+				dmgManager.unmountVolume(tempMountPoint)
 				
 	sys.exit(0)
 

@@ -100,7 +100,7 @@ class installerPackage:
 			raise ValueError('The value given to %s\'s setCacheFolder method must be a write-able folder: %s' % (myClass.__name__, newCacheFolder))
 		
 		# make sure we have a canonical path
-		newCacheFolder = os.path.abspath(os.path.realpath(newCacheFolder))
+		newCacheFolder = pathHelpers.normalizePath(newCacheFolder, followSymlink=True)
 		
 		# set the cache folder
 		myClass.cacheFolder = newCacheFolder
@@ -162,7 +162,7 @@ class installerPackage:
 				raise ValueError("The value given to %s class's addSourceFolders was not useable: %s" % (myClass.__name__, str(newSourceFolders)))
 			
 			# normalize the path
-			thisFolder = os.path.abspath(os.path.realpath(thisFolder))
+			thisFolder = pathHelpers.normalizePath(thisFolder, followSymlink=True)
 				
 			if not thisFolder in myClass.sourceFolders:
 				myClass.sourceFolders.append(thisFolder)
@@ -223,7 +223,7 @@ class installerPackage:
 			# relative path
 			if os.path.exists(nameOrLocation):
 				if checksumValue == checksum(nameOrLocation, checksumType=checksumType, progressReporter=progressReporter)['checksum']:
-					return os.path.realpath(os.path.abspath(nameOrLocation))
+					return pathHelpers.normalizePath(nameOrLocation, followSymlink=True)
 		
 		sourceFolders = myClass.getSourceFolders()
 		
@@ -232,14 +232,14 @@ class installerPackage:
 			pass
 		
 		elif isinstance(additionalSourceFolders, str) and os.path.isdir(additionalSourceFolders):
-			sourceFolders.append( os.path.realpath(os.path.abspath(additionalSourceFolders)) )
+			sourceFolders.append(pathHelpers.normalizePath(additionalSourceFolders, followSymlink=True))
 		
 		elif hasattr(additionalSourceFolders, '__iter__'):
 			for thisFolder in additionalSourceFolders:
 				if not os.path.isdir(thisFolder):
 					raise ValueError('The folder given to %s as an additionalSourceFolders either did not exist or was not a folder: %s' % (self.__class__.__name__, thisFolder))
 					
-				sourceFolders.append( os.path.realpath(os.path.abspath(thisFolder)) )
+				sourceFolders.append(pathHelpers.normalizePath(thisFolder, followSymlink=True))
 		else:
 			raise ValueError('Unable to understand the additionalSourceFolders given: ' + str(additionalSourceFolders))
 		
@@ -249,7 +249,7 @@ class installerPackage:
 			# try paths relative to the source folders
 			if nameOrLocation.count(os.sep) > 0 and os.path.exists(os.path.join(thisCacheFolder, nameOrLocation)):
 				if checksumValue == checksum(os.path.join(thisCacheFolder, nameOrLocation), checksumType=checksumType, progressReporter=progressReporter)['checksum']:
-					return os.path.realpath(os.path.abspath(os.path.join(thisCacheFolder, nameOrLocation)))
+					return pathHelpers.normalizePath(os.path.join(thisCacheFolder, nameOrLocation), followSymlink=True)
 			
 			# walk up through the whole set
 			for currentFolder, dirs, files in os.walk(thisCacheFolder, topdown=True):
@@ -346,14 +346,14 @@ class installerPackage:
 			pass
 		
 		elif isinstance(additionalSourceFolders, str) and os.path.isdir(additionalSourceFolders):
-			foldersToSearch.append( os.path.realpath(os.path.abspath(additionalSourceFolders)) )
+			foldersToSearch.append( pathHelpers.normalizePath(additionalSourceFolders, followSymlink=True))
 		
 		elif hasattr(additionalSourceFolders, '__iter__'):
 			for thisFolder in additionalSourceFolders:
 				if not os.path.isdir(thisFolder):
 					raise ValueError('The folder given to %s as an additionalSourceFolders either did not exist or was not a folder: %s' % (self.__class__.__name__, thisFolder))
 					
-					foldersToSearch.append( os.path.realpath(os.path.abspath(thisFolder)) )
+					foldersToSearch.append(pathHelpers.normalizePath(thisFolder, followSymlink=True))
 		
 		else:
 			raise ValueError('Unable to understand the additionalSourceFolders given: ' + str(additionalSourceFolders))
@@ -373,7 +373,7 @@ class installerPackage:
 			if os.path.exists(self.source):
 				result = checksum(self.source, checksumType=self.checksumType, progressReporter=progressReporter)
 				if self.checksumValue == result['checksum']:
-					self.filePath = os.path.realpath(os.path.abspath(self.source))
+					self.filePath = pathHelpers.normalizePath(self.source, followSymlink=True)
 					if progressReporter is not None:
 						progressReporter.update(statusMessage='found by absolute path and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
 						progressReporter.finishLine()
@@ -391,7 +391,7 @@ class installerPackage:
 				thisPath = os.path.join(thisSourceFolder, self.source)
 				
 				if os.path.exists(thisPath) and self.checksumValue == checksum(thisPath, checksumType=self.checksumType, progressReporter=progressReporter)['checksum']:
-					self.filePath = os.path.realpath(os.path.abspath(thisPath))
+					self.filePath = pathHelpers.normalizePath(thisPath, followSymlink=True)
 					if progressReporter is not None:
 						progressReporter.update(statusMessage='found by relative path in the source folders and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
 						progressReporter.finishLine()
@@ -399,7 +399,7 @@ class installerPackage:
 			
 			# from the current working directory
 			if os.path.exists(self.source) and self.checksumValue == checksum(self.source, checksumType=self.checksumType, progressReporter=progressReporter):
-				self.filePath = os.path.realpath(os.path.abspath(self.source))
+				self.filePath = pathHelpers.normalizePath(self.source, followSymlink=True)
 				if progressReporter is not None:
 					progressReporter.update(statusMessage='found by relative path and verified in %s' % (secondsToReadableTime(time.time() - startTime)))
 					progressReporter.finishLine()

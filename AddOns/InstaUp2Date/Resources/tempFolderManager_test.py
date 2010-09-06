@@ -3,6 +3,8 @@
 from __future__ import with_statement
 
 import os, tempfile, unittest, shutil
+
+import pathHelpers
 from tempFolderManager import tempFolderManager
 from testingHelpers import generateSomeContent
 
@@ -106,7 +108,7 @@ class setupTests(unittest.TestCase):
 		
 		(fileHandle, filePath) = tempfile.mkstemp()
 		os.close(fileHandle) # we don't need to write anything to this
-		filePath = os.path.realpath(os.path.normpath(filePath))
+		filePath = pathHelpers.normalizePath(filePath, followSymlink=True)
 		
 		# add it, and confirm that this is managed
 		tempFolderManager.addManagedItem(filePath)
@@ -120,7 +122,7 @@ class setupTests(unittest.TestCase):
 		# repeat the exercise for cleanupForExit
 		(fileHandle, filePath) = tempfile.mkstemp()
 		os.close(fileHandle) # we don't need to write anything to this
-		filePath = os.path.realpath(os.path.normpath(filePath))
+		filePath = pathHelpers.normalizePath(filePath, followSymlink=True)
 		
 		# add it, and confirm that this is managed
 		tempFolderManager.addManagedItem(filePath)
@@ -211,7 +213,7 @@ class setupTests(unittest.TestCase):
 		secondFolderPath = tempFolderManager.getNewTempFolder(parentFolder=secondParentFolder)
 		self.assertTrue(secondFolderPath is not None, 'Called with a parent folder getNewTempFolder gave back None')
 		self.assertTrue(os.path.isdir(secondFolderPath), 'Called with a parent folder getNewTempFolder returned a string that was not a path to an existing folder: ' + str(secondFolderPath))
-		self.assertTrue(secondFolderPath.startswith(os.path.realpath(os.path.normpath(secondParentFolder))), 'Called with a parent folder (%s) getNewTempFolder returned a path not in the parent folder: %s' % (secondParentFolder, secondFolderPath))
+		self.assertTrue(secondFolderPath.startswith(pathHelpers.normalizePath(secondParentFolder, followSymlink=True)), 'Called with a parent folder (%s) getNewTempFolder returned a path not in the parent folder: %s' % (secondParentFolder, secondFolderPath))
 		self.assertTrue(tempFolderManager.getManagedPathForPath(secondFolderPath) is not None, 'Called with a parent folder getNewTempFolder returned a path that was not in any managed path (according to getManagedPathForPath): ' + secondFolderPath)
 		
 		# test with the prefix option

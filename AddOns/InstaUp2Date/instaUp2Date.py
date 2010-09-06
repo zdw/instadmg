@@ -7,6 +7,7 @@
 import os, sys, re
 import hashlib, urlparse, subprocess, datetime
 
+import pathHelpers
 import Resources.commonConfiguration	as commonConfiguration
 from Resources.tempFolderManager		import tempFolderManager
 from Resources.installerPackage			import installerPackage
@@ -92,19 +93,20 @@ class instaUpToDate:
 		
 		# try it as an absolute or relative file path
 		if os.path.isfile(catalogFileInput):
-			return os.path.abspath(os.path.realpath(catalogFileInput))
+			return pathHelpers.normalizePath(catalogFileInput, followSymlink=True)
 		
 		# cycle through the folders we have been given to see if it is there
-		for thisFolder in catalogFolders:
-			
-			# try the simple path:
-			if os.path.isfile( os.path.join(thisFolder, catalogFileInput) ):
-				return os.path.abspath(os.path.realpath(os.path.join(thisFolder, catalogFileInput)))
-			
-			# try appending file extension(s)
-			for thisExtension in myClass.fileExtensions:
-				if os.path.isfile( os.path.join(thisFolder, catalogFileInput + thisExtension) ):
-					return os.path.abspath(os.path.realpath(os.path.join(thisFolder, catalogFileInput + thisExtension)))
+		if not os.path.isabs(catalogFileInput):
+			for thisFolder in catalogFolders:
+				
+				# try the simple path:
+				if os.path.isfile( os.path.join(thisFolder, catalogFileInput) ):
+					return pathHelpers.normalizePath(os.path.join(thisFolder, catalogFileInput), followSymlink=True)
+				
+				# try appending file extension(s)
+				for thisExtension in myClass.fileExtensions:
+					if os.path.isfile( os.path.join(thisFolder, catalogFileInput + thisExtension) ):
+						return pathHelpers.normalizePath(os.path.join(thisFolder, catalogFileInput + thisExtension), followSymlink=True)
 		
 		raise CatalogNotFoundException("The file input is not one that getCatalogFullPath understands, or can find: %s" % catalogFileInput)
 		
@@ -293,7 +295,7 @@ class instaUpToDate:
 			for thisItem in itemsToProcess:
 				
 				targetFileName = fileNameFormat % (itemCounter, thisItem.displayName)
-				targetFilePath = os.path.realpath(os.path.join(updateFolder, targetFileName))
+				targetFilePath = pathHelpers.normalizePath(os.path.join(updateFolder, targetFileName), followSymlink=True)
 				
 				if os.path.isabs(targetFilePath):
 					os.symlink(thisItem.filePath, targetFilePath)

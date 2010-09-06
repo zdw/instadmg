@@ -158,6 +158,18 @@ class volumeManager(object):
 			
 		raise ValueError('The volume "%s" does not look like a MacOS X installer disc.' % mountPoint)
 	
+	@classmethod
+	def unmountVolume(self, mountPath):
+		if mountPath is None:
+			return # ToDo: log this, maybe error out here
+		
+		if os.path.samefile("/", mountPath):
+			raise ValueError('Can not unmount the root partition, this is definatley a bug')
+		
+		if os.path.ismount(mountPath):
+			tempFolderManager.unmountVolume(mountPath)
+		# ToDo: otherwise check to see if it is mounted by dev entry
+	
 	#---------- instance methods ----------
 	
 	def __init__(self, identifier):
@@ -194,13 +206,7 @@ class volumeManager(object):
 		if self.mountPath is None:
 			return # ToDo: log this, maybe error out here
 		
-		if os.path.samefile("/", self.mountPath):
-			raise ValueError('Can not unmount the root partition, this is definatley a bug')
-		
-		if os.path.ismount(self.mountPath):
-			tempFolderManager.unmountVolume(self.mountPath)
-		# ToDo: otherwise check to see if it is mounted by dev entry
-		
+		self.unmountVolume(self.mountPath)
 		self.mountPath = None
 
 class dmgManager(volumeManager):

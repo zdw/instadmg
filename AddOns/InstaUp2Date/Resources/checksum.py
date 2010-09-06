@@ -2,6 +2,7 @@
 
 import os, time, hashlib, urllib, urllib2, urlparse, stat, tempfile, shutil
 
+import pathHelpers
 from displayTools import bytesToRedableSize, secondsToReadableTime, statusHandler
 from tempFolderManager import tempFolderManager
 
@@ -86,7 +87,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", dis
 	
 	if outputFolder is not None:
 		# make sure we have an absolute path to it
-		outputFolder = os.path.realpath(os.path.normpath(outputFolder))
+		outputFolder = pathHelpers.normalizePath(outputFolder, followSymlink=True)
 	
 	# warm up the checksummer
 	hashGenerator = hashlib.new(checksumType)
@@ -119,8 +120,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", dis
 		# a local path, check if it is a folder
 		
 		# make sure we have the canonical location
-		location = os.path.realpath(os.path.normpath(os.path.expanduser(location)))
-		
+		location = pathHelpers.normalizePath(location, followSymlink=True)
 		fileName = os.path.basename(location)
 		
 		if chunkSize is None:

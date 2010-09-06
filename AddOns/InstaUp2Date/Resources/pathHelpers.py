@@ -16,6 +16,8 @@ def normalizePath(inputPath, followSymlink=False):
 	while inputPath.endswith(os.sep) and not inputPath.endswith('\\' + os.sep):
 		inputPath = inputPath[:-1]
 	
+	inputPath = os.path.expanduser(inputPath)
+	
 	if followSymlink is True:
 		return os.path.realpath(inputPath)
 	else:

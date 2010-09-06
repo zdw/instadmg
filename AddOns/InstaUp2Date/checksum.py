@@ -2,6 +2,7 @@
 
 import os, sys, optparse, hashlib, urlparse
 
+import Resources.pathHelpers			as pathHelpers
 import Resources.commonConfiguration	as commonConfiguration
 from Resources.checksum					import checksum
 from Resources.displayTools				import statusHandler	
@@ -73,13 +74,15 @@ if __name__ == "__main__":
 		data = checksum(location, checksumType=options.checksumAlgorithm, progressReporter=progressReporter, outputFolder=thisOutputLocation, checksumInFileName=options.checksumInFileName)
 		
 		dataLine = ""
+		normalizedPath = pathHelpers.normalizePath(location)
+		
 		# in the standardCacheFolder
-		if parsedURL.scheme is '' and os.path.realpath(location).startswith(os.path.realpath(commonConfiguration.standardCacheFolder) + os.sep) and hasattr(os.path, 'relpath'): # relpath is python 2.6
-			dataLine = "\t".join(["", os.path.splitext(data['name'])[0], os.path.relpath(os.path.realpath(location), os.path.realpath(commonConfiguration.standardCacheFolder)), data['checksumType'] + ":" + data['checksum']])
+		if parsedURL.scheme is '' and pathHelpers.pathInsideFolder(location, commonConfiguration.standardCacheFolder) and and hasattr(os.path, 'relpath'): # relpath is python 2.6
+			dataLine = "\t".join(["", os.path.splitext(data['name'])[0], os.path.relpath(normalizedPath, commonConfiguration.standardCacheFolder), data['checksumType'] + ":" + data['checksum']])
 		
 		# in the standardUserItemsFolder
-		elif parsedURL.scheme is '' and os.path.realpath(location).startswith(os.path.realpath(commonConfiguration.standardUserItemsFolder) + os.sep) and hasattr(os.path, 'relpath'): # relpath is python 2.6
-			dataLine = "\t".join(["", os.path.splitext(data['name'])[0], os.path.relpath(os.path.realpath(location), os.path.realpath(commonConfiguration.standardUserItemsFolder)), data['checksumType'] + ":" + data['checksum']])
+		if parsedURL.scheme is '' and pathHelpers.pathInsideFolder(location, commonConfiguration.standardUserItemsFolder) and and hasattr(os.path, 'relpath'): # relpath is python 2.6
+			dataLine = "\t".join(["", os.path.splitext(data['name'])[0], os.path.relpath(normalizedPath, commonConfiguration.standardUserItemsFolder), data['checksumType'] + ":" + data['checksum']])
 			
 		else:
 			dataLine = "\t".join(["", os.path.splitext(data['name'])[0], location, data['checksumType'] + ":" + data['checksum']])
