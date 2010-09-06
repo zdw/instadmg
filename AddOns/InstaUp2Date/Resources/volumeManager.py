@@ -61,11 +61,14 @@ class volumeManager(object):
 		if 'VolumeName' in volumeProperties:
 			result['volumeName'] = str(volumeProperties['VolumeName'])
 		
-		# bsdPath
-		result['bsdPath'] = str(volumeProperties['DeviceNode'])
-		
-		# bsdName
-		result['bsdName'] = str(result['bsdPath'])[len('/dev/'):]
+		# bsdPath/bsdName
+		if 'DeviceNode' in volumeProperties:
+			if volumeProperties['DeviceNode'].startswith('/dev/'):
+				result['bsdPath'] = str(volumeProperties['DeviceNode'])
+				result['bsdName'] = str(result['bsdPath'])[len('/dev/'):]
+			else:
+				result['bsdPath'] = '/dev/' + str(volumeProperties['DeviceNode'])
+				result['bsdName'] = str(volumeProperties['DeviceNode'])
 		
 		# diskBsdName
 		result['diskBsdName'] = str(volumeProperties['ParentWholeDisk'])
