@@ -7,7 +7,7 @@
 import os, sys, re
 import hashlib, urlparse, subprocess, datetime
 
-import pathHelpers
+import Resources.pathHelpers			as pathHelpers
 import Resources.commonConfiguration	as commonConfiguration
 from Resources.tempFolderManager		import tempFolderManager
 from Resources.installerPackage			import installerPackage
