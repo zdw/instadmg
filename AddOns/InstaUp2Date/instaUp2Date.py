@@ -460,7 +460,7 @@ def main ():
 	
 	sectionFolders = None
 	if options.processWithInstaDMG is True:
-		tempFolder = tempFolderManager.getNewTempFolder(prefix='InstaUp2DateFolder-')
+		tempFolder = tempFolderManager.getNewTempFolder(prefix='items-')
 		
 		sectionFolders = [
 			{"folderPath":tempFolder, "sections":["OS Updates", "System Settings", "Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings"]}

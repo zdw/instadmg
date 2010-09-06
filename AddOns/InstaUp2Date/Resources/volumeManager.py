@@ -357,9 +357,9 @@ class dmgManager(volumeManager):
 		if not os.path.exists(dmgFilePath):
 			raise ValueError('getDMGMountPoint called with a dmgFilePath that does not exist: ' + dmgFilePath)
 		
-		hdiutilArguments = ['/usr/bin/hdiutil', 'list', '-plist']
-		hdiutilProcess = managedSubprocess(diskutilArguments, processAsPlist=True)
-		hdiutilOutput = diskutilProcess.getPlistObject()
+		hdiutilArguments = ['/usr/bin/hdiutil', 'info', '-plist']
+		hdiutilProcess = managedSubprocess(hdiutilArguments, processAsPlist=True)
+		hdiutilOutput = hdiutilProcess.getPlistObject()
 		
 		if 'images' in hdiutilOutput:
 			for thisDMG in hdiutilOutput['images']:
@@ -368,7 +368,7 @@ class dmgManager(volumeManager):
 					
 					for thisEntry in thisDMG['system-entities']:
 						if 'mount-point' in thisEntry:
-							mountPoint.append(str(thisEntry['mount-point']))
+							mountPoints.append(str(thisEntry['mount-point']))
 					
 					if len(mountPoints) > 0:
 						return mountPoints
@@ -446,6 +446,12 @@ class dmgManager(volumeManager):
 		# paranoidMode
 		if paranoidMode not in [True, False]:
 			raise ValueError('checksumImage must be either True, or False. Got: ' + str(paranoidMode))		
+		
+		# -- check to see if it is already mounted
+		
+		existingMountPoints = myClass.getDMGMountPoints(dmgFile)
+		if existingMountPoints is not None:
+			raise RuntimeError('The image (%s) was already mounted: %s' % (dmgFile, ", ".join(existingMountPoints)))
 		
 		# -- construct the command
 		

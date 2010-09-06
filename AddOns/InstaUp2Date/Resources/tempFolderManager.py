@@ -15,9 +15,9 @@ class tempFolderManager(object):
 	managedItems			= []					# class-wide array, used in atexit cleanup
 	managedMounts			= []					# class-wide array, used in atexit cleanup
 	
-	tempFolderPrefix		= 'InstaDMGTempFolder.'	# default name prefix for temporary folers
-	tempFilePrefix			= 'InstaDMGTempFile.'	# default name prefix for temporaty files
-	mountPointPrefix		= 'InstaDMGMountPoint.'	# default name prefix for mount points
+	tempFolderPrefix		= 'idmg_temp.'	# default name prefix for temporary folers
+	tempFilePrefix			= 'idmg_file.'	# default name prefix for temporaty files
+	mountPointPrefix		= 'idmg_mp.'	# default name prefix for mount points
 	
 	#-------- instance properties ---------
 	
