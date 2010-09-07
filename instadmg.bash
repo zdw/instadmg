@@ -313,7 +313,6 @@ mount_dmg() {
 	#	$1 - path to file (mandatory)
 	#	$2 - mount point (optional)
 	#	$3 - mount name (optional)
-	#	$4 - mount options (optional)
 	
 	LATEST_IMAGE_MOUNT=''
 	
@@ -340,7 +339,7 @@ mount_dmg() {
 	LATEST_IMAGE_MOUNT="$IMAGE_MOUNT_OUTPUT"
 	
 	# Log the mount
-	if [ -z $3 ]; then
+	if [ -z "$3" ]; then
 		log "Mounted disk image from $1 at $IMAGE_MOUNT_OUTPUT" detail
 	else
 		log "Mounted $3 ($1) at $IMAGE_MOUNT_OUTPUT" detail
@@ -666,7 +665,7 @@ mount_cached_image() {
 mount_os_install() {
 	log "Mounting Mac OS X installer image" section
 	
-	mount_dmg "$CURRENT_OS_INSTALL_FILE"
+	mount_dmg "$CURRENT_OS_INSTALL_FILE" "" ""
 	if [ $? -ne 0 ]; then
 		log "Unable to mount the Install Disc: $CURRENT_OS_INSTALL_FILE" error
 		exit 1
@@ -696,7 +695,7 @@ mount_os_install() {
 	if [ ${#SUPPORTING_DISKS[@]} -gt 0 ]; then
 		log "Mounting supporting disks" section
 		for (( diskCount = 0 ; diskCount < ${#SUPPORTING_DISKS[@]} ; diskCount++ )); do
-			mount_dmg "${SUPPORTING_DISKS[$diskCount]}"
+			mount_dmg "${SUPPORTING_DISKS[$diskCount]}" "" ""
 			log "Mounted supporting disk ${SUPPORTING_DISKS[$diskCount]} at $LATEST_IMAGE_MOUNT" information
 		done
 	fi
@@ -890,7 +889,7 @@ install_packages_from_folder() {
 				/bin/chmod og+x "$TARGET" 2>&1 | (while read INPUT; do log "$INPUT " detail; done) # allow the installer user through
 				PACKAGE_DMG_MOUNT="$TARGET"
 				log "	Mounting the package dmg: $DMG_INTERNAL_NAME ($ORIGINAL_TARGET) at: $TARGET" information
-				mount_dmg "$PACKAGE_DMG_FILE" "$TARGET"
+				mount_dmg "$PACKAGE_DMG_FILE" "$TARGET" ""
 				
 				if [ $DISABLE_CHROOT == false ]; then
 					# get the chroot target string, in case we use it

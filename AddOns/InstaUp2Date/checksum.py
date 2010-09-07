@@ -77,11 +77,11 @@ if __name__ == "__main__":
 		normalizedPath = pathHelpers.normalizePath(location)
 		
 		# in the standardCacheFolder
-		if parsedURL.scheme is '' and pathHelpers.pathInsideFolder(location, commonConfiguration.standardCacheFolder) and and hasattr(os.path, 'relpath'): # relpath is python 2.6
+		if parsedURL.scheme is '' and pathHelpers.pathInsideFolder(location, commonConfiguration.standardCacheFolder) and hasattr(os.path, 'relpath'): # relpath is python 2.6
 			dataLine = "\t".join(["", os.path.splitext(data['name'])[0], os.path.relpath(normalizedPath, commonConfiguration.standardCacheFolder), data['checksumType'] + ":" + data['checksum']])
 		
 		# in the standardUserItemsFolder
-		if parsedURL.scheme is '' and pathHelpers.pathInsideFolder(location, commonConfiguration.standardUserItemsFolder) and and hasattr(os.path, 'relpath'): # relpath is python 2.6
+		if parsedURL.scheme is '' and pathHelpers.pathInsideFolder(location, commonConfiguration.standardUserItemsFolder) and hasattr(os.path, 'relpath'): # relpath is python 2.6
 			dataLine = "\t".join(["", os.path.splitext(data['name'])[0], os.path.relpath(normalizedPath, commonConfiguration.standardUserItemsFolder), data['checksumType'] + ":" + data['checksum']])
 			
 		else:
