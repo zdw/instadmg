@@ -5,3 +5,6 @@ class FileNotFoundException(Exception):
 
 class CatalogNotFoundException(FileNotFoundException):
 	pass
+
+class InstallerChoicesFileException(Exception):
+	pass

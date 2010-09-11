@@ -166,7 +166,7 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", dis
 			
 			# change the status message
 			if progressReporter is not None:
-				progressReporter.update(statusMessage="checksumming item ", progressTemplate="%(value)i of %(expectedLength)i (%(progressPercentage)i%%)", expectedLength=itemCount, value=0)
+				progressReporter.update(statusMessage=" checksumming item ", progressTemplate="%(value)i of %(expectedLength)i (%(progressPercentage)i%%)", expectedLength=itemCount, value=0)
 			
 			# process the items
 			processedCount = 0
@@ -269,12 +269,12 @@ def checksum(location, tempFolderPrefix="InstaDMGtemp", checksumType="sha1", dis
 				tempFolderManager.addManagedItem(localCopyPath)
 			
 			if progressReporter is not None:
-				progressReporter.update(statusMessage="checksumming: ", progressTemplate='%(progressPercentage)i%% (%(recentRateInBytes)s)', expectedLength=targetLength, value=0)
+				progressReporter.update(statusMessage=" checksumming: ", progressTemplate='%(progressPercentage)i%% (%(recentRateInBytes)s)', expectedLength=targetLength, value=0)
 			
 			processedBytes, processSeconds = checksumFileObject(hashGenerator, readFile, os.path.basename(location), targetLength, chunkSize=chunkSize, copyToPath=localCopyPath, progressReporter=progressReporter)
 			
 			if progressReporter is not None:
-				progressReporter.update(statusMessage='checksummed (%s) in %s (%s/sec)' % (bytesToRedableSize(processedBytes), secondsToReadableTime(processSeconds), bytesToRedableSize(processedBytes/processSeconds)))
+				progressReporter.update(statusMessage=' checksummed (%s) in %s (%s/sec)' % (bytesToRedableSize(processedBytes), secondsToReadableTime(processSeconds), bytesToRedableSize(processedBytes/processSeconds)))
 			
 			readFile.close()
 			

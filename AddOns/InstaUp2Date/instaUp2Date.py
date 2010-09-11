@@ -9,8 +9,10 @@ import hashlib, urlparse, subprocess, datetime
 
 import Resources.pathHelpers			as pathHelpers
 import Resources.commonConfiguration	as commonConfiguration
+import Resources.displayTools			as displayTools
 from Resources.tempFolderManager		import tempFolderManager
 from Resources.installerPackage			import installerPackage
+from Resources.cacheController			import cacheController
 from Resources.commonExceptions			import FileNotFoundException, CatalogNotFoundException
 
 #------------------------------SETTINGS------------------------------
@@ -37,7 +39,7 @@ class instaUpToDate:
 	#---------------------Class Variables-----------------------------
 	
 	sectionStartParser		= re.compile('^(?P<sectionName>[^\t]+):\s*(#.*)?$')
-	packageLineParser		= re.compile('^\t(?P<displayName>[^\t]*)\t(?P<fileLocation>[^\t]+)\t(?P<fileChecksum>\S+)\s*(#.*)?$')
+	packageLineParser		= re.compile('^\t(?P<displayName>[^\t]*)\t(?P<fileLocation>[^\t]+)\t(?P<fileChecksum>\S+)(\t(?P<installerChoicesFile>[^\t\n]+))?\s*(#.*)?$')
 	emptyLineParser			= re.compile('^\s*(?P<comment>#.*)?$')
 	settingLineParser		= re.compile('^(?P<variableName>[^=]+) = (?P<variableValue>.*)')
 	includeLineParser		= re.compile('^\s*include-file:\s+(?P<location>.*)(\s*#.*)?$')
@@ -246,9 +248,10 @@ class instaUpToDate:
 					raise Exception('Every item must belong to a section') # TODO: improve error handling
 				
 				thisPackage = installerPackage(
-					displayName = packageLineMatch.group("displayName"),
-					sourceLocation = packageLineMatch.group("fileLocation"),
-					checksumString = packageLineMatch.group("fileChecksum"),
+					displayName				= packageLineMatch.group("displayName"),
+					sourceLocation			= packageLineMatch.group("fileLocation"),
+					checksumString			= packageLineMatch.group("fileChecksum"),
+					installerChoices		= packageLineMatch.group("installerChoicesFile")
 				)
 				
 				print('\t' + packageLineMatch.group("displayName"))
@@ -267,7 +270,9 @@ class instaUpToDate:
 		
 		for thisSectionName in self.packageGroups:
 			for thisItem in self.packageGroups[thisSectionName]:
-				thisItem.findItem()
+				# progressReporter
+				progressReporter = displayTools.statusHandler(taskMessage='	' + thisItem.displayName + ' -')
+				thisItem.findItem(progressReporter=progressReporter)
 	
 	def arrangeFolders(self, sectionFolders=None):
 		"Create the folder structure in the InstaDMG areas, and pop in soft-links to the items in the cache folder"
@@ -297,12 +302,15 @@ class instaUpToDate:
 				targetFileName = fileNameFormat % (itemCounter, thisItem.displayName)
 				targetFilePath = pathHelpers.normalizePath(os.path.join(updateFolder, targetFileName), followSymlink=True)
 				
-				if os.path.isabs(targetFilePath):
+				if thisItem.installerChoicesPath is None:
+					# a straight link to the file
 					os.symlink(thisItem.filePath, targetFilePath)
+				
 				else:
-					pathFromTargetToSource = os.path.relpath(thisItem.filePath, os.path.dirname(targetFilePath))
-					os.symlink(pathFromTargetToSource, targetFilePath)
-				# ToDo: capture and better explain any errors here
+					# build a folder linking the item ant the choices path into it
+					os.mkdir(targetFilePath)
+					os.symlink(thisItem.filePath, os.path.join(targetFilePath, os.path.basename(thisItem.filePath)))
+					os.symlink(thisItem.installerChoicesPath, os.path.join(targetFilePath, 'installerChoices.xml'))
 				
 				assert os.path.exists(targetFilePath), "Something went wrong linking from %s to %s" % (targetFilePath, pathFromTargetToSource) # this should catch bad links
 				
@@ -310,15 +318,15 @@ class instaUpToDate:
 				
 		return True
 	
-	def setupInstaDMGFolders(self):
-		'''Clean the chosen folders, and setup the package groups. This will only remove folders and symlinks, not actual data.'''
+	def cleanInstaDMGFolders(self):
+		'''Clean the chosen folders, removing folders and symlinks, not actual data.'''
 		
 		assert isinstance(self.sectionFolders, list), "sectionfolders is required, and must be a list of dicts"
 		
 		for sectionFolder in self.sectionFolders:
 			assert isinstance(sectionFolder, dict) and "folderPath" in sectionFolder and "sections" in sectionFolder, "sectionfolder information must be a dict with a 'folderPath' value, instead got: %s" % sectionFolder
 			assert os.path.isdir(sectionFolder['folderPath']), "The sectionfolder did not seem to exist: %s" % sectionFolder['folderPath']
-			assert os.path.isabs(sectionFolder['folderPath']), "setupInstaDMGFolders was passed a non-abs path to a folder: %s" % sectionFolder['folderPath']
+			assert os.path.isabs(sectionFolder['folderPath']), "cleanInstaDMGFolders was passed a non-abs path to a folder: %s" % sectionFolder['folderPath']
 			
 			# clean the folders
 			for thisItem in os.listdir(sectionFolder['folderPath']):
@@ -481,13 +489,15 @@ def main ():
 	
 	# ----- setup system ----
 	
+	# ToDo: evaluate removing these
+	
 	try:
-		installerPackage.setCacheFolder(options.cacheFolder)
+		cacheController.setCacheFolder(options.cacheFolder)
 	except ValueError, error:
 		optionsParser.error(error)
 	
 	try:
-		installerPackage.addSourceFolders(options.searchFolders)
+		cacheController.addSourceFolders(options.searchFolders)
 	except ValueError, error:
 		optionsParser.error(error)	
 	
@@ -515,8 +525,9 @@ def main ():
 	# run the job
 	for thisController in controllers:
 		
-		# empty the folders
-		thisController.setupInstaDMGFolders()
+		if options.processWithInstaDMG == False:
+			# empty the folders
+			thisController.cleanInstaDMGFolders()
 		
 		# create the folder strucutres needed
 		thisController.arrangeFolders(sectionFolders=sectionFolders)
