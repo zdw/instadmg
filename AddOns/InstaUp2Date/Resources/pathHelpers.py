@@ -6,6 +6,9 @@ import os, sys
 
 def normalizePath(inputPath, followSymlink=False):
 	
+	if inputPath is None:
+		return None
+	
 	inputPath = str(inputPath)
 	
 	if inputPath == "/":

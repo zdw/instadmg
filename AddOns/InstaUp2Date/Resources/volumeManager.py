@@ -3,6 +3,8 @@
 import os, subprocess, Foundation
 
 import pathHelpers
+import volumeTools
+
 from managedSubprocess import managedSubprocess
 from tempFolderManager import tempFolderManager
 
@@ -170,7 +172,7 @@ class volumeManager(object):
 			raise ValueError('Can not unmount the root partition, this is definatley a bug')
 		
 		if os.path.ismount(mountPath):
-			tempFolderManager.unmountVolume(mountPath)
+			volumeTools.unmountVolume(mountPath)
 		# ToDo: otherwise check to see if it is mounted by dev entry
 	
 	#---------- instance methods ----------
