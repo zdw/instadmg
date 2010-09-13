@@ -7,29 +7,7 @@ import Resources.commonConfiguration	as commonConfiguration
 from Resources.tempFolderManager		import tempFolderManager
 from Resources.managedSubprocess		import managedSubprocess
 from Resources.displayTools				import secondsToReadableTime, bytesToRedableSize
-from volumeManager						import dmgManager
-
-def unmountDMG(mountPoint):
-	
-	print('	Unmounting: %s' % mountPoint)
-	
-	if not os.path.ismount(mountPoint):
-		raise Exception('The item "%s" was not a mount point, so it can not be unmounted' % mountPoint)
-	
-	command = ['/usr/bin/hdiutil', 'eject', mountPoint]
-
-	if subprocess.call(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE) != 0:
-		print('The image did not unmount cleanly, forcing: %s' % mountPoint)
-		
-		command = ['/usr/bin/hdiutil', 'eject', '-force', mountPoint]
-		subprocess.call(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-def isValidDMG(pathToDGM):
-	hdiutilCommand = ["/usr/bin/hdiutil", "imageinfo", pathToDGM]
-	if subprocess.call(hdiutilCommand, stdout=subprocess.PIPE, stderr=subprocess.PIPE) == 0:
-		return True
-	else:
-		return False
+from Resources.containerController		import newContainerForPath
 
 if __name__ == "__main__":
 	import optparse, sys, os, re, tempfile, shutil
@@ -76,7 +54,7 @@ if __name__ == "__main__":
 	if len(arguments) == 0:
 		arguments.append(os.path.join(pathToInstaDMGFolder, "OutputFiles"))
 	
-	sourceFiles = {}
+	sourceFiles = []
 	
 	# check the arguments as valid sources
 	for thisArgument in arguments:
@@ -85,41 +63,31 @@ if __name__ == "__main__":
 			# Possible ToDo: recurse into directories
 			foundFiles = []
 			for thisFile in os.listdir(thisArgument):
-				if not thisFile.lower().endswith(".dmg"):
-					continue
 				
-				resolvedPath = pathHelpers.normalizePath(os.path.join(thisArgument, thisFile), followSymlink=True)
+				thisItem = newContainerForPath(os.path.join(thisArgument, thisFile))
 				
-				if dmgManager.verifyIsDMG(resolvedPath):
-					foundFiles.append(resolvedPath)
+				if thisItem.isContainerType('dmg'):
+					sourceFiles.append(thisItem)
 				else:
-					sys.stderr.write("Warning: file is not a valid dmg: %s\n" % resolvedPath)
-			
-			if len(foundFiles) > 0:
-				for thisFile in foundFiles:
-					sourceFiles[thisFile] = True
-			else:
-				sys.stderr.write("Error: folder does not contain any valid dmgs: %s\n" % thisArgument)
-				sys.exit(1)
+					optionParser.error("A given file is not a valid dmg: %s\n" % resolvedPath)
 		
 		elif os.path.isfile(thisArgument):
-			resolvedPath = pathHelpers.normalizePath(thisArgument, followSymlink=True)
 			
-			if isValidDMG( resolvedPath ):
-				sourceFiles[resolvedPath] = True
+			thisItem = newContainerForPath(thisArgument)
+			if thisItem.isContainerType('dmg'):
+				sourceFiles.append(thisItem)
 			else:
-				sys.stderr.write("Error: file is not a valid dmgs: %s\n" % thisArgument)
-				sys.exit(1)
+				optionParser.error("A given file is not a valid dmg: %s\n" % resolvedPath)
 		
 		else:
-			sys.stderr.write("Error: argument given was neither a dmg file, nor a folder of dmgs: %s\n" % thisArgument)
-			sys.exit(1)
+			optionParser.error("Argument given was neither a dmg file, nor a folder of dmgs: %s\n" % thisArgument)
 	
-	assert len(sourceFiles) > 0, "There were no valid source files, this should not be possible"	
+	if not len(sourceFiles) > 0:
+		optionParser.error("There were no valid source files")
 	
 	# confirm that all of the images are restoreable onto the target volume
-	for thisImage in sourceFiles.keys():
-		diskutilCommand = ["/usr/bin/hdiutil", "imageinfo", "-plist", thisImage]
+	for thisImage in sourceFiles:
+		diskutilCommand = ["/usr/bin/hdiutil", "imageinfo", "-plist", thisImage.getStoragePath()]
 		process = managedSubprocess(diskutilCommand, processAsPlist=True)
 		plistData = process.getPlistObject()
 		
@@ -135,7 +103,11 @@ if __name__ == "__main__":
 	if restorePointName != None:
 		targetVolumeDisplay = "'%s' (%s)" % (restorePointName, restorePoint)
 	
-	print("Profiling will be done by restoring to %s using the following dmg%s:\n\t%s\n" % (targetVolumeDisplay, pluralEnding, "\n\t".join(sourceFiles.keys())))
+	listOfDMGFiles = []
+	for thisDMG in sourceFiles:
+		listOfDMGFiles.append(thisDMG.getStoragePath())
+	
+	print("Profiling will be done by restoring to %s using the following dmg%s:\n\t%s\n" % (targetVolumeDisplay, pluralEnding, "\n\t".join(listOfDMGFiles)))
 	
 	# warn the user
 	choice = raw_input('WARNING: All data on the volume %s will be ERASED! Are you sure you want to continue? (Y/N):' % targetVolumeDisplay)
@@ -143,7 +115,7 @@ if __name__ == "__main__":
 		print("Canceling")
 		sys.exit()
 	
-	print ("\nTesting will now start. This will probably take many hours.\n\n==================Start testing data==================")
+	print("\nTesting will now start. This will probably take many hours.\n\n==================Start testing data==================")
 	
 	# grab the relevent data from system_profiler
 	systemProfilerCommand = ["/usr/sbin/system_profiler", "-xml", "SPHardwareDataType"]
@@ -158,7 +130,6 @@ if __name__ == "__main__":
 	# ToDo: print out the information about the disk the restore volume is on
 		
 	# create a tempfile location for asr to write onto
-
 	
 	# create the tempMountPoint to mount the image to
 	tempMountPoint = tempFolderManager.getNewTempFolder(prefix="sourceMountPoint.")
@@ -167,12 +138,14 @@ if __name__ == "__main__":
 	hdiutilOutfilePath = tempFolderManager.getNewTempFile(prefix="outputFile.", suffix=".dmg")
 	
 	# process things
-	for thisSourceFile in sourceFiles.keys():
+	for thisDMG in sourceFiles:
+		
+		thisDMGWithShadow = thisDMG.getVersionWithShadowFile(thisDMG.getStoragePath(), shadowFile=True)
 		
 		# the source options to use
 		sourceOptions = [
 			{"message":"Creating image from volume", "command":["/usr/bin/hdiutil", "create", "-nocrossdev", "-ov", "-srcfolder", tempMountPoint, hdiutilOutfilePath], "mountImage":True},
-			{"message":"Converting dmg image directly", "command":["/usr/bin/hdiutil", "convert", thisSourceFile, "-o", hdiutilOutfilePath, "-ov"]}
+			{"message":"Converting dmg image directly", "command":["/usr/bin/hdiutil", "convert", thisDMG.getStoragePath(), "-o", hdiutilOutfilePath, "-ov"]}
 		]
 		
 		# output options to use		
@@ -199,8 +172,10 @@ if __name__ == "__main__":
 			
 			if "mountImage" in thisSourceOption and thisSourceOption["mountImage"] == True:
 				
-				print('	Mounting: %s at %s' % (thisSourceFile, tempMountPoint))
-				dmgManager.mountImage(thisSourceFile, mountPoint=tempMountPoint, shadowFile=True):
+				print('	Mounting: %s at %s' % (thisDMG.getStoragePath(), tempMountPoint))
+				if thisDMGWithShadow.getShadowFile() is not None and os.path.exists(thisDMGWithShadow.getShadowFile()):
+					os.unlink(thisDMGWithShadow.getShadowFile())
+				thisDMGWithShadow.mount(mountPoint=tempMountPoint)
 				
 				# fsck the file to rebuild the file catalog
 				#command = ['/sbin/fsck_hfs', '-r', tempMountPoint]
@@ -285,7 +260,7 @@ if __name__ == "__main__":
 					os.unlink(asrTargetFile) # cleanup the targetFile
 			
 			if "mountImage" in thisSourceOption and thisSourceOption["mountImage"] == True:
-				dmgManager.unmountVolume(tempMountPoint)
+				thisDMGWithShadow.unmount()
 				
 	sys.exit(0)
 

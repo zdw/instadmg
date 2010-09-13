@@ -2,7 +2,10 @@
 
 import weakref, warnings
 
-from .pathHelpers			import normalizePath
+try:
+	from .pathHelpers			import normalizePath
+except ImportError:
+	from .Resources.pathHelpers			import normalizePath
 
 class container(object):
 	'''An abstract class underlying file, folder, volume, and dmg classes'''
@@ -22,8 +25,6 @@ class container(object):
 	
 	matchScoreIncrement		= 5
 	
-	
-	
 	# ------ instance methods
 	
 	def __new__(myClass, itemPath, processInformation=None, **kwargs):
@@ -39,6 +40,12 @@ class container(object):
 		thisKey = itemPath
 		for thisAttribute in myClass.uniqueAttributes:
 			if thisAttribute in kwargs:
+				thisValue = kwargs[thisAttribute]
+				
+				if hasattr(myClass, 'validate' + thisAttribute.title()):
+					
+					kwargs[thisAttribute] = getattr(myClass, 'validate' + thisAttribute.title())(thisValue)
+				
 				thisKey += ":" + kwargs[thisAttribute]
 		
 		# check if we already have an object for this
@@ -46,6 +53,11 @@ class container(object):
 			with warnings.catch_warnings():
 				warnings.simplefilter("ignore")
 				returnObject = object.__new__(myClass, itemPath, processInformation, **kwargs)
+				
+				# do the setup on this object with the modified values
+				returnObject.__init__(itemPath, processInformation, **kwargs)
+				
+				# get a weak refernce
 				myClass.__instances__[thisKey] = returnObject
 		
 		return myClass.__instances__[thisKey]
@@ -56,7 +68,7 @@ class container(object):
 		
 			self.filePath = itemPath
 			
-			self.classInit(itemPath, processInformation, *kwargs)
+			self.classInit(itemPath, processInformation, **kwargs)
 		
 		self.itemAlreadySetup = True
 	
@@ -80,6 +92,16 @@ class container(object):
 		return self.filePath
 	
 	# ------ class methods
+	
+	@classmethod
+	def isContainerType(myClass, thisType):
+		'''If this item/class is the class or a subclass of the type given'''
+		
+		for thisClass in myClass.__mro__:
+			if thisClass.__name__ == str(thisType):
+				return True
+		
+		return False
 	
 	@classmethod
 	def getSubclasses(myClass):

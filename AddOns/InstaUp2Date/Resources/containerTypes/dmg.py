@@ -3,9 +3,19 @@
 import os, re, time
 
 from volume		import volume
-from .managedSubprocess		import managedSubprocess
-from .volumeTools			import unmountVolume
-from .tempFolderManager		import tempFolderManager
+
+try:
+	from .managedSubprocess					import managedSubprocess
+	from .volumeTools						import unmountVolume
+	from .tempFolderManager					import tempFolderManager
+	from .pathHelpers						import normalizePath
+	
+except ImportError:
+	from .Resources.managedSubprocess		import managedSubprocess
+	from .Resources.volumeTools				import unmountVolume
+	from .Resources.tempFolderManager		import tempFolderManager
+	from .Resources.pathHelpers				import normalizePath
+
 
 class dmg(volume):
 	
@@ -27,29 +37,7 @@ class dmg(volume):
 		
 		# -- validate and store input
 		
-		# shadowFile
-		if shadowFile is True:
-			# generate a temporary one
-			shadowFile = tempFolderManager.getNewTempFile(suffix='.shadow')
-			
-		elif shadowFile is not None:
-			shadowFile = pathHelpers.normalizePath(shadowFile, followSymlink=True)
-			
-			if os.path.isfile(shadowFile): # work here
-				pass # just use the file
-			
-			elif os.path.isdir(shadowFile):
-				# a directory to put the shadow file in
-				shadowFile = tempFolderManager.getNewTempFile(parentFolder=shadowFile, suffix='.shadow')
-			
-			elif os.path.isdir(os.path.dirname(shadowFile)):
-				# the path does not exist, but the directory it is in looks good
-				pass
-			
-			else:
-				# not valid
-				raise ValueError('The path given for the shadow file does not look valid: ' + str(shadowFile))
-		self.shadowFile = shadowFile
+		self.shadowFilePath = self.validateShadowfile(shadowFile)
 	
 	def getMountPoint(self):
 		'''Get the mount point with the current shadow file settings'''
@@ -60,7 +48,7 @@ class dmg(volume):
 				# make sure the shadowPath settings match
 				if (self.shadowFilePath is None and 'shadowFilePath' in thisMount) or (self.shadowFilePath is not None and 'shadowFilePath' not in thisMount):
 					continue
-				if self.shadowFilePath is not None and not os.path.samefile(self.shadowFilePath, thisMount['shadowFilePath']):
+				if self.shadowFilePath is not None and not normalizePath(self.shadowFilePath) == normalizePath(thisMount['shadowFilePath']):
 					continue
 				
 				return thisMount['mountPoint']
@@ -87,7 +75,7 @@ class dmg(volume):
 			if os.path.samefile(mountPoint, currentMountPoint):
 				return # nothing to do here
 			else:
-				raise ValueError('This image (%s) was already mounted with the same settings (shadowFile = %s)' % (self.getStoragePath(), self.shadowFile))
+				raise ValueError('This image (%s) was already mounted with the same settings (shadowFile = %s)' % (self.getStoragePath(), self.shadowFileFalth))
 		
 		elif mountPoint is not None and os.path.ismount(mountPoint):
 			raise ValueError('mount() called with a mountPoint that is already a mount point: ' + mountPoint)
@@ -100,7 +88,7 @@ class dmg(volume):
 			raise ValueError('mount() called with a mountPoint that already exists and is not a folder: ' + mountPoint)
 		
 		elif mountPoint is not None: # it has to be a suitable directory at this point
-			mountPoint = pathHelpers.normalizePath(mountPoint, followSymlink=True)
+			mountPoint = normalizePath(mountPoint, followSymlink=True)
 			tempFolderManager.addManagedMount(mountPoint)
 		
 		elif mountInFolder is not None and not os.path.isdir(mountInFolder):
@@ -134,8 +122,8 @@ class dmg(volume):
 		else:
 			command += ['-verify', '-autofsck']
 		
-		if self.shadowFile is not None:
-			command += ['-shadow', self.shadowFile]
+		if self.shadowFilePath is not None:
+			command += ['-shadow', self.shadowFilePath]
 		
 		# -- run the command
 		
@@ -171,6 +159,34 @@ class dmg(volume):
 		return self.getMountPoint()
 	
 	# ------ class methods
+	
+	@classmethod
+	def validateShadowfile(self, shadowFile):
+		
+		# shadowFile
+		if shadowFile is True:
+			# generate a temporary one
+			shadowFile = tempFolderManager.getNewTempFile(suffix='.shadow')
+			
+		elif shadowFile is not None:
+			shadowFile = normalizePath(shadowFile, followSymlink=True)
+			
+			if os.path.isfile(shadowFile): # work here
+				pass # just use the file
+			
+			elif os.path.isdir(shadowFile):
+				# a directory to put the shadow file in
+				shadowFile = tempFolderManager.getNewTempFile(parentFolder=shadowFile, suffix='.shadow')
+			
+			elif os.path.isdir(os.path.dirname(shadowFile)):
+				# the path does not exist, but the directory it is in looks good
+				pass
+			
+			else:
+				# not valid
+				raise ValueError('The path given for the shadow file does not look valid: ' + str(shadowFile))
+		
+		return shadowFile
 	
 	@classmethod
 	def getVersionWithShadowFile(myClass, imageFile, shadowFile=None):

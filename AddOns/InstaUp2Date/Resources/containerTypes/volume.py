@@ -3,7 +3,13 @@
 import os
 
 from folder					import folder
-from .managedSubprocess		import managedSubprocess
+
+try:
+	from .managedSubprocess					import managedSubprocess
+except ImportError:
+	from .Resources.managedSubprocess		import managedSubprocess
+
+
 
 class volume(folder):
 	
