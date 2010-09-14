@@ -63,13 +63,13 @@ class cacheController:
 	@classmethod
 	def addSourceFolders(myClass, newSourceFolders):
 		
-		# check to make sure that the class is in a useable state
+		# -- sanity check
 		if not isinstance(myClass.sourceFolders, list):
-			raise RuntimeWarning("The %s class's sourceFolders value was not useable, something has gone wrong prior to this: %s" % (myClass.__name__, str(myClass.writeableCacheFolder)))
+			raise RuntimeWarning("The %s class's sourceFolders value was not useable, something has gone wrong prior to this" % myClass.__name__)
 		
 		foldersToAdd = []
 		
-		# process everything into a neet list
+		# -- force newSourceFolders to be a list
 		if isinstance(newSourceFolders, str):
 			foldersToAdd.append(newSourceFolders)
 		
@@ -83,16 +83,60 @@ class cacheController:
 		else:
 			raise ValueError("The value given to %s class's addSourceFolders method was not useable: %s" % (myClass.__name__, str(newSourceFolders)))
 		
-		# process the items in the list
+		# -- process the items
 		for thisFolder in foldersToAdd:
-			if not os.path.isdir(thisFolder):
-				raise ValueError("The value given to %s class's addSourceFolders was not useable: %s" % (myClass.__name__, str(newSourceFolders)))
 			
-			# normalize the path
-			thisFolder = pathHelpers.normalizePath(thisFolder, followSymlink=True)
+			# remove file://
+			if thisFolder.lower().startswith('file://'):
+				thisFolder = thisFolder[len('file://'):]
+			
+			parsedLocation = urlparse.urlparse(thisFolder)
+			
+			if parsedLocation.scheme in ['http', 'https']:
+				# web caches
 				
-			if not thisFolder in myClass.sourceFolders:
-				myClass.sourceFolders.append(thisFolder)
+				# open a connection, and see if we get a responce
+				
+				try:
+					readFile = urllib2.urlopen(thisFolder)
+					
+				except HTTPError, error:
+					if error.code in [403]: # these might mean that the directory can't be listed
+						myClass.sourceFolders.append(thisFolder)
+					else:
+						raise Exception('Got status code: %s while trying to connect to remote url: %s' % (str(error.code), thisFolder))
+				
+				except URLError, error:
+					# a bad network connection, or url
+					raise Exception('Unable to connect to remote url: %s got error: %s' % (thisFolder, error.reason))
+				readFile.close()
+				
+				# a 200 responce
+				myClass.sourceFolders.append(thisFolder)	
+			
+			elif parsedLocation.scheme == '':
+				# local path
+				
+				if not os.path.isdir(thisFolder):
+					raise ValueError("The value given to %s class's addSourceFolders was not a directory as is required: %s" % (myClass.__name__, str(thisFolder)))
+				
+				# normalize the path
+				thisFolder = pathHelpers.normalizePath(thisFolder, followSymlink=True)
+				
+				if not thisFolder in myClass.sourceFolders:
+					myClass.sourceFolders.append(thisFolder)
+			
+			else:
+				raise ValueError("The value given to %s class's addSourceFolders was not useable: %s" % (myClass.__name__, str(thisFolder)))
+			
+			
+			
+			
+
+			
+			
+				
+			
 	
 	@classmethod
 	def getSourceFolders(myClass):
@@ -184,11 +228,12 @@ class cacheController:
 			if progressReporter is not None:
 				progressReporter.update(statusMessage=' looking at an absolute location')
 			resultPath = myClass.findItemInCaches(None, checksumType, checksumValue, displayName, additionalSourceFolders, progressReporter)
-			# note: if there is nothing at this path, we will get an error before this
-			if progressReporter is not None:
-				progressReporter.update(statusMessage=' found at an absolute location and verified in %s' % (displayTools.secondsToReadableTime(time.time() - startTime)))
-				progressReporter.finishLine()
-			return resultPath
+			if resultPath is not None:
+				# note: if there is nothing at this path, we will get an error before this
+				if progressReporter is not None:
+					progressReporter.update(statusMessage=' found at an absolute location and verified in %s' % (displayTools.secondsToReadableTime(time.time() - startTime)))
+					progressReporter.finishLine()
+				return resultPath
 		
 		# -- try relative path
 		parsedNameOrLocation = urlparse.urlparse(nameOrLocation)
@@ -196,11 +241,12 @@ class cacheController:
 			if progressReporter is not None:
 				progressReporter.update(statusMessage=' looking at relative locations')
 			resultPath = myClass.findItemInCaches(nameOrLocation, checksumType, checksumValue, displayName, additionalSourceFolders, progressReporter)
-			# note: if there is nothing at this path, we will get an error before this
-			if progressReporter is not None:
-				progressReporter.update(statusMessage=' found at a relative location and verified in %s' % (displayTools.secondsToReadableTime(time.time() - startTime)))
-				progressReporter.finishLine()
-			return resultPath
+			if resultPath is not None:
+				# note: if there is nothing at this path, we will get an error before this
+				if progressReporter is not None:
+					progressReporter.update(statusMessage=' found at a relative location and verified in %s' % (displayTools.secondsToReadableTime(time.time() - startTime)))
+					progressReporter.finishLine()
+				return resultPath
 		
 		# -- based on checksum
 		
@@ -383,7 +429,7 @@ class cacheController:
 		# absolute paths
 		if nameOrLocation is not None and os.path.isabs(nameOrLocation):
 			if os.path.exists(nameOrLocation):
-				if checksumValue == checksum(nameOrLocation, checksumType=checksumType, progressReporter=progressReporter)['checksum']:
+				if checksumValue == checksum.checksum(nameOrLocation, checksumType=checksumType, progressReporter=progressReporter)['checksum']:
 					return nameOrLocation
 				else:
 					raise FileNotFoundException('The item at the path given does not match the checksum given: ' + nameOrLocation)
@@ -391,46 +437,58 @@ class cacheController:
 				raise FileNotFoundException('No file/folder existed at the absolute path: ' + nameOrLocation)
 		# relative path
 		elif nameOrLocation is not None and nameOrLocation.count(os.sep) > 0 and os.path.exists(nameOrLocation):
-			if checksumValue == checksum(nameOrLocation, checksumType=checksumType, progressReporter=progressReporter)['checksum']:
+			if checksumValue == checksum.checksum(nameOrLocation, checksumType=checksumType, progressReporter=progressReporter)['checksum']:
 				return pathHelpers.normalizePath(nameOrLocation, followSymlink=True)
 		
 		# cache folders
 		for thisCacheFolder in foldersToSearch:
 			
-			# relative paths from the source folders
-			if nameOrLocation is not None and nameOrLocation.count(os.sep) > 0 and os.path.exists(os.path.join(thisCacheFolder, nameOrLocation)):
-				if checksumValue == checksum.checksum(os.path.join(thisCacheFolder, nameOrLocation), checksumType=checksumType, progressReporter=progressReporter)['checksum']:
-					return pathHelpers.normalizePath(os.path.join(thisCacheFolder, nameOrLocation), followSymlink=True)
+			parsedLocation = urlparse.urlparse(thisCacheFolder)
 			
-			# walk up through the whole set
-			for currentFolder, dirs, files in os.walk(thisCacheFolder, topdown=True):
+			if parsedLocation.scheme in ['http', 'https']:
+				raise NotImplementedError('Work on local web caches is ongoing')
+				# try relative paths on the server
 				
-				# check each file to see if it is what we are looking for
-				for thisItemPath, thisItemName in [[os.path.join(currentFolder, internalName), internalName] for internalName in (files + dirs)]:
+				# !!!!!!!!!! TODO WORK HERE !!!!!!!!!!
+			
+			elif parsedLocation.scheme == '':
+			
+				# relative paths from the source folders
+				if nameOrLocation is not None and nameOrLocation.count(os.sep) > 0 and os.path.exists(os.path.join(thisCacheFolder, nameOrLocation)):
+					if checksumValue == checksum.checksum(os.path.join(thisCacheFolder, nameOrLocation), checksumType=checksumType, progressReporter=progressReporter)['checksum']:
+						return pathHelpers.normalizePath(os.path.join(thisCacheFolder, nameOrLocation), followSymlink=True)
+				
+				# walk up through the whole set
+				for currentFolder, dirs, files in os.walk(thisCacheFolder, topdown=True):
 					
-					# checksum in name
-					fileNameSearchResults = myClass.fileNameChecksumRegex.search(thisItemName)
-					
-					nameChecksumType = None
-					nameChecksumValue = None
-					if fileNameSearchResults is not None:
-						nameChecksumType = fileNameSearchResults.group('checksumType')
-						nameChecksumValue = fileNameSearchResults.group('checksumValue')
-					
-						if nameChecksumType is not None and nameChecksumType.lower() == checksumType.lower() and nameChecksumValue is not None and nameChecksumValue == checksumValue:
-							if checksumValue == checksum.checksum(thisItemPath, checksumType=checksumType, progressReporter=progressReporter)['checksum']:
-								return thisItemPath
-					
-					# file name
-					if nameOrLocation is not None:
-						if nameOrLocation in [thisItemName, os.path.splitext(thisItemName)[0]] or os.path.splitext(nameOrLocation)[0] in [thisItemName, os.path.splitext(thisItemName)[0]]:
-							if checksumValue == checksum.checksum(thisItemPath, checksumType=checksumType, progressReporter=progressReporter)['checksum']:
-								return thisItemPath
-					
-					# don't decend into folders that look like bundles or sparce dmg's
-					if os.path.isdir(thisItemPath):
-						if os.listdir(thisItemPath) == ["Contents"] or os.listdir(thisItemPath) == ["Info.bckup", "Info.plist", "bands", "token"]:
-							dirs.remove(thisItemName)
+					# check each file to see if it is what we are looking for
+					for thisItemPath, thisItemName in [[os.path.join(currentFolder, internalName), internalName] for internalName in (files + dirs)]:
+						
+						# checksum in name
+						fileNameSearchResults = myClass.fileNameChecksumRegex.search(thisItemName)
+						
+						nameChecksumType = None
+						nameChecksumValue = None
+						if fileNameSearchResults is not None:
+							nameChecksumType = fileNameSearchResults.group('checksumType')
+							nameChecksumValue = fileNameSearchResults.group('checksumValue')
+						
+							if nameChecksumType is not None and nameChecksumType.lower() == checksumType.lower() and nameChecksumValue is not None and nameChecksumValue == checksumValue:
+								if checksumValue == checksum.checksum(thisItemPath, checksumType=checksumType, progressReporter=progressReporter)['checksum']:
+									return thisItemPath
+						
+						# file name
+						if nameOrLocation is not None:
+							if nameOrLocation in [thisItemName, os.path.splitext(thisItemName)[0]] or os.path.splitext(nameOrLocation)[0] in [thisItemName, os.path.splitext(thisItemName)[0]]:
+								if checksumValue == checksum.checksum(thisItemPath, checksumType=checksumType, progressReporter=progressReporter)['checksum']:
+									return thisItemPath
+						
+						# don't decend into folders that look like bundles or sparce dmg's
+						if os.path.isdir(thisItemPath):
+							if os.listdir(thisItemPath) == ["Contents"] or os.listdir(thisItemPath) == ["Info.bckup", "Info.plist", "bands", "token"]:
+								dirs.remove(thisItemName)
+			else:
+				raise ValueError('The cache folder "%s" was not a format that findItemInCaches understood' % thisCacheFolder)
 			
 		return None
 	

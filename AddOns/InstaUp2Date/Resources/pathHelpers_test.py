@@ -4,7 +4,7 @@ import os, unittest
 
 import pathHelpers
 
-class volumeManagerTests(unittest.TestCase):
+class pathHelpersTests(unittest.TestCase):
 	'''Test the pathHelper functions'''
 	
 	def normalizePathTestHelper(self, testPath, expectedResult):
@@ -29,8 +29,9 @@ class volumeManagerTests(unittest.TestCase):
 		# relative with trailing slash
 		self.normalizePathTestHelper('probably_does_not_exist/', os.path.join(os.getcwd(), 'probably_does_not_exist'))
 		
-		# tilde test
+		# tilde tests
 		self.normalizePathTestHelper('~/probably_does_not_exist/', os.path.expanduser('~/probably_does_not_exist'))
+		self.normalizePathTestHelper('~/Library/', os.path.expanduser('~/Library'))
 		
 		# test root
 		self.normalizePathTestHelper('/', '/')

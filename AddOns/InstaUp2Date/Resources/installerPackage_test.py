@@ -7,7 +7,7 @@ from installerPackage		import installerPackage
 import commonConfiguration
 from tempFolderManager 		import tempFolderManager
 from commonExceptions		import FileNotFoundException
-from volumeManager			import dmgManager
+from containerController	import newContainerForPath
 from cacheController		import cacheController
 
 from cacheController_test	import cacheControllerTest
@@ -29,10 +29,11 @@ class packageTesting(unittest.TestCase):
 		sampleItemDMG.findItem(progressReporter=False)
 		
 		# mount the image
-		mountPoint = dmgManager.mountImage(sampleItemDMG.getItemLocalPath(), mountReadWrite=False)
+		dmgItem = newContainerForPath(sampleItemDMG.getItemLocalPath())
+		dmgItem.mount(mountReadWrite=False)
 		
-		samplePackagePath = os.path.join(mountPoint, 'AirPortClientUpdate2009001.pkg')
-		assert os.path.exists(samplePackagePath)
+		samplePackagePath = os.path.join(dmgItem.getWorkingPath(), 'AirPortClientUpdate2009001.pkg')
+		self.assertTrue(os.path.exists(samplePackagePath), 'Unable to setup the sameple package')
 		
 		self.samplePackagePath = samplePackagePath
 		

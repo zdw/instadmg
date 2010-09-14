@@ -112,9 +112,9 @@ class dmg(volume):
 		
 		command = ['/usr/bin/hdiutil', 'attach', self.getStoragePath(), '-plist', '-mountpoint', mountPoint, '-nobrowse', '-owners', 'on']
 		
-		if mountReadWrite is True and shadowFile is None and self.writeable is False:
+		if mountReadWrite is True and self.shadowFilePath is None and self.writeable is False:
 			shadowFile = tempFolderManager.getNewTempFile(suffix='.shadow')
-		elif mountReadWrite is False and shadowFile is None:
+		elif mountReadWrite is False and self.shadowFilePath is None:
 			command += ['-readonly']
 		
 		if paranoidMode is False:

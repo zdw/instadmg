@@ -157,5 +157,5 @@ class installerPackage:
 			progressReporter = displayTools.statusHandler(taskMessage='Searching for ' + nameOrLocation)
 		elif progressReporter is False:
 			progressReporter = None
-		 
+		
 		self.filePath = cacheController.findItem(self.source, self.checksumType, self.checksumValue, self.displayName, additionalSourceFolders, progressReporter)
