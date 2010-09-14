@@ -161,7 +161,7 @@ class cacheControllerTests(cacheControllerTest):
 		'''Test out the findItemInCaches method'''
 		
 		for thisTest in self.testMaterials:
-			resultPath = cacheController.findItemInCaches(thisTest['fileName'], thisTest['checksumType'], thisTest['checksumValue'], progressReporter=None)
+			resultPath, waste = cacheController.findItemInCaches(thisTest['fileName'], thisTest['checksumType'], thisTest['checksumValue'], progressReporter=None)
 			thisTest['resultPath'] = resultPath
 			self.assertEqual(thisTest['filePath'], resultPath, thisTest['errorMessage'] + ', should have been "%(filePath)s" but was: %(resultPath)s' % thisTest)
 	

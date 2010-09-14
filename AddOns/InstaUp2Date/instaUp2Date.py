@@ -524,17 +524,22 @@ def main ():
 	
 	# run the job
 	for thisController in controllers:
+		print('\nSetting up for ' + thisController.getMainCatalogName())
 		
 		if options.processWithInstaDMG == False:
 			# empty the folders
+			print('\tCleaning InstaDMG folders')
 			thisController.cleanInstaDMGFolders()
 		
 		# create the folder strucutres needed
+		print('\tSetting up InstaDMG folders')
 		thisController.arrangeFolders(sectionFolders=sectionFolders)
 		
 		if options.processWithInstaDMG == True:
 			# the run succeded, and it has been requested to run InstaDMG
 			thisController.runInstaDMG(scratchFolder=options.instadmgScratchFolder, outputFolder=options.instadmgOutputFolder)
+	
+	print('\nDone')
 		
 #------------------------------END MAIN------------------------------
 
