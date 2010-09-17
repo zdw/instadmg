@@ -26,7 +26,7 @@ class cacheController:
 		
 		if newCacheFolder is None:
 			raise ValueError('%s\'s setCacheFolder was given None as an input' % myClass.__name__)
-		elif not isinstance(newCacheFolder, str):
+		elif not hasattr(newCacheFolder, 'capitalize'):
 			raise ValueError('%s\'s setCacheFolder recieved a newCacheFolder value that it did not understand: %s' % (myClass.__name__, newCacheFolder))
 		elif not os.path.isdir(newCacheFolder):
 			raise ValueError('%s\'s setCacheFolder given a path that was not a valid directory: %s' % (myClass.__name__, newCacheFolder))
@@ -46,7 +46,7 @@ class cacheController:
 	
 	@classmethod
 	def getCacheFolder(myClass):
-		if not isinstance(myClass.writeableCacheFolder, str):
+		if not hasattr(myClass.writeableCacheFolder, 'capitalize'):
 			raise RuntimeWarning("The %s class's cacheFolder value was not useable: %s" % (myClass.__name__, str(myClass.writeableCacheFolder)))
 		
 		return myClass.writeableCacheFolder
@@ -70,12 +70,12 @@ class cacheController:
 		foldersToAdd = []
 		
 		# -- force newSourceFolders to be a list
-		if isinstance(newSourceFolders, str):
+		if hasattr(newSourceFolders, 'capitalize'):
 			foldersToAdd.append(newSourceFolders)
 		
 		elif hasattr(newSourceFolders, '__iter__'):
 			for thisFolder in newSourceFolders:
-				if not isinstance(thisFolder, str):
+				if not hasattr(thisFolder, 'capitalize'):
 					raise ValueError("One of the items given to %s class's addSourceFolders method was not a string: %s" % (myClass.__name__, str(thisFolder)))
 					
 				foldersToAdd.append(thisFolder)
@@ -143,12 +143,12 @@ class cacheController:
 		
 		foldersToRemove = []
 		
-		if isinstance(sourceFoldersToRemove, str):
+		if hasattr(sourceFoldersToRemove, 'capitalize'):
 			foldersToRemove.append(sourceFoldersToRemove)
 		
 		elif hasattr(sourceFoldersToRemove, '__iter__'):
 			for thisFolder in sourceFoldersToRemove:
-				if isinstance(thisFolder, str):
+				if hasattr(thisFolder, 'capitalize'):
 					foldersToRemove.append(thisFolder)
 				else:
 					raise ValueError("One of the items given to %s class's removeSourceFolders method was not a string: %s" % (myClass.__name__, str(thisFolder)))
@@ -172,27 +172,27 @@ class cacheController:
 		# ---- validate input
 		
 		# nameOrLocation
-		if not isinstance(nameOrLocation, str) and not nameOrLocation is None:
+		if not hasattr(nameOrLocation, 'capitalize') and not nameOrLocation is None:
 			raise ValueError('findItem requires a string as a nameOrLocation, but got: ' + nameOrLocation)
 		if nameOrLocation is not None and nameOrLocation.startswith('file://'):
 			nameOrLocation = nameOrLocation[len('file://'):]
 		
 		# checksumType
-		if not isinstance(checksumType, str):
+		if not hasattr(checksumType, 'capitalize'):
 			raise ValueError('findItem requires a string as a checksumType, but got: ' + checksumType)
 		
 		# checksumValue
-		if not isinstance(checksumValue, str):
+		if not hasattr(checksumValue, 'capitalize'):
 			raise ValueError('findItem requires a string as a checksumValue, but got: ' + checksumValue)
 		
 		# displayName
-		if not isinstance(displayName, str) and not displayName is None:
+		if not hasattr(displayName, 'capitalize') and not displayName is None:
 			raise ValueError('findItem requires a string or None as a displayName, but got: ' + displayName)
 		
 		# additionalSourceFolders
 		if additionalSourceFolders is None:
 			pass # nothing to do
-		elif isinstance(additionalSourceFolders, str) and os.path.isdir(additionalSourceFolders):
+		elif hasattr(additionalSourceFolders, 'capitalize') and os.path.isdir(additionalSourceFolders):
 			pass # nothing to do
 		elif hasattr(additionalSourceFolders, '__iter__'):
 			# validate that these are all folders
@@ -377,7 +377,7 @@ class cacheController:
 		# ---- validate input
 		
 		# nameOrLocation
-		if not isinstance(nameOrLocation, str) and not nameOrLocation is None:
+		if not hasattr(nameOrLocation, 'capitalize') and not nameOrLocation is None:
 			raise ValueError('findItem requires a string or none as a nameOrLocation, but got: ' + nameOrLocation)
 		if nameOrLocation is not None and nameOrLocation.startswith('file://'):
 			nameOrLocation = nameOrLocation[len('file://'):]
@@ -386,22 +386,22 @@ class cacheController:
 			raise ValueError('findItemInCaches only works on file paths or names, got: ' + str(nameOrLocation))
 		
 		# checksumType
-		if not isinstance(checksumType, str):
+		if not hasattr(checksumType, 'capitalize'):
 			raise ValueError('findItem requires a string as a checksumType, but got: ' + checksumType)
 		
 		# checksumValue
-		if not isinstance(checksumValue, str):
+		if not hasattr(checksumValue, 'capitalize'):
 			raise ValueError('findItem requires a string as a checksumValue, but got: ' + checksumValue)
 		
 		# displayName
-		if not isinstance(displayName, str) and not displayName is None:
+		if not hasattr(displayName, 'capitalize') and not displayName is None:
 			raise ValueError('findItem requires a string or None as a displayName, but got: ' + displayName)
 		
 		# additionalSourceFolders
 		foldersToSearch = myClass.getSourceFolders()
 		if additionalSourceFolders is None:
 			pass # nothing to do
-		elif isinstance(additionalSourceFolders, str) and os.path.isdir(additionalSourceFolders):
+		elif hasattr(additionalSourceFolders, 'capitalize') and os.path.isdir(additionalSourceFolders):
 			foldersToSearch.append(pathHelpers.normalizePath(additionalSourceFolders, followSymlink=True))
 		elif hasattr(additionalSourceFolders, '__iter__'):
 			# validate that these are all folders

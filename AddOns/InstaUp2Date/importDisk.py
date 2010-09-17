@@ -6,8 +6,9 @@ import sys, os, time
 
 import Resources.commonConfiguration	as commonConfiguration
 import Resources.displayTools			as displayTools
+import Resources.volumeTools			as volumeTools
+import Resources.containerController	as containerController
 from Resources.managedSubprocess		import managedSubprocess
-from Resources.volumeManager			import volumeManager
 
 #class puppetStringsMonitor(threading.Thread):
 #	inputItem	= None
@@ -61,55 +62,48 @@ def main():
 	optionParser.add_option("-o", "--overwrite-existing-file", default=False, action="store_true", dest="overwriteExisting", help="Overwite existing output file without asking")	
 	(options, args) = optionParser.parse_args()
 	
-	chosenMountPoint	= None
-	chosenOSType		= None
-	chosenOSVersion		= None
-	chosenOSBuild		= None
-	
 	chosenMount			= None
 	
 	if len(args) == 0:
 		
-		possibleDiscsInfo = []
+		possibleVolumes = []
 		
 		# get a list of avalible installer disks
-		for thisMountPoint in volumeManager.getMountedVolumes():
-			
+		for thisMountPoint in volumeTools.getMountedVolumes():
+						
 			try:
-				installerType = volumeManager.getInstallerDiskType(thisMountPoint)
-				
-				thisDiskInfo = volumeManager.getVolumeInfo(thisMountPoint)
-				thisDiskInfo['installerType'] = installerType
-				thisDiskInfo['macOSVersion'], thisDiskInfo['buildNumber'] = volumeManager.getMacOSVersionAndBuildOfVolume(thisMountPoint)
-				
-				possibleDiscsInfo.append(thisDiskInfo)
-			except ValueError:
+				thisVolume = containerController.newContainerForPath(thisMountPoint)
+			except Exception, error:
+				print error
 				continue
+			
+			if not thisVolume.isContainerType('volume') or thisVolume.getInstallerDiskType() in [None, False]:
+				continue
+			
+			possibleVolumes.append(thisVolume)
 		
-		if len(possibleDiscsInfo) == 0:
-			sys.stderr.write('Error: There were no possible disks to image\n')
-			sys.exit(4)
+		if len(possibleVolumes) == 0:
+			optionParser.error('Error: There were no possible disks to image')
 		
-		elif len(possibleDiscsInfo) == 1 and options.automaticRun == True:
-			chosenMount = possibleDiscsInfo[0]
+		elif len(possibleVolumes) == 1 and options.automaticRun == True:
+			chosenMount = possibleVolumes[0]
 		
-		elif len(possibleDiscsInfo) == 1:
-			choice = raw_input('Only one mount point found: "%s" (%s) - %s %s (%s). Create image? (Y/N):' % (possibleDiscsInfo[0]['mountPath'], possibleDiscsInfo[0]['diskType'], possibleDiscsInfo[0]['installerType'], possibleDiscsInfo[0]['macOSVersion'], possibleDiscsInfo[0]['buildNumber']))
-			if choice.lower() == "y" or choice.lower() == "yes":
-				chosenMount = possibleDiscsInfo[0]
-			else:
+		elif len(possibleVolumes) == 1:
+			chosenMount = possibleVolumes[0]
+			
+			choice = raw_input('Only one mount point found: "%s" (%s) - %s %s (%s). Create image? (Y/N):' % (chosenMount.getMountPoint(), chosenMount.volumeType, chosenMount.getInstallerDiskType(), chosenMount.getMacOSVersionAndBuild()[0], chosenMount.getMacOSVersionAndBuild()[1]))
+			if choice.lower() not in ['y', 'yes']:
 				print("Canceling")
 				sys.exit()
 			
 		elif options.automaticRun == True:
-			sys.stderr.write('Error: There was more than one avalible disk in an automatic run. Can only run in automatic mode when there is only one option.\n')
-			sys.exit(18)
+			optionParser.error('There was more than one avalible disk in an automatic run. Can only run in automatic mode when there is only one option.')
 		
 		else:
 			print('The following mounts are avalible: ')
 			i = 1
-			for thisMountPoint in possibleDiscsInfo:
-				print('	%-4.4s"%s" (%s) - %s %s (%s)' % (str(i) + ")", thisMountPoint['mountPath'], possibleDiscsInfo[i - 1]['diskType'], possibleDiscsInfo[i - 1]['installerType'], possibleDiscsInfo[i - 1]['macOSVersion'], possibleDiscsInfo[i - 1]['buildNumber']))
+			for thisVolume in possibleVolumes:
+				print('	%-4.4s"%s" (%s) - %s %s (%s)' % (str(i) + ")", thisVolume.getWorkingPath(), thisVolume.volumeType, thisVolume.getInstallerDiskType(), thisVolume.getMacOSVersionAndBuild()[0], thisVolume.getMacOSVersionAndBuild()[1]))
 				i += 1
 			choice = raw_input('Please select a volume by typeing in the number that precedes it: ')
 			try:
@@ -121,53 +115,40 @@ def main():
 				sys.stderr.write('Error: Input "%s" was not a valid option\n' % choice)
 				sys.exit(14)
 			
-			chosenMount = possibleDiscsInfo[choice - 1]
+			chosenMount = possibleVolumes[choice - 1]
 	
 	elif len(args) == 1:
 		# user has supplied the mount point to use
-		inputPath = args[0]
+		try:
+			chosenMount = containerController.newContainerForPath(args[0])
+		except:
+			optionParser.error('The path "%s" is not valid' % args[0])
 		
-		if not os.path.ismount(inputPath):
-			sys.stderr.write('Error: The path "%s" is not a mount point\n' % inputPath)
-			sys.exit(15)
-		
-		if volumeManager.getInstallerDiskType(inputPath) == None:
-			sys.stderr.write('Error: The path "%s" is not an installer disk\n' % inputPath)
-			sys.exit(16)
-		
-		chosenOSVersion, chosenOSBuild = volumeManager.getMacOSVersionAndBuildOfVolume(inputPath)
-		chosenOSType = volumeManager.getInstallerDiskType(inputPath)
-	else:
-		sys.stderr.write('Error: Can only process a single disk at a time\n' % choice)
-		sys.exit(17)
+		if not chosenMount.isContainerType('volume') or chosenMount.getInstallerDiskType() is None:
+			optionParser.error('The path "%s" is not an installer disk' % args[0])
 	
-	if chosenMount is not None:
-		chosenMountPoint = chosenMount['mountPath']
-		chosenOSVersion = chosenMount['macOSVersion']
-		chosenOSBuild = chosenMount['buildNumber']
-		chosenOSType = chosenMount['installerType']
+	else:
+		optionParser.error('Can only process a single disk at a time')
 	
 	chosenFileName = options.outputFileName
-	if chosenFileName == None and options.legacyMode == False:
-		chosenFileName = "%s %s %s.dmg" % (chosenOSType, chosenOSVersion, chosenOSBuild)
-	elif options.legacyMode == True:
+	if chosenFileName is None and options.legacyMode is False:
+		chosenFileName = "%s %s %s.dmg" % (chosenMount.getInstallerDiskType(), chosenMount.getMacOSVersionAndBuild()[0], chosenMount.getMacOSVersionAndBuild()[1])
+	elif options.legacyMode is True:
 		chosenFileName = "Mac OS X Install DVD.dmg"
 	
 	# append .dmg if it is not already there
-	if not (os.path.splitext(chosenFileName)[1].lower() == ".dmg"):
+	if not os.path.splitext(chosenFileName)[1].lower() == ".dmg":
 		chosenFileName = chosenFileName + ".dmg"
 	
 	# Search for an image that already has this OS Build
-	# ToDo: get the setup for this from a central place
 	outputFolder = options.outputFolder
-	if outputFolder == None and options.legacyMode == False:
+	if outputFolder is None and options.legacyMode is False:
 		outputFolder = commonConfiguration.standardOSDiscFolder
 	elif options.legacyMode == True:
 		outputFolder = commonConfiguration.legacyOSDiscFolder
 	
 	if not os.path.isdir(outputFolder):
-		sys.stderr.write('Error: The chosen output folder does not exist or is not a folder: %s\n' % outputFolder)
-		sys.exit(20)
+		optionParser.error('The chosen output folder does not exist or is not a folder: %s' % outputFolder)
 	
 	targetPath = os.path.join(outputFolder, chosenFileName)
 	
@@ -175,36 +156,37 @@ def main():
 		
 		# ToDo: mount this file and make sure it looks right
 		
-		if options.overwriteExisting == False and options.automaticRun == True:
+		if options.overwriteExisting is False and options.automaticRun is True:
 			sys.stderr.write('Error: Automatic mode was enabled, but a file already exists for this OS build and file overwiting (-o) is not enabled:\n%s\n' % targetPath)
-			sys.exit(19)
+			sys.exit(1)
 		
-		elif options.overwriteExisting == False:
+		elif options.overwriteExisting is False:
 			choice = raw_input('File already exists: %s\nOverwrite this file? (Y/N):' % targetPath)
-			if not (choice.lower() == "y" or choice.lower() == "yes"):
+			if not choice.lower() in ['y', 'yes']:
 				print("Canceling")
 				sys.exit()
 				
 	# Note: at this point it is all-right to overwrite the file if it exists
 	
-	if options.automaticRun == False:
-		choice = raw_input('Ready to produce "%s" from the volume "%s".\n\tContinue? (Y/N):' % (chosenFileName, chosenMountPoint))
-		if not (choice.lower() == "y" or choice.lower() == "yes"):
+	if options.automaticRun is False:
+		choice = raw_input('Ready to produce "%s" from the volume "%s".\n\tContinue? (Y/N):' % (chosenFileName, chosenMount.getWorkingPath()))
+		if not choice.lower() in ['y', 'yes']:
 			print("Canceling")
 			sys.exit()
 	
-	myStatusHandler = displayTools.statusHandler(taskMessage='Creating image from disc at: %s' % chosenMountPoint)
+	myStatusHandler = displayTools.statusHandler(taskMessage='Creating image from disc at: %s' % chosenMount.getWorkingPath())
 	
 	diskFormat = 'UDZO' # default to zlib
 	if options.compressionType == "bzip2":
 		diskFormat = 'UDBZ'
 	
-	diskutilArguments = ['/usr/bin/hdiutil', 'create', '-ov', '-srcowners', 'on', '-srcfolder', chosenMountPoint, '-format', diskFormat]
+	diskutilArguments = ['/usr/bin/hdiutil', 'create', '-ov', '-srcowners', 'on', '-srcfolder', chosenMount.getWorkingPath(), '-format', diskFormat]
 	if options.compressionType == "zlib":
 		# go for more compression
 		diskutilArguments.append('-imagekey')
 		diskutilArguments.append('zlib-level=6')
 	diskutilArguments.append(targetPath)
+	
 	diskutilProcess = managedSubprocess(diskutilArguments)
 	
 	myStatusHandler.update(taskMessage='Image "%s" created in %s' % (chosenFileName, displayTools.secondsToReadableTime(time.time() - startTime)))

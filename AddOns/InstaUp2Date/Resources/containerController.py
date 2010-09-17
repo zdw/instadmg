@@ -18,7 +18,7 @@ def newContainerForPath(itemPath, **kwargs):
 		if thisClass.scoreItemMatch == thisClass.__mro__[1].scoreItemMatch:
 			raise NotImplementedError('The % class does not impliment its own scoreItemMatch function as required' % thisClass.__name__)
 		
-		thisScore, processInformation = thisClass.scoreItemMatch(itemPath, processInformation)
+		thisScore, processInformation = thisClass.scoreItemMatch(itemPath, processInformation, **kwargs)
 		if thisScore > topScore:
 			topScore = thisScore
 			topScorer = thisClass
@@ -26,4 +26,4 @@ def newContainerForPath(itemPath, **kwargs):
 	if topScorer is None:
 		raise ValueError('There are no subclasses that match this item: ' + itemPath)
 	
-	return topScorer(itemPath, processInformation, *kwargs)
+	return topScorer(itemPath, processInformation, **kwargs)

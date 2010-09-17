@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import weakref, warnings
+import os, weakref, warnings
 
 try:
 	from .pathHelpers			import normalizePath
@@ -20,7 +20,6 @@ class container(object):
 	
 	# ------ class properties
 	
-	uniqueAttributes		= []		# place attribute names here that should be used to decide when items are unique
 	itemAlreadySetup		= False		# keep existing items from being re-setup
 	
 	matchScoreIncrement		= 5
@@ -36,20 +35,13 @@ class container(object):
 		except AttributeError:
 			myClass.__instances__ = weakref.WeakValueDictionary()
 		
-		# get the key
-		thisKey = itemPath
-		for thisAttribute in myClass.uniqueAttributes:
-			if thisAttribute in kwargs:
-				thisValue = kwargs[thisAttribute]
-				
-				if hasattr(myClass, 'validate' + thisAttribute.title()):
-					
-					kwargs[thisAttribute] = getattr(myClass, 'validate' + thisAttribute.title())(thisValue)
-				
-				thisKey += ":" + kwargs[thisAttribute]
+		# get the instance key
+		instanceKey = itemPath
+		if 'instanceKeys' in processInformation and myClass.__name__ in processInformation['instanceKeys']:
+			instanceKey = processInformation['instanceKeys'][myClass.__name__]
 		
 		# check if we already have an object for this
-		if thisKey not in myClass.__instances__:
+		if instanceKey not in myClass.__instances__:
 			with warnings.catch_warnings():
 				warnings.simplefilter("ignore")
 				returnObject = object.__new__(myClass, itemPath, processInformation, **kwargs)
@@ -58,9 +50,9 @@ class container(object):
 				returnObject.__init__(itemPath, processInformation, **kwargs)
 				
 				# get a weak refernce
-				myClass.__instances__[thisKey] = returnObject
+				myClass.__instances__[instanceKey] = returnObject
 		
-		return myClass.__instances__[thisKey]
+		return myClass.__instances__[instanceKey]
 	
 	def __init__(self, itemPath, processInformation=None, **kwargs):
 		
@@ -75,11 +67,8 @@ class container(object):
 	def classInit(self, itemPath, processInformation, **kwargs):
 		'''Perform validation and setup specific to this class'''
 	
-	def getWorkingPath(self):
+	def getWorkingPath(self, forVolume=None):
 		'''Return path used to work with this item, possibly a copy inside a chroot'''
-		
-		if self.chrootFilePath is not None:
-			return self.chrootFilePath
 		
 		return self.filePath
 	
@@ -122,7 +111,7 @@ class container(object):
 		return myClass.matchScoreIncrement
 	
 	@classmethod
-	def scoreItemMatch(myClass, itemPath, processInformation):
+	def scoreItemMatch(myClass, itemPath, processInformation, **kwargs):
 		'''All classes should impliment this method to help figure out which type should be used for each item'''
 		raise NotImplementedError('This method is virtual, and should be implimented in the subclasses')
 	

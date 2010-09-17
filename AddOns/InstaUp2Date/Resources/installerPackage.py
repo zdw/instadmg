@@ -102,7 +102,7 @@ class installerPackage:
 		# ---- validate input and set instance variables
 		
 		# sourceLocation
-		if isinstance(sourceLocation, str):
+		if hasattr(sourceLocation, 'capitalize'):
 			# remove file:// if it is the sourceLocation
 			if sourceLocation.startswith('file://'):
 				sourceLocation = nameOrLocation[len('file://'):]
@@ -118,7 +118,7 @@ class installerPackage:
 			raise ValueError('findItem can not process urls types other than http, https, or file')
 					
 		# displayName
-		if isinstance(displayName, str):
+		if hasattr(displayName, 'capitalize'):
 			self.displayName = displayName
 		elif displayName is None and sourceLocation is not None:
 			if parsedSourceLocationURL.scheme in ['http', 'https']:
@@ -130,7 +130,7 @@ class installerPackage:
 			raise ValueError("Recieved an empty or invalid displayName: " + str(displayName))
 			
 		# checksum and checksumType
-		if isinstance(checksumString, str) and checksumString.count(":") > 0:
+		if hasattr(checksumString, 'capitalize') and checksumString.count(":") > 0:
 			self.checksumType, self.checksumValue = checksumString.split(":", 1)
 			
 			# confirm that hashlib supports the hash type:

@@ -2,8 +2,7 @@
 
 import os, sys, stat, atexit, tempfile, subprocess
 
-import pathHelpers
-import volumeTools
+import pathHelpers, volumeTools
 
 class tempFolderManager(object):
 	
@@ -11,9 +10,9 @@ class tempFolderManager(object):
 	
 	classActivated			= False
 	
-	defaultFolder			= None					# used when no containing folder is given
-	managedItems			= []					# class-wide array, used in atexit cleanup
-	managedMounts			= []					# class-wide array, used in atexit cleanup
+	defaultFolder			= None			# used when no containing folder is given
+	managedItems			= []			# class-wide array, used in atexit cleanup
+	managedMounts			= []			# class-wide array, used in atexit cleanup
 	
 	tempFolderPrefix		= 'idmg_temp.'	# default name prefix for temporary folers
 	tempFilePrefix			= 'idmg_file.'	# default name prefix for temporaty files
@@ -318,10 +317,38 @@ class tempFolderManager(object):
 		myClass.managedItems.remove(targetPath)
 	
 	@classmethod
+	def isManagedItem(myClass, thisItem):
+		
+		if thisItem is None or not os.path.exists(thisItem):
+			raise ValueError('isManagedMount requires a valid item, got: ' + str(thisItem))
+		
+		thisItem = pathHelpers.normalizePath(thisItem)
+		
+		for thisMount in myClass.managedMounts:
+			if pathHelpers.normalizePath(thisMount) == thisItem:
+				return True
+		
+		return myClass.isManagedMount(thisItem)
+	
+	@classmethod
+	def isManagedMount(myClass, mountPoint):
+		
+		if mountPoint is None or not os.path.ismount(mountPoint):
+			raise ValueError('isManagedMount requires a valid mount point, got: ' + str(mountPoint))
+		
+		mountPoint = pathHelpers.normalizePath(mountPoint)
+		
+		for thisMount in myClass.managedMounts:
+			if pathHelpers.normalizePath(thisMount) == mountPoint:
+				return True
+		
+		return False
+	
+	@classmethod
 	def getManagedPathForPath(myClass, targetPath):
 		'''Find any managed items that already house this path'''
 		
-		if targetPath is None or not isinstance(targetPath, str):
+		if targetPath is None or not hasattr(targetPath, 'capitalize'):
 			raise ValueError('getManagedPathForPath recieved a target path that it could not understand: ' + str(targetPath))
 		
 		targetPath = pathHelpers.normalizePath(targetPath)

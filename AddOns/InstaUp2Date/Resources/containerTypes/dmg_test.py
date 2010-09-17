@@ -1,33 +1,42 @@
 #!/usr/bin/python
 
-import os, unittest
+import os, unittest, re
 
 import dmg
+from .pathHelpers				import pathInsideFolder, normalizePath
 from .containerController		import newContainerForPath
-from .commonConfiguration		import standardOutputFolder
+from .commonConfiguration		import legacyOSDiscFolder, standardOSDiscFolder
 from .tempFolderManager			import tempFolderManager
 
 class dmg_test(unittest.TestCase):
 	
-	def test_outputFiles(self):
-		'''Test the class with a dmg from the outputFiles folder'''
+	def test_installerImages(self):
+		'''Test the class with a dmg from the BaseOS or InstallerDisks folders'''
 		
-		testItem = None
-		for thisItem in os.listdir(standardOutputFolder):
+		testItemPath = None
+		for thisItem in os.listdir(legacyOSDiscFolder):
 			if os.path.splitext(thisItem)[1].lower() == '.dmg':
-				testItem = thisItem
+				testItemPath = os.path.join(legacyOSDiscFolder, thisItem)
 				break
 		
-		if testItem is None:
+		if testItemPath is None:
+			for thisItem in os.listdir(standardOSDiscFolder):
+				if os.path.splitext(thisItem)[1].lower() == '.dmg':
+					testItemPath = os.path.join(standardOSDiscFolder, thisItem)
+					break
+		
+		if testItemPath is None:
 			print("\nWarning: There were no dmg's in the output folder, so no dmg testing could be done")
 			return
 		
 		# -- simple tests
 		
 		# confirm that the class picks up on it as a dmg
-		testItemPath = os.path.join(standardOutputFolder, testItem)
 		testItem = newContainerForPath(testItemPath)
 		self.assertEqual(testItem.getContainerType(), 'dmg', 'Expected containerType for "%s" to be "dmg", but got: %s' % (testItemPath, testItem.getContainerType()))
+		
+		# chack that it gives back the correct storeage path
+		self.assertEqual(normalizePath(testItemPath, followSymlink=True), testItem.getStoragePath(), 'Item did not return the correct storage path (%s) but rather: %s' % (testItemPath, testItem.getStoragePath()))
 		
 		# check to see if the item is mounted
 		self.assertEqual(testItem.getMountPoint(), None, 'Did not expect the item (%s) to be mounted, but it was at: %s' % (testItemPath, testItem.getMountPoint()))
@@ -41,10 +50,21 @@ class dmg_test(unittest.TestCase):
 		self.assertTrue(os.path.ismount(actualMountPoint), 'After mounting the item (%s) with no options, the reported mount point (%s) was not a mount' % (testItemPath, actualMountPoint))
 		self.assertTrue(os.path.isdir(os.path.join(actualMountPoint, 'System')), 'After mounting the item (%s) with no options, the System folder was not in the mount point')
 		
+		# check that getWorkingPath gets the mounted volume
+		workingPath = testItem.getWorkingPath()
+		self.assertTrue(workingPath is not None, 'The working path returned from a mounted item (%s) was None' % testItemPath)
+		self.assertEqual(workingPath, actualMountPoint, 'The working path returned from a mounted item (%s) was "%s" rather than the expected "%s"' % (testItemPath, workingPath, actualMountPoint))
+		
 		# unmount the volume
 		testItem.unmount()
 		actualMountPoint = testItem.getMountPoint()
 		self.assertTrue(actualMountPoint is None, 'After unmounting the item (%s) there was still a mount point: %s' % (testItemPath, actualMountPoint))
+		
+		# check that getWorkingPath remounts the item
+		workingPath = testItem.getWorkingPath()
+		self.assertTrue(workingPath is not None, 'The working path returned from a unmounted item (%s) was None' % testItemPath)
+		self.assertTrue(os.path.ismount(workingPath), 'The working path returned from a unmounted item (%s) was not a mount point' % testItemPath)
+		testItem.unmount()
 		
 		# -- mountpoint tests
 		
@@ -53,7 +73,42 @@ class dmg_test(unittest.TestCase):
 		self.assertEqual(targetMountPoint, actualMountPoint, 'Mounting the item (%s) at a specified mount point (%s) returned %s' % (testItemPath, targetMountPoint, actualMountPoint))
 		self.assertEqual(targetMountPoint, testItem.getMountPoint(), 'Mounting the item (%s) at a specified mount point (%s) resulted in a mount point of %s' % (testItemPath, targetMountPoint, testItem.getMountPoint()))
 		
-		# -- singleton test - make sure the same item is only created once
+		# -- getWorkingPath with withinFolder tests
 		
+		# note: we already have an image mounted at a know point from the previous tests
+		newMountArea = tempFolderManager.getNewTempFolder()
+		newMountPoint = testItem.getWorkingPath(withinFolder=newMountArea)
+		self.assertTrue(newMountPoint is not None, 'After changing the mount point with getWorkingPath(withinFolder=value) the returned value was None')
+		self.assertTrue(os.path.ismount(newMountPoint), 'After changing the mount point with getWorkingPath(withinFolder=value) the returned value (%s) was not a mount point' % newMountPoint)
+		self.assertTrue(pathInsideFolder(newMountPoint, newMountArea), 'After changing the mount point with getWorkingPath(withinFolder=value) the returned value (%s) was not inside expected directory (%s)' % (newMountPoint, newMountArea))
+		
+		testItem.unmount()
+		
+		# -- singleton tests - make sure the same item is only created once
 		duplicateItem = newContainerForPath(testItemPath)
 		self.assertEqual(duplicateItem, testItem, 'When feeding the same dmg (%s) into newContainerForPath twice, got seperate items')
+		
+		# shadow file - make sure that an item with a shadow file is not registered as the same item without a shadow file
+		itemWithShadowFile = newContainerForPath(testItemPath, shadowFile=True)
+		self.assertNotEqual(itemWithShadowFile, duplicateItem, 'An item created with a shadow file returned the same object as one created without a shadow file')
+		
+		# different shadow file - should be yet another item
+		secondItemWithShadowFile = newContainerForPath(testItemPath, shadowFile=True)
+		self.assertNotEqual(secondItemWithShadowFile, duplicateItem, 'The second item created with a shadow file returned the same object as one created without a shadow file')
+		self.assertNotEqual(itemWithShadowFile, secondItemWithShadowFile, 'The second item created with a shadow file returned the same object with the first shadow file')
+		
+		# mountpoint test - feed newContainerForPath the mountpoint and make sure it comes back with the same item
+		mountPointItem = newContainerForPath(duplicateItem.getWorkingPath())
+		self.assertEqual(duplicateItem, mountPointItem, 'When fed the mount point of an item newContainerForPath should have returned the same item, but it did not')
+		
+		# -- getMacOSVersionAndBuild
+		
+		version, build = duplicateItem.getMacOSVersionAndBuild()
+		self.assertTrue(version is not None, 'One of the items in output files (%s) did not have a value for version' % testItemPath)
+		self.assertTrue(build is not None, 'One of the items in output files (%s) did not have a value for build' % testItemPath)
+	
+		# -- getInstallerDiskType
+		
+		installerType = duplicateItem.getInstallerDiskType()
+		self.assertTrue(version is not None, 'One of the items in output files (%s) did not have a value for installer type' % testItemPath)
+

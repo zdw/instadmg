@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import os, re, time
+import os, re, time, urllib
 
 from volume		import volume
 
@@ -8,26 +8,29 @@ try:
 	from .managedSubprocess					import managedSubprocess
 	from .volumeTools						import unmountVolume
 	from .tempFolderManager					import tempFolderManager
-	from .pathHelpers						import normalizePath
+	from .pathHelpers						import normalizePath, pathInsideFolder
 	
 except ImportError:
 	from .Resources.managedSubprocess		import managedSubprocess
 	from .Resources.volumeTools				import unmountVolume
 	from .Resources.tempFolderManager		import tempFolderManager
-	from .Resources.pathHelpers				import normalizePath
+	from .Resources.pathHelpers				import normalizePath, pathInsideFolder
 
 
 class dmg(volume):
 	
 	# ------ instance properties
 	
-	mountPath				= None
-	
 	shadowFilePath			= None
 	
-	# ------ class properties
+	dmgFormat				= None
+	writeable				= None
 	
-	uniqueAttributes		= ['shadowFile']
+	dmgChecksumType			= None
+	dmgChecksumValue		= None
+	
+	
+	# ------ class properties
 	
 	wholeDiskRegEx			= re.compile('^(?P<bsdPath>/dev/(?P<bsdName>disk\d+))$')
 	volumeSliceRegEx		= re.compile('^(?P<bsdPath>/dev/(?P<bsdName>disk\d+s\d+))$')
@@ -37,7 +40,49 @@ class dmg(volume):
 		
 		# -- validate and store input
 		
-		self.shadowFilePath = self.validateShadowfile(shadowFile)
+		# get the information from diskutil via the volume class
+		super(self.__class__, self).classInit(itemPath, processInformation)
+		
+		# reset key diffferences from the superclass
+		
+		if 'dmgFilePath' in processInformation:
+			self.filePath = processInformation['dmgFilePath']
+		else:
+			self.filePath = normalizePath(itemPath, followSymlink=True)
+		
+		if 'shadowFilePath' in processInformation:
+			self.shadowFilePath = processInformation['shadowFilePath']
+		else:
+			self.shadowFilePath = self.validateShadowfile(shadowFile)
+		
+		# get and store the information from hdiutil
+		
+		hdiutilInfo = None
+		if 'hdiutilInfo' in processInformation:
+			hdiutilInfo = processInformation['hdiutilInfo']
+		else:
+			hdiutilInfo = self.hdiutilInfo(self.filePath)
+		
+		# dmgFormat
+		if 'dmgFormat' in hdiutilInfo:
+			self.dmgFormat = hdiutilInfo['dmgFormat']
+		
+		# writable
+		if 'writable' in hdiutilInfo:
+			self.writable = hdiutilInfo['writable']
+		
+		# dmgChecksumType
+		if 'dmgChecksumType' in hdiutilInfo:
+			self.dmgChecksumType = hdiutilInfo['dmgChecksumType']
+		
+		# dmgChecksumValue
+		if 'dmgChecksumValue' in hdiutilInfo:
+			self.dmgChecksumValue = hdiutilInfo['dmgChecksumValue']
+	
+	def getShadowFile(self):
+		'''Return the path of the shadow file this is mounted with, or none if it has none'''
+		
+		return self.shadowFilePath
 	
 	def getMountPoint(self):
 		'''Get the mount point with the current shadow file settings'''
@@ -48,19 +93,14 @@ class dmg(volume):
 				# make sure the shadowPath settings match
 				if (self.shadowFilePath is None and 'shadowFilePath' in thisMount) or (self.shadowFilePath is not None and 'shadowFilePath' not in thisMount):
 					continue
-				if self.shadowFilePath is not None and not normalizePath(self.shadowFilePath) == normalizePath(thisMount['shadowFilePath']):
+				if self.shadowFilePath is not None and not normalizePath(self.shadowFilePath, followSymlink=True) == normalizePath(thisMount['shadowFilePath'], followSymlink=True):
 					continue
 				
 				return thisMount['mountPoint']
 		
 		return None
-	
-	def getShadowFile(self):
-		'''Return the path of the shadow file this is mounted with, or none if it has none'''
 		
-		return self.shadowFilePath
-	
-	def mount(self, mountPoint=None, mountInFolder=None, mountReadWrite=None, paranoidMode=False):
+	def mount(self, mountPoint=None, mountInFolder=None, mountReadWrite=False, paranoidMode=False):
 		'''Mount the image'''
 		
 		# -- validate input
@@ -147,16 +187,32 @@ class dmg(volume):
 		return actualMountedPath
 	
 	def unmount(self):
-		mountPath = self.getMountPoint()
-		if mountPath is None:
+		currentMountPoint = self.getMountPoint()
+		if currentMountPoint is None:
 			return # ToDo: log this, maybe error out here
 		
-		unmountVolume(mountPath)
-		self.mountPath = None
+		if tempFolderManager.isManagedItem(currentMountPoint):
+			tempFolderManager.cleanupItem(currentMountPoint)
+		else:
+			unmountVolume(currentMountPoint)
 	
-	def getWorkingPath(self):
+	def getWorkingPath(self, withinFolder=None):
+		'''Return the mounted path, mounting or re-mounting if necessary'''
 		
-		return self.getMountPoint()
+		if withinFolder is not None and not os.path.isdir(withinFolder):
+			raise ValueError('When using the withinFolder option the item must be a folder')
+		
+		currentMountPoint = self.getMountPoint()
+		
+		if currentMountPoint is None:
+			return self.mount(mountInFolder=withinFolder)
+		
+		elif withinFolder is not None and not pathInsideFolder(currentMountPoint, withinFolder):
+			# re-mount inside the path
+			self.unmount()
+			return self.mount(mountInFolder=withinFolder)
+		
+		return str(currentMountPoint)
 	
 	# ------ class methods
 	
@@ -225,6 +281,9 @@ class dmg(volume):
 					
 					elif myClass.volumeSliceRegEx is not None and 'mount-point' in thisSystemEntity:
 						imageInfo.update({ 'bsdName':volumeSliceResult.group('bsdName'), 'bsdPath':volumeSliceResult.group('bsdPath'), 'mountPoint':thisSystemEntity['mount-point'] })
+					
+					if 'mount-point' in thisSystemEntity:
+						imageInfo['mountPoint'] = thisSystemEntity['mount-point']
 				
 				imageList.append(imageInfo)
 		
@@ -233,20 +292,24 @@ class dmg(volume):
 	@classmethod
 	def hdiutilInfo(myClass, identifier):
 		
-		if not isinstance(identifier, str):
+		if not hasattr(identifier, 'capitalize'):
 			raise ValueError('getVolumeInfo requires a path, bsd name, or a dev path. Got: ' + str(identifier))
+		
+		normalizedIdentifier = normalizePath(identifier, followSymlink=True)
+		if os.path.exists(normalizedIdentifier):
+			identifier = normalizedIdentifier
 		
 		command = ['/usr/bin/hdiutil', 'imageinfo', '-plist', str(identifier)]
 		try:
 			process = managedSubprocess(command, processAsPlist=True)
-		except RuntimeError:
-			raise ValueError('The item given does not seem to be a DMG: ' + str(identifier))
+		except RuntimeError, error:
+			raise ValueError('The item given does not seem to be a DMG: ' + str(identifier) + "\n" + str(error))
 		dmgProperties = process.getPlistObject()
 		
 		result = {}
 		
 		# filePath
-		result['filePath'] = dmgProperties['Backing Store Information']['URL']
+		result['filePath'] = urllib.unquote(dmgProperties['Backing Store Information']['URL'])
 		if result['filePath'].startswith('file://localhost'):
 			result['filePath'] = result['filePath'][len('file://localhost'):]
 		elif result['filePath'].startswith('file://'):
@@ -276,36 +339,80 @@ class dmg(volume):
 		return result
 	
 	@classmethod
-	def scoreItemMatch(myClass, itemPath, processInformation):
+	def scoreItemMatch(myClass, itemPath, processInformation, **kwargs):
 		
-		if not isinstance(itemPath, str):
-			raise ValueError('scoreItemMatch requires a path, bsd name, or a dev path. Got: ' + str(itemPath))
+		# -- validate input
 		
-		# if we already have 'hdiutil imageinfo', then this is a dmg
-		if 'hdiutilInfo' in processInformation:
-			return (myClass.getMatchScore(), processInformation)
+		if not hasattr(itemPath, 'capitalize'):
+			raise ValueError('scoreItemMatch requires a string, got: %s (%s)' % (str(itemPath), type(itemPath)))
 		
-		# if we already have the diskutil information for this path, then we can use that 
-		if 'diskutilInfo' in processInformation and 'diskType' in processInformation['diskutilInfo']:
-			if processInformation['diskutilInfo']['diskType'] == 'Disk Image':
-				return (myClass.getMatchScore(), processInformation)
-			else:
-				return (0, processInformation)
+		# -- validate input
 		
-		# make sure we have the list of mounted images, and check in that
+		matchScore = 0
+		
+		shadowFilePath = None
+		if 'shadowFile' in kwargs and kwargs['shadowFile'] is not False:
+			shadowFilePath = myClass.validateShadowfile(kwargs['shadowFile'])
+		
+		# -- see if itemPath matches a mounted image
+		
 		if 'mountedImages' not in processInformation:
 			processInformation['mountedImages'] = myClass.getMountedImages()
+		
 		for thisMountedImage in processInformation['mountedImages']:
-			if itemPath in thisMountedImage.values():
-				return (myClass.getMatchScore(), processInformation)
+			
+			# mountPoint
+			if (
+				# mountPoint
+				os.path.samefile(itemPath, thisMountedImage['mountPoint']) or
+				
+				# shadow file
+				('shadowFilePath' in thisMountedImage and os.path.samefile(itemPath, thisMountedImage['shadowFilePath'])) or
+				
+				# file path to dmg
+				os.path.samefile(itemPath, thisMountedImage['filePath']) or
+				
+				# bsdName/bsdPath
+				itemPath in [thisMountedImage['bsdName'], thisMountedImage['bsdPath']]
+				
+				# ToDo: think through also including the diskBsdName/diskBsdPath
+			):
+				processInformation['dmgFilePath'] = normalizePath(thisMountedImage['filePath'], followSymlink=True)
+				if 'shadowFilePath' in thisMountedImage:
+					shadowFilePath = thisMountedImage['shadowFilePath']
+				break
 		
-		# try out the path with 'hdiutil imageinfo'
-		try:
-			hdiutilInfo = myClass.hdiutilInfo(itemPath)
-			processInformation['hdiutilInfo'] = hdiutilInfo
-			return (myClass.getMatchScore(), processInformation)
-		except ValueError:
-			pass # this is not a dmg
+		# -- use 'hdiutil imageinfo' to see if it is an image
 		
-		return (0, processInformation)
+		if not 'dmgFilePath' in processInformation:
+			if 'hdiutilInfo' not in processInformation:
+				try:
+					processInformation['hdiutilInfo'] = myClass.hdiutilInfo(itemPath)
+					
+					# if we did not error out, it is a dmg
+					
+					processInformation['dmgFilePath'] = normalizePath(processInformation['hdiutilInfo']['filePath'], followSymlink=True)
+					
+					if 'shadowFilePath' in processInformation:
+						shadowFilePath = processInformation['shadowFilePath']
+				
+				except ValueError:
+					pass
+		
+		# -- make the score decision
+		
+		if 'dmgFilePath' in processInformation:
+			
+			if not 'instanceKeys' in processInformation:
+				processInformation['instanceKeys'] = {}
+			
+			if shadowFilePath is None:
+				processInformation['instanceKeys'][myClass.__name__] = processInformation['dmgFilePath']
+			else:
+				processInformation['dmgShadowFilePath'] = myClass.validateShadowfile(shadowFilePath)
+				processInformation['instanceKeys'][myClass.__name__] = processInformation['dmgFilePath'] + '&' + processInformation['dmgShadowFilePath']
+			
+			return myClass.getMatchScore(), processInformation
+		
+		return 0, processInformation
 	

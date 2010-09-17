@@ -16,7 +16,7 @@ class file(container):
 	# ------ class methods
 	
 	@classmethod
-	def scoreItemMatch(myClass, itemPath, processInformation):
+	def scoreItemMatch(myClass, itemPath, processInformation, **kwargs):
 		
 		if os.path.isfile(itemPath):
 			return (myClass.getMatchScore(), processInformation)

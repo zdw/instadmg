@@ -41,7 +41,7 @@ class volumeManager(object):
 	def getVolumeInfo(myClass, identifier):
 		'''Return the following information about the mount point, bsd name, or dev path provided: mountPath, volumeName, bsdPath, volumeFormat, diskType, bsdName, diskBsdName, volumeSizeInBytes, volumeUuid'''
 		
-		if not isinstance(identifier, str):
+		if not hasattr(identifier, 'capitalize'):
 			raise ValueError('getVolumeInfo requires a path, bsd name, or a dev path. Got: ' + str(identifier))
 		
 		command = ['/usr/sbin/diskutil', 'info', '-plist', str(identifier)]
@@ -179,7 +179,7 @@ class volumeManager(object):
 	
 	def __init__(self, identifier):
 		
-		if not isinstance(identifier, str):
+		if not hasattr(identifier, 'capitalize'):
 			raise ValueError('%s requires a path, bsd name, or a dev path. Got: %s' % (self.__class__.__name__, str(identifier)))
 		
 		volumeInfo = None
@@ -262,7 +262,7 @@ class dmgManager(volumeManager):
 	def verifyIsDMG(myClass, identifier, checksumDMG=False):
 		'''Confirm with hdiutil that the object identified is a dmg, optionally checksumming it'''
 		
-		if not isinstance(identifier, str):
+		if not hasattr(identifier, 'capitalize'):
 			raise ValueError('verifyIsDMG requires a path, bsd name, or a dev path. Got: ' + str(identifier))
 		
 		if not checksumDMG in [True, False]:
@@ -291,7 +291,7 @@ class dmgManager(volumeManager):
 			volumeName, mount-points, bsd-label
 		'''
 		
-		if not isinstance(identifier, str):
+		if not hasattr(identifier, 'capitalize'):
 			raise ValueError('getVolumeInfo requires a path, bsd name, or a dev path. Got: ' + str(identifier))
 		
 		result = None
