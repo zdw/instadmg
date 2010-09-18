@@ -257,7 +257,7 @@ class volume(folder):
 			result['diskType'] = 'Disk Image'
 		elif 'OpticalDeviceType' in diskutilInfo:
 			result['diskType'] = 'Optical Disc'
-		elif diskutilInfo['BusProtocol'] in ['SATA', 'SAS', 'FireWire', 'USB']:
+		elif diskutilInfo['BusProtocol'] in ['SATA', 'SAS', 'FireWire', 'USB', 'Fibre Channel Interface']:
 			result['diskType'] = 'Hard Drive'
 		else:
 			raise NotImplementedError('getVolumeInfo does not know how to deal with this volume:\n' + str(diskutilInfo))
