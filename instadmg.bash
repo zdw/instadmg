@@ -326,9 +326,9 @@ mount_dmg() {
 	fi
 	
 	if [ -z "$2" ]; then
-		IMAGE_MOUNT_OUTPUT=`AddOns/InstaUp2Date/Resources/dmgMountHelper.py "$1" --mount-read-only --parent-folder "$HOST_MOUNT_FOLDER" 2>&1`
+		IMAGE_MOUNT_OUTPUT=`AddOns/InstaUp2Date/Resources/dmgMountHelper.py "$1" --mount-read-only --supress-return --parent-folder "$HOST_MOUNT_FOLDER" 2>&1`
 	else
-		IMAGE_MOUNT_OUTPUT=`AddOns/InstaUp2Date/Resources/dmgMountHelper.py "$1" --mount-read-only --mount-point "$2" 2>&1`
+		IMAGE_MOUNT_OUTPUT=`AddOns/InstaUp2Date/Resources/dmgMountHelper.py "$1" --mount-read-only --supress-return --mount-point "$2" 2>&1`
 	fi
 	
 	if [ $? -ne 0 ]; then
