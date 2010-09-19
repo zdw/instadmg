@@ -71,7 +71,7 @@ if __name__ == '__main__':
 	
 	optionsParser.add_option("-p", "--path-inside-folder", action="store_const", const='pathInsideFolder', dest='mode', help="Use the path inside folder mode")
 	
-	optionsParser.add_option("", "--supress-return", action="store_const", const='', dest='lineEnding', default='\n', help="Don't end the line with a return, for bash scripts")
+	optionsParser.add_option("", "--supress-return", action="store_const", const='', dest='lineEnding', default='\n', help="Don't end the line with a return, usefull for bash scripts")
 	
 	options, arguments = optionsParser.parse_args()
 	

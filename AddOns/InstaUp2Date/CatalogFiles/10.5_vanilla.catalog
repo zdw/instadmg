@@ -1,6 +1,8 @@
 # Creates a 10.5 image with all the items that would appear in software update
 # $Rev$ from $Date$
 
+Installer Disc Builds = 9A581, 9B18, 9C31, 9D34, 9E17, 9F33, 9G55, 9J61, 9L30
+
 Output Volume Name = Macintosh HD
 Output File Name = 10.5.8 Vanilla
 

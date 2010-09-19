@@ -77,7 +77,11 @@ def main():
 				print error
 				continue
 			
-			if not thisVolume.isContainerType('volume') or thisVolume.getInstallerDiskType() in [None, False]:
+			if not thisVolume.isContainerType('volume'):
+				continue
+			
+			macOSInformation = thisVolume.getMacOSInformation()
+			if macOSInformation is None or macOSInformation['macOSInstallerDisc'] is False:
 				continue
 			
 			possibleVolumes.append(thisVolume)

@@ -59,6 +59,7 @@ class container(object):
 		if self.itemAlreadySetup is False:
 		
 			self.filePath = itemPath
+			self.displayName = os.path.basename(itemPath)
 			
 			self.classInit(itemPath, processInformation, **kwargs)
 		
@@ -67,9 +68,12 @@ class container(object):
 	def classInit(self, itemPath, processInformation, **kwargs):
 		'''Perform validation and setup specific to this class'''
 	
+	def getDisplayName(self):
+		'''Get a user-oriented string for this item'''
+		return displayName
+	
 	def getWorkingPath(self, forVolume=None):
 		'''Return path used to work with this item, possibly a copy inside a chroot'''
-		
 		return self.filePath
 	
 	def setupForUseAtPath(self, path):

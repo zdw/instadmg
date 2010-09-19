@@ -101,14 +101,20 @@ class dmg_test(unittest.TestCase):
 		mountPointItem = newContainerForPath(duplicateItem.getWorkingPath())
 		self.assertEqual(duplicateItem, mountPointItem, 'When fed the mount point of an item newContainerForPath should have returned the same item, but it did not')
 		
-		# -- getMacOSVersionAndBuild
+		# -- getMacOSInformation
 		
-		version, build = duplicateItem.getMacOSVersionAndBuild()
-		self.assertTrue(version is not None, 'One of the items in output files (%s) did not have a value for version' % testItemPath)
-		self.assertTrue(build is not None, 'One of the items in output files (%s) did not have a value for build' % testItemPath)
-	
-		# -- getInstallerDiskType
+		macOSInformation = duplicateItem.getMacOSInformation()
+		self.assertTrue(macOSInformation is not None, 'Could not get the MacOS information from the disc: ' + testItemPath)
 		
-		installerType = duplicateItem.getInstallerDiskType()
-		self.assertTrue(version is not None, 'One of the items in output files (%s) did not have a value for installer type' % testItemPath)
-
+		# macOSType
+		self.assertTrue(macOSInformation['macOSType'] is not None, 'Could not get the macOSType from the disc: ' + testItemPath)
+		
+		# macOSVersion
+		self.assertTrue(macOSInformation['macOSVersion'] is not None, 'Could not get the macOSVersion from the disc: ' + testItemPath)
+		
+		# macOSBuild
+		self.assertTrue(macOSInformation['macOSBuild'] is not None, 'Could not get the macOSBuild from the disc: ' + testItemPath)
+		
+		# macOSInstallerDisc
+		self.assertTrue(macOSInformation['macOSInstallerDisc'] is not None, 'Could not get the macOSBuild from the disc: ' + testItemPath)
+		self.assertTrue(macOSInformation['macOSInstallerDisc'] is True, 'The disc did not evaluate as an installer disc as expected: ' + testItemPath)

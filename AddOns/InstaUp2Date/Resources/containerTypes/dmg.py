@@ -46,7 +46,7 @@ class dmg(volume):
 		# reset key diffferences from the superclass
 		
 		if 'dmgFilePath' in processInformation:
-			self.filePath = processInformation['dmgFilePath']
+			self.filePath = normalizePath(processInformation['dmgFilePath'], followSymlink=True)
 		else:
 			self.filePath = normalizePath(itemPath, followSymlink=True)
 		
@@ -106,6 +106,8 @@ class dmg(volume):
 		# -- validate input
 		
 		currentMountPoint = self.getMountPoint()
+		if currentMountPoint is not None:
+			return currentMountPoint
 		
 		# mountPoint/mountInFolder
 		if mountPoint is not None and mountInFolder is not None:
@@ -307,6 +309,9 @@ class dmg(volume):
 		dmgProperties = process.getPlistObject()
 		
 		result = {}
+		
+		# volumeName
+		result['volumeName'] = dmgProperties['Backing Store Information']['Name']
 		
 		# filePath
 		result['filePath'] = urllib.unquote(dmgProperties['Backing Store Information']['URL'])

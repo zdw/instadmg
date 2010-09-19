@@ -10,6 +10,7 @@ import hashlib, urlparse, subprocess, datetime
 import Resources.pathHelpers			as pathHelpers
 import Resources.commonConfiguration	as commonConfiguration
 import Resources.displayTools			as displayTools
+import Resources.findInstallerDisc		as findInstallerDisc
 from Resources.tempFolderManager		import tempFolderManager
 from Resources.installerPackage			import installerPackage
 from Resources.cacheController			import cacheController
@@ -20,7 +21,7 @@ from Resources.commonExceptions			import FileNotFoundException, CatalogNotFoundE
 svnRevision					= int('$Revision$'.split(" ")[1])
 versionString				= "0.5b (svn revision: %i)" % svnRevision
 
-allowedCatalogFileSettings	= [ "ISO Language Code", "Output Volume Name", "Output File Name" ]
+allowedCatalogFileSettings	= [ 'ISO Language Code', 'Output Volume Name', 'Output File Name', 'Installer Disc Builds' ]
 
 # these should be in the order they run in
 systemSectionTypes			= [ "OS Updates", "System Settings" ]
@@ -49,6 +50,9 @@ class instaUpToDate:
 	#--------------------Instance Variables---------------------------
 	
 	catalogFilePath			= None	# the main catalog file
+	
+	installerDiscPath		= None	# path to the installer disc to use
+	supportingDiscPaths		= None
 	
 	sectionFolders			= None
 	
@@ -122,6 +126,7 @@ class instaUpToDate:
 		self.packageGroups			= {}
 		self.catalogFileSettings	= {}
 		self.parsedFiles			= []
+		self.supportingDiscPaths	= []
 				
 		# catalogFilePath
 		if not os.path.exists(catalogFilePath):
@@ -180,7 +185,7 @@ class instaUpToDate:
 	def getMainCatalogName(self):
 		return os.path.splitext(os.path.basename(self.catalogFilePath))[0]
 	
-	def parseFile(self, fileLocation=None):
+	def parseCatalogFile(self, fileLocation=None):
 		
 		if fileLocation is None:
 			fileLocation = self.catalogFilePath
@@ -228,7 +233,7 @@ class instaUpToDate:
 			# ----- file includes lines ----
 			includeLineMatch = self.includeLineParser.search(line)
 			if includeLineMatch:
-				self.parseFile( self.getCatalogFullPath(includeLineMatch.group("location"), self.catalogFolders) )
+				self.parseCatalogFile( self.getCatalogFullPath(includeLineMatch.group("location"), self.catalogFolders) )
 				continue
 			
 			# ------- section lines --------
@@ -363,22 +368,33 @@ class instaUpToDate:
 		
 		instaDMGCommand	= [ commonConfiguration.pathToInstaDMG, "-f" ]
 		
+		# ISO Language Code
 		if self.catalogFileSettings.has_key("ISO Language Code"):
 			instaDMGCommand += ["-i", self.catalogFileSettings["ISO Language Code"]]
 			# TODO: check with installer to see if it will accept this language code
 		
+		# Installer and Supporting Discs
+		instaDMGCommand += ['-I', self.installerDiscPath]
+		for thisDisc in self.supportingDiscPaths:
+			instaDMGCommand += ['-J', thisDisc]
+		
+		# Output Volume Name
 		if self.catalogFileSettings.has_key("Output Volume Name"):
 			instaDMGCommand += ["-n", self.catalogFileSettings["Output Volume Name"]]
 		
+		# Output File Name
 		if self.catalogFileSettings.has_key("Output File Name"):
 			instaDMGCommand += ["-m", self.catalogFileSettings["Output File Name"]]
 		
+		# Scratch foler
 		if scratchFolder is not None:
 			instaDMGCommand += ["-t", scratchFolder]
 		
+		# Section folders
 		for thisSectionFolder in self.sectionFolders:
 			instaDMGCommand += ['-K', thisSectionFolder['folderPath']]
 		
+		# Output folder
 		if outputFolder is not None:
 			instaDMGCommand += ["-o", outputFolder]
 
@@ -405,13 +421,13 @@ def main ():
 		optionsParser.print_version()
 		sys.exit(0)
 	
-	
 	optionsParser = optparse.OptionParser("%prog [options] catalogFile1 [catalogFile2 ...]", version="%%prog %s" % versionString)
 	optionsParser.remove_option('--version')
-
+	optionsParser.add_option("-v", "--version", action="callback", callback=print_version, help="Print the version number and quit")
+	
+	# catalog items
 	
 	optionsParser.add_option("-a", "--add-catalog", action="append", type="string", dest="addOnCatalogFiles", help="Add the items in this catalog file to all catalog files processed. Can be called multiple times", metavar="FILE_PATH")
-	optionsParser.add_option("-v", "--version", action="callback", callback=print_version, help="Print the version number and quit")
 	
 	# instaDMG options
 	
@@ -424,7 +440,6 @@ def main ():
 	optionsParser.add_option('', '--add-catalog-folder', action='append', default=None, type='string', dest='catalogFolders', help='Set the folders searched for catalog files', metavar="FILE_PATH")
 	optionsParser.add_option('', '--set-cache-folder', action='store', default=None, type='string', dest='cacheFolder', help='Set the folder used to store downloaded files', metavar="FILE_PATH")
 	optionsParser.add_option('', '--add-source-folder', action='append', default=None, type='string', dest='searchFolders', help='Set the folders searched for items to install', metavar="FILE_PATH")
-	
 	
 	options, catalogFiles = optionsParser.parse_args()
 	
@@ -511,16 +526,33 @@ def main ():
 	# process the catalog files
 	for thisController in controllers:
 		print('\nParsing the catalog files for ' + thisController.getMainCatalogName())
-		thisController.parseFile()
+		thisController.parseCatalogFile()
 		
 		# add any additional catalogs to this one
 		for addOnCatalogFile in addOnCatalogFiles:
-			thisController.parseFile(addOnCatalogFile)
+			thisController.parseCatalogFile(addOnCatalogFile)
 	
 	# find all of the items
 	for thisController in controllers:
 		print('\nFinding and validating the sources for ' + thisController.getMainCatalogName())
 		thisController.findItems()
+	
+	# find the os installer disc
+	for thisController in controllers:
+		print('\nFinding the Installer disc for ' + thisController.getMainCatalogName())
+		foundInstallerDiscs = None
+		if thisController.catalogFileSettings.has_key('Installer Disc Builds'):
+			foundInstallerDiscs = findInstallerDisc.findInstallerDisc(allowedBuilds=thisController.catalogFileSettings['Installer Disc Builds'])
+		else:
+			foundInstallerDiscs = findInstallerDisc.findInstallerDisc()
+		
+		thisController.installerDiscPath = foundInstallerDiscs['InstallerDisc'].getStoragePath()
+		print('\tFound Installer Disc:\t' + thisController.installerDiscPath)
+		
+		for thisDisc in foundInstallerDiscs['SupportingDiscs']:
+			thisDiscPath = thisDisc.getStoragePath()
+			print('\tFound Supporting Disc:\t' + thisDiscPath)
+			thisController.supportingDiscPaths.append(thisDiscPath)
 	
 	# run the job
 	for thisController in controllers:

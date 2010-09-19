@@ -27,9 +27,11 @@ class volume(folder):
 	
 	mountedReadWrite		= None
 	
+	testedForMacOS			= False
+	macOSType				= None
 	macOSVersion			= None
 	macOSBuild				= None
-	macOSInstallerType		= None
+	macOSInstallerDisc		= None
 		
 	# ------ class properties
 	
@@ -50,6 +52,7 @@ class volume(folder):
 		# volumeName
 		if 'volumeName' in diskutilInfo:
 			self.volumeName = diskutilInfo['volumeName']
+			self.displayName = diskutilInfo['volumeName']
 		
 		# bsdName/bsdPath
 		if 'bsdName' in diskutilInfo:
@@ -78,6 +81,8 @@ class volume(folder):
 		# diskType
 		if 'diskType' in diskutilInfo:
 			self.volumeType = diskutilInfo['diskType']
+		
+		self.getMacOSInformation()
 	
 	def isMounted(self):
 		
@@ -100,10 +105,20 @@ class volume(folder):
 		
 		return None
 	
-	def getMacOSVersionAndBuild(self):
+	def getMacOSInformation(self):
 		
-		if self.macOSVersion is not None:
-			return self.macOSVersion, self.macOSBuild
+		# -- see if we already have this information
+		
+		if self.testedForMacOS is True:
+			# we already have the information
+			return {
+				'macOSType':self.macOSType,
+				'macOSVersion':self.macOSVersion,
+				'macOSBuild':self.macOSBuild,
+				'macOSInstallerDisc':self.macOSInstallerDisc
+			}
+		
+		# -- get the information from the disc
 		
 		wasAlreadyMounted = False
 		if self.isMounted():
@@ -114,8 +129,9 @@ class volume(folder):
 		systemVersionFile = os.path.join(currentMountPoint, "System/Library/CoreServices/SystemVersion.plist")
 		
 		if not os.path.isfile(systemVersionFile):
-			return False, False
-			#raise ValueError('The item given does not seem to be a MacOS X volume: ' + currentMountPoint)
+			# this is not a MacOS X disc
+			self.testedForMacOS = True
+			return None
 		
 		plistNSData = Foundation.NSData.dataWithContentsOfFile_(systemVersionFile)
 		plistData, format, error = Foundation.NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(plistNSData, Foundation.NSPropertyListMutableContainersAndLeaves, None, None)
@@ -125,45 +141,37 @@ class volume(folder):
 		if not ("ProductBuildVersion" in plistData and "ProductUserVisibleVersion" in plistData):
 			raise RuntimeError(' Unable to get the version, build, or type of MacOS on volume:' + self.getStoragePath())
 		
-		if wasAlreadyMounted is False:
-			self.unmount()
-		
+		result = {
+			'macOSVersion':str(plistData["ProductUserVisibleVersion"]),
+			'macOSBuild':str(plistData["ProductBuildVersion"])
+		}
 		self.macOSVersion	= str(plistData["ProductUserVisibleVersion"])
 		self.macOSBuild		= str(plistData["ProductBuildVersion"])
 		
-		return self.macOSVersion, self.macOSBuild
-	
-	def getInstallerDiskType(self):
-		'''Returns "MacOS X Client" for client versions, "MacOS X Server" for server versions, or None if this is not an installer disk'''
+		# check if this is client or server
 		
-		if self.macOSInstallerType is not None:
-			if self.macOSInstallerType is False:
-				return None
-			return self.macOSInstallerType
+		if os.path.exists(os.path.join(currentMountPoint, "System/Library/CoreServices/ServerVersion.plist")):
+			result['macOSType']	= 'MacOS X Server'
+			self.macOSType		= 'MacOS X Server'
+		else:
+			result['macOSType']	= 'MacOS X Client'
+			self.macOSType		= 'MacOS X Client'
 		
-		wasAlreadyMounted = False
-		if self.isMounted():
-			wasAlreadyMounted = True
+		# check if this is an installer disc
 		
-		currentMountPoint = self.getWorkingPath()
-		
-		returnValue = None
-		
-		if os.path.exists( os.path.join(currentMountPoint, "System/Installation/Packages/MacOSXServerInstall.mpkg") ):
-			returnValue = "MacOS X Server"
-		
-		elif os.path.exists( os.path.join(currentMountPoint, "System/Installation/Packages/OSInstall.mpkg") ):
-			returnValue = "MacOS X Client"
+		if os.path.exists(os.path.join(currentMountPoint, "System/Installation/Packages/OSInstall.mpkg")):
+			result['macOSInstallerDisc']	= True
+			self.macOSInstallerDisc			= True
+		else:
+			result['macOSInstallerDisc']	= False
+			self.macOSInstallerDisc			= False
 		
 		if wasAlreadyMounted is False:
 			self.unmount()
 		
-		if returnValue is None:
-			self.macOSInstallerType = False
-		else:
-			self.macOSInstallerType = returnValue
-		
-		return self.macOSInstallerType
+		# return the result
+		self.testedForMacOS = True
+		return result
 	
 	# ------ class methods
 	
