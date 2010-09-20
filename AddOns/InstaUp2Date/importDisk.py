@@ -81,7 +81,7 @@ def main():
 				continue
 			
 			macOSInformation = thisVolume.getMacOSInformation()
-			if macOSInformation is None or macOSInformation['macOSInstallerDisc'] is False:
+			if macOSInformation is None or macOSInformation['macOSInstallerDisc'] is not True:
 				continue
 			
 			possibleVolumes.append(thisVolume)
@@ -95,7 +95,7 @@ def main():
 		elif len(possibleVolumes) == 1:
 			chosenMount = possibleVolumes[0]
 			
-			choice = raw_input('Only one mount point found: "%s" (%s) - %s %s (%s). Create image? (Y/N):' % (chosenMount.getMountPoint(), chosenMount.volumeType, chosenMount.getInstallerDiskType(), chosenMount.getMacOSVersionAndBuild()[0], chosenMount.getMacOSVersionAndBuild()[1]))
+			choice = raw_input('Only one mount point found: "%s" (%s) - %s %s (%s). Create image? (Y/N):' % (chosenMount.getMountPoint(), chosenMount.volumeType, chosenMount.getMacOSInformation()['macOSType'], chosenMount.getMacOSInformation()['macOSVersion'], chosenMount.getMacOSInformation()['macOSBuild']))
 			if choice.lower() not in ['y', 'yes']:
 				print("Canceling")
 				sys.exit()
@@ -107,7 +107,7 @@ def main():
 			print('The following mounts are avalible: ')
 			i = 1
 			for thisVolume in possibleVolumes:
-				print('	%-4.4s"%s" (%s) - %s %s (%s)' % (str(i) + ")", thisVolume.getWorkingPath(), thisVolume.volumeType, thisVolume.getInstallerDiskType(), thisVolume.getMacOSVersionAndBuild()[0], thisVolume.getMacOSVersionAndBuild()[1]))
+				print('	%-4.4s"%s" (%s) - %s %s (%s)' % (str(i) + ")", thisVolume.getWorkingPath(), thisVolume.volumeType, thisVolume.getMacOSInformation()['macOSType'], thisVolume.getMacOSInformation()['macOSVersion'], thisVolume.getMacOSInformation()['macOSBuild']))
 				i += 1
 			choice = raw_input('Please select a volume by typeing in the number that precedes it: ')
 			try:
@@ -128,7 +128,7 @@ def main():
 		except:
 			optionParser.error('The path "%s" is not valid' % args[0])
 		
-		if not chosenMount.isContainerType('volume') or chosenMount.getInstallerDiskType() is None:
+		if not chosenMount.isContainerType('volume') or chosenMount.getMacOSInformation()['macOSType'] is None:
 			optionParser.error('The path "%s" is not an installer disk' % args[0])
 	
 	else:
@@ -136,7 +136,7 @@ def main():
 	
 	chosenFileName = options.outputFileName
 	if chosenFileName is None and options.legacyMode is False:
-		chosenFileName = "%s %s %s.dmg" % (chosenMount.getInstallerDiskType(), chosenMount.getMacOSVersionAndBuild()[0], chosenMount.getMacOSVersionAndBuild()[1])
+		chosenFileName = "%s %s %s.dmg" % (chosenMount.getMacOSInformation()['macOSType'], chosenMount.getMacOSInformation()['macOSVersion'], chosenMount.getMacOSInformation()['macOSBuild'])
 	elif options.legacyMode is True:
 		chosenFileName = "Mac OS X Install DVD.dmg"
 	
