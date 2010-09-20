@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
-from __future__ import with_statement
 import os, weakref, warnings
+
+warnings.simplefilter("ignore", DeprecationWarning)
 
 try:
 	from .pathHelpers			import normalizePath
@@ -43,15 +44,14 @@ class container(object):
 		
 		# check if we already have an object for this
 		if instanceKey not in myClass.__instances__:
-			with warnings.catch_warnings():
-				warnings.simplefilter("ignore")
-				returnObject = object.__new__(myClass, itemPath, processInformation, **kwargs)
-				
-				# do the setup on this object with the modified values
-				returnObject.__init__(itemPath, processInformation, **kwargs)
-				
-				# get a weak refernce
-				myClass.__instances__[instanceKey] = returnObject
+			
+			returnObject = object.__new__(myClass, itemPath, processInformation, **kwargs)
+			
+			# do the setup on this object with the modified values
+			returnObject.__init__(itemPath, processInformation, **kwargs)
+			
+			# get a weak refernce
+			myClass.__instances__[instanceKey] = returnObject
 		
 		return myClass.__instances__[instanceKey]
 	
