@@ -587,16 +587,7 @@ mount_cached_image() {
 	# compatibility for old-style checksums (using colons)
 	OLD_STYLE_TARGET_IMAGE_CHECKSUM=''	# using colons
 	
-	while [ -h "$CURRENT_OS_INSTALL_FILE" ]; do
-		NEW_LINK=`/usr/bin/readlink "$CURRENT_OS_INSTALL_FILE"`
-		if [[ "$NEW_LINK" == /* ]]; then
-			CURRENT_OS_INSTALL_FILE="$NEW_LINK"
-		else
-			BASE_LINK=`/usr/bin/dirname "$CURRENT_OS_INSTALL_FILE"`
-			CURRENT_OS_INSTALL_FILE="$BASE_LINK/$NEW_LINK"
-		fi
-	done
-	CURRENT_OS_INSTALL_FILE=$( cd $( dirname "$CURRENT_OS_INSTALL_FILE" ); echo "`pwd`/`basename "$CURRENT_OS_INSTALL_FILE"`" )
+	CURRENT_OS_INSTALL_FILE=`AddOns/InstaUp2Date/Resources/pathHelpers.py --normalize-path --follow-symlinks --supress-return "$CURRENT_OS_INSTALL_FILE" 2>&1`
 	
 	TARGET_IMAGE_CHECKSUM=`/usr/bin/hdiutil imageinfo "$CURRENT_OS_INSTALL_FILE" | /usr/bin/awk '/^Checksum Value:/ { print $3 }' | /usr/bin/sed 's/\\$//'`
 	
@@ -853,17 +844,9 @@ install_packages_from_folder() {
 		PACKAGE_DMG_FILE=''
 		
 		log "Working on folder $ORDERED_FOLDER (`date '+%H:%M:%S'`)" information
-				
+		
 		# first resolve any chain of symlinks
-		while [ -h "$TARGET" ]; do
-			NEW_LINK=`/usr/bin/readlink "$TARGET"`
-			if [[ "$NEW_LINK" == /* ]]; then
-				TARGET="$NEW_LINK"
-			else
-				BASE_LINK=`/usr/bin/dirname "$TARGET"`
-				TARGET="$BASE_LINK/$NEW_LINK"
-			fi
-		done
+		TARGET=`AddOns/InstaUp2Date/Resources/pathHelpers.py --normalize-path --follow-symlinks --supress-return "$TARGET" 2>&1`
 		
 		# check for dmgs
 		shopt -s nocasematch # case insensitive matching
