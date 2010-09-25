@@ -10,6 +10,7 @@ OS Updates:
 	Mac OS X 10.5.8 Combo Update	http://support.apple.com/downloads/DL866/en_US/MacOSXUpdCombo10.5.8.dmg	sha1:0a88c9ecfbe08faf1a2307929c67f38b4822dfcb
 	QuickTime 7.6.6 for Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-7507.20100330.Qt657/QuickTime766Leopard.dmg	sha1:dfa37357618789873d83f08ae45b510147477e17
 	AirPort Utility 5.3.2 Leopard	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4614.20080611.vbh98/AirPortUtility_Leopard.dmg	sha1:f5105d0c5353a2838d191e04454e77280c0a8c81
+	iLife Support 9.0.4	http://support.apple.com/downloads/DL1009/en_US/iLifeSupport904.dmg	sha1:7cda1492d1bab91383b5738a7cda2cde24f72d2c
 	
 	Front Row Update 2.1.7	http://support.apple.com/downloads/DL796/en_US/FrontRowUpdate2.1.7.dmg	sha1:f25aaf2dd305c264ea3cca76b374fca1e7157303
 	Java For MacOS X 10.5 Update 5	http://support.apple.com/downloads/DL924/en_US/JavaForMacOSX10.5Update5.dmg	sha1:20dd590192fb81a8f164b73727295ed2ac4f1693
@@ -20,9 +21,8 @@ OS Updates:
 	Java For MacOS X 10.5 Update 7	http://support.apple.com/downloads/DL971/en_US/JavaForMacOSX10.5Update7.dmg	sha1:bd7835ed10bd8a3145c94a922c13e1704a65d374
 
 Apple Updates:
-	iTunes 10	http://appldnld.apple.com/iTunes10/061-9183.20100902.X2ndX/iTunes10.dmg	sha1:a21838677e073c3888bad217dc375b6989f881cd
+	iTunes 10.0.1	http://appldnld.apple.com/iTunes10/061-9207.20100924.Nzse2/iTunes10.0.1.dmgsha1:4c12b51e2a2b08a93687fdee0a79390c192117eb
 	
-	iLife Support 9.0.4	http://support.apple.com/downloads/DL1009/en_US/iLifeSupport904.dmg	sha1:7cda1492d1bab91383b5738a7cda2cde24f72d2c
 	Safari 5.0.2 Leopard	http://appldnld.apple.com/Safari5/061-8789.20100907.Pre3E/Safari5.0.2Leopard.dmg	sha1:3b71a553b53b8c22e0f4f21842f500ef5d6ed0e7
 	Digital Camera RAW Compatibility Update 3.3	http://support.apple.com/downloads/DL1072/en_US/RAWCameraUpdate3.dmg	sha1:f8760397b2bd8c3d7d22270c551e733b248916b5
 
