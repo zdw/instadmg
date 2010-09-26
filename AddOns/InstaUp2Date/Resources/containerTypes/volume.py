@@ -7,9 +7,11 @@ from folder					import folder
 try:
 	from .Resources.volumeTools				import getDiskutilInfo
 	from .Resources.managedSubprocess		import managedSubprocess
+	from .Resources.tempFolderManager		import tempFolderManager
 except ImportError:
 	from .volumeTools						import getDiskutilInfo
 	from .managedSubprocess					import managedSubprocess
+	from .tempFolderManager					import tempFolderManager
 
 
 class volume(folder):
@@ -104,6 +106,16 @@ class volume(folder):
 			return currentInfo['mountPath']
 		
 		return None
+	
+	def unmount(self):
+		currentMountPoint = self.getMountPoint()
+		if currentMountPoint is None:
+			return # ToDo: log this, maybe error out here
+		
+		if tempFolderManager.isManagedItem(currentMountPoint):
+			tempFolderManager.cleanupItem(currentMountPoint)
+		else:
+			unmountVolume(currentMountPoint)
 	
 	def getMacOSInformation(self):
 		

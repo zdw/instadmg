@@ -188,16 +188,6 @@ class dmg(volume):
 		
 		return actualMountedPath
 	
-	def unmount(self):
-		currentMountPoint = self.getMountPoint()
-		if currentMountPoint is None:
-			return # ToDo: log this, maybe error out here
-		
-		if tempFolderManager.isManagedItem(currentMountPoint):
-			tempFolderManager.cleanupItem(currentMountPoint)
-		else:
-			unmountVolume(currentMountPoint)
-	
 	def getWorkingPath(self, withinFolder=None):
 		'''Return the mounted path, mounting or re-mounting if necessary'''
 		

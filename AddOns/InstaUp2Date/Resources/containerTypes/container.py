@@ -88,12 +88,16 @@ class container(object):
 	# ------ class methods
 	
 	@classmethod
-	def isContainerType(myClass, thisType):
+	def isContainerType(myClass, thisType, includeSubclasses=True):
 		'''If this item/class is the class or a subclass of the type given'''
 		
-		for thisClass in myClass.__mro__:
-			if thisClass.__name__ == str(thisType):
+		if includeSubclasses is False:
+			if myClass.__name__ == str(thisType):
 				return True
+		else:
+			for thisClass in myClass.__mro__:
+				if thisClass.__name__ == str(thisType):
+					return True
 		
 		return False
 	

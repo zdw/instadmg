@@ -4,6 +4,8 @@
 #
 #	This script parses one or more catalog files to setup InstaDMG
 
+__version__		= int('$Revision$'.split(" ")[1])
+
 import os, sys, re
 import hashlib, urlparse, subprocess, datetime
 
@@ -11,15 +13,16 @@ import Resources.pathHelpers			as pathHelpers
 import Resources.commonConfiguration	as commonConfiguration
 import Resources.displayTools			as displayTools
 import Resources.findInstallerDisc		as findInstallerDisc
+import Resources.commonExceptions		as commonExceptions
+import Resources.containerController	as containerController
+from Resources.managedSubprocess		import managedSubprocess
 from Resources.tempFolderManager		import tempFolderManager
 from Resources.installerPackage			import installerPackage
 from Resources.cacheController			import cacheController
-from Resources.commonExceptions			import FileNotFoundException, CatalogNotFoundException
 
 #------------------------------SETTINGS------------------------------
 
-svnRevision					= int('$Revision$'.split(" ")[1])
-versionString				= "0.5b (svn revision: %i)" % svnRevision
+versionString				= "0.5b (svn revision: %i)" % __version__
 
 allowedCatalogFileSettings	= [ 'ISO Language Code', 'Output Volume Name', 'Output File Name', 'Installer Disc Builds' ]
 
@@ -59,8 +62,10 @@ class instaUpToDate:
 	packageGroups 			= None	# a Hash
 	parsedFiles 			= None	# an Array, for loop checking
 	
+	outputFilePath			= None	# path to the created dmg
+	
 	# defaults
-	outputVolumeNameDefault = "MacintoshHD"
+	outputVolumeNameDefault = "Macintosh HD"
 	
 	# things below this line will usually come from the first catalog file (top) that sets them
 	catalogFileSettings		= None	# a hash
@@ -114,7 +119,7 @@ class instaUpToDate:
 					if os.path.isfile( os.path.join(thisFolder, catalogFileInput + thisExtension) ):
 						return pathHelpers.normalizePath(os.path.join(thisFolder, catalogFileInput + thisExtension), followSymlink=True)
 		
-		raise CatalogNotFoundException("The file input is not one that getCatalogFullPath understands, or can find: %s" % catalogFileInput)
+		raise commonExceptions.CatalogNotFoundException("The file input is not one that getCatalogFullPath understands, or can find: %s" % catalogFileInput)
 		
 	#------------------------Functions--------------------------------
 	
@@ -130,7 +135,7 @@ class instaUpToDate:
 				
 		# catalogFilePath
 		if not os.path.exists(catalogFilePath):
-			raise FileNotFoundException('The catalog file does not exist: ' + str(catalogFilePath))
+			raise commonExceptions.FileNotFoundException('The catalog file does not exist: ' + str(catalogFilePath))
 		self.catalogFilePath = catalogFilePath
 		
 		# catalogFolders
@@ -380,11 +385,19 @@ class instaUpToDate:
 		
 		# Output Volume Name
 		if self.catalogFileSettings.has_key("Output Volume Name"):
-			instaDMGCommand += ["-n", self.catalogFileSettings["Output Volume Name"]]
+			self.outputFilePath = self.catalogFileSettings["Output Volume Name"]
+		else:
+			self.outputFilePath = self.outputVolumeNameDefault
+		instaDMGCommand += ["-n", self.outputFilePath]
 		
 		# Output File Name
 		if self.catalogFileSettings.has_key("Output File Name"):
 			instaDMGCommand += ["-m", self.catalogFileSettings["Output File Name"]]
+			self.outputFilePath = os.path.join(self.outputFilePath, self.catalogFileSettings["Output File Name"])
+		else:
+			# default to the name portion of the catalog file name
+			instaDMGCommand += ["-m", os.path.splitext(os.path.basename(self.catalogFilePath))]
+			self.outputFilePath = os.path.join(self.outputFilePath, os.path.splitext(os.path.basename(self.catalogFilePath)))
 		
 		# Scratch foler
 		if scratchFolder is not None:
@@ -397,13 +410,49 @@ class instaUpToDate:
 		# Output folder
 		if outputFolder is not None:
 			instaDMGCommand += ["-o", outputFolder]
+		else:
+			instaDMGCommand += ["-o", commonConfiguration.standardOutputFolder]
 
 		print("\nRunning InstaDMG: %s\n" % " ".join(instaDMGCommand))
 		# we should be in the same directory as InstaDMG
 		
 		subprocess.call(instaDMGCommand)
 		# TODO: a lot of improvements in handling of InstaDMG
-
+	
+	def restoreImageToVolume(self, targetVolume):
+		
+		# ---- validate input and sanity check
+		
+		# targetVolume should be a container of type volume (not dmg)
+		if not hasattr(targetVolume, 'isContainerType') or not targetVolume.isContainerType('volume') or targetVolume.isContainerType('dmg'):
+			raise ValueError('Unable to restore onto: ' + str(targetVolume))
+		
+		if self.outputFilePath is None:
+			raise RuntimeError('Restoring a volume requires that the image have been built')
+		
+		# ---- process
+		
+		# unmount the volume
+		targetVolume.unmount()
+		
+		# restore the image onto the volume by bsd path
+		asrCommand = ['/usr/sbin/asr', 'restore', '--verbose', '--source', self.outputFilePath, '--target', targetVolume.bsdPath, '--erase', '--noprompt']
+		managedSubprocess(asrCommand)
+		
+		# make sure that the volume is mounted
+		targetVolume.mount()
+		
+		# bless the volume so that it is bootable
+		blessCommand = ['/usr/sbin/bless', '--device', targetVolume.bsdPath, '--verbose']
+		managedSubprocess(blessCommand)
+		
+		# bless the volume so that it is the nextboot device
+		blessCommand = ['/usr/sbin/bless', '--device', targetVolume.bsdPath, '--setBoot', '--nextonly', '--verbose']
+		managedSubprocess(blessCommand)
+		
+		# reboot
+		rebootCommand = ['/usr/bin/osascript', '-e', 'tell application "System Events" to restart']
+		managedSubprocess(rebootCommand)
 	
 #--------------------------------MAIN--------------------------------
 
@@ -441,27 +490,60 @@ def main ():
 	optionsParser.add_option('', '--set-cache-folder', action='store', default=None, type='string', dest='cacheFolder', help='Set the folder used to store downloaded files', metavar="FILE_PATH")
 	optionsParser.add_option('', '--add-source-folder', action='append', default=None, type='string', dest='searchFolders', help='Set the folders searched for items to install', metavar="FILE_PATH")
 	
+	# post-processing
+	
+	optionsParser.add_option('', '--restore-onto-volume', default=None, type='string', dest='restoreTarget', help='After creating the image, restore onto volume. WARNING: this will destroy all data on the volume', metavar="VOLUME")
+	
+	# run the parser
+	
 	options, catalogFiles = optionsParser.parse_args()
 	
-	# --- police options ----
+	# ---- police options
 	
+	# catalogFiles
 	if len(catalogFiles) < 1:
 		optionsParser.error("At least one catalog file is required")
 	
-	if (options.instadmgScratchFolder != None or options.instadmgOutputFolder != None) and options.processWithInstaDMG == False:
-		optionsParser.error("The instadmg-scratch-folder and instadmg-output-folder options require the -p/--process option to also be enabled")
+	if options.processWithInstaDMG is True:
+		
+		# check that we are running as root
+		if os.getuid() != 0:
+			optionsParser.error("When using the -p/--process flag this must be run as root (sudo is fine)")
+		
+		# instadmgScratchFolder
+		if options.instadmgScratchFolder is not None and not os.path.isdir(options.instadmgScratchFolder):
+			optionsParser.error("The --instadmg-scratch-folder option requires a valid folder path, but got: %s" % options.instadmgScratchFolder)
+		
+		# instadmgOutputFolder
+		if options.instadmgOutputFolder is not None and not os.path.isdir(options.instadmgOutputFolder):
+			optionsParser.error("The instadmg-output-folder option requires a valid folder path, but got: %s" % options.instadmgOutputFolder)
+		
+		# restoreTarget
+		if options.restoreTarget is not None:
+			
+			if len(catalogFiles) > 1:
+				optionsParser.error('When using the --restore-onto-volume option option only a single catalog file can be processed')
+			
+			try:
+				options.restoreTarget = containerController.newContainerForPath(options.restoreTarget)
+			except:
+				optionsParser.error("Could not understand the value of the --restore-onto-volume option: " + str(options.restoreTarget))
+			
+			if not options.restoreTarget.isContainerType('volume') or options.restoreTarget.isContainerType('dmg'):
+				optionsParser.error("The --restore-onto-volume option can only accept volumes on a HD, not dmgs or folder-like objects: " + str(options.restoreTarget))
+		
+	else:
+		
+		# instadmgScratchFolder, instadmgOutputFolder, and restoreTarget are meaningless without the --process option
+		for optionName, optionVariable in {
+			'--instadmg-scratch-folder':'instadmgScratchFolder',
+			'--instadmg-output-folder':'instadmgOutputFolder',
+			'--restore-onto-volume':'restoreTarget'
+		}.items():
+			if getattr(options, optionVariable) is not None:
+				optionsParser.error("The %s option requires the -p/--process option to also be enabled" % optionName)
 	
-	if options.instadmgScratchFolder != None and not os.path.isdir(options.instadmgScratchFolder):
-		optionsParser.error("The instadmg-scratch-folder option requires a valid folder path, but got: %s" % options.instadmgScratchFolder)
-	
-	if options.instadmgOutputFolder != None and not os.path.isdir(options.instadmgOutputFolder):
-		optionsParser.error("The instadmg-output-folder option requires a valid folder path, but got: %s" % options.instadmgOutputFolder)
-	
-	# if we are running InstaDMG, then we need to be running as root
-	if options.processWithInstaDMG is True and os.getuid() != 0:
-		optionsParser.error("When using the -p/--process flag this must be run as root (sudo is fine)")
-	
-	# --- process options ---
+	# ---- process options
 
 	if options.catalogFolders is None:
 		options.catalogFolders = commonConfiguration.standardCatalogFolder
@@ -471,7 +553,7 @@ def main ():
 		try:
 			baseCatalogFiles.append(instaUpToDate.getCatalogFullPath(thisCatalogFile, options.catalogFolders))
 			
-		except CatalogNotFoundException:
+		except commonExceptions.CatalogNotFoundException:
 			optionsParser.error("There does not seem to be a catalog file at: %s" % thisCatalogFile)
 	
 	addOnCatalogFiles = []
@@ -480,7 +562,7 @@ def main ():
 			try:
 				addOnCatalogFiles.append(instaUpToDate.getCatalogFullPath(thisCatalogFile, options.catalogFolders))
 			
-			except CatalogNotFoundException:
+			except commonExceptions.CatalogNotFoundException:
 				optionsParser.error("There does not seem to be a catalog file at: %s" % thisCatalogFile)
 	
 	sectionFolders = None
@@ -558,7 +640,7 @@ def main ():
 	for thisController in controllers:
 		print('\nSetting up for ' + thisController.getMainCatalogName())
 		
-		if options.processWithInstaDMG == False:
+		if options.processWithInstaDMG is False:
 			# empty the folders
 			print('\tCleaning InstaDMG folders')
 			thisController.cleanInstaDMGFolders()
@@ -567,9 +649,13 @@ def main ():
 		print('\tSetting up InstaDMG folders')
 		thisController.arrangeFolders(sectionFolders=sectionFolders)
 		
-		if options.processWithInstaDMG == True:
+		if options.processWithInstaDMG is True:
 			# the run succeded, and it has been requested to run InstaDMG
 			thisController.runInstaDMG(scratchFolder=options.instadmgScratchFolder, outputFolder=options.instadmgOutputFolder)
+			
+			if options.restoreTarget is not None:
+				print('\nRestoring to volume' + options.restoreTarget.getDisplayName())
+				self.restoreImageToVolume(options.restoreTarget)
 	
 	print('\nDone')
 		
