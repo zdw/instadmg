@@ -221,7 +221,11 @@ def main():
 	result = findInstallerDisc(allowedBuilds=options.allowedBuilds, searchItems=options.searchItems, systemType=options.systemType)
 	
 	if options.suppressReturn is True:
-		sys.stdout.write("\n".join([result['InstallerDisc']] + result['SupportingDiscs']))
+		supportingDiscPaths = []
+		for thisSupportingDisc in result['SupportingDiscs']:
+			supportingDiscPaths.append(thisSupportingDisc.getStoragePath())
+		
+		sys.stdout.write("\n".join([result['InstallerDisc'].getStoragePath()] + supportingDiscPaths))
 		
 	else:
 		print('Installer Disc: ' + result['InstallerDisc'].getStoragePath())
