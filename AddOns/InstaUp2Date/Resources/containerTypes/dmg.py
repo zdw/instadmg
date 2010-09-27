@@ -6,13 +6,11 @@ from volume		import volume
 
 try:
 	from .managedSubprocess					import managedSubprocess
-	from .volumeTools						import unmountVolume
 	from .tempFolderManager					import tempFolderManager
 	from .pathHelpers						import normalizePath, pathInsideFolder
 	
 except ImportError:
 	from .Resources.managedSubprocess		import managedSubprocess
-	from .Resources.volumeTools				import unmountVolume
 	from .Resources.tempFolderManager		import tempFolderManager
 	from .Resources.pathHelpers				import normalizePath, pathInsideFolder
 
@@ -117,7 +115,7 @@ class dmg(volume):
 			if os.path.samefile(mountPoint, currentMountPoint):
 				return # nothing to do here
 			else:
-				raise ValueError('This image (%s) was already mounted with the same settings (shadowFile = %s)' % (self.getStoragePath(), self.shadowFileFalth))
+				raise ValueError('This image (%s) was already mounted with the same settings (shadowFile = %s)' % (self.getStoragePath(), self.shadowFilePath))
 		
 		elif mountPoint is not None and os.path.ismount(mountPoint):
 			raise ValueError('mount() called with a mountPoint that is already a mount point: ' + mountPoint)
@@ -377,6 +375,28 @@ class dmg(volume):
 					shadowFilePath = thisMountedImage['shadowFilePath']
 				break
 		
+		# -- check with diskutil to see if we can resolve this
+		
+		if 'diskutilInfo' not in processInformation:
+			try:
+				canidateDiskutilInfo = myClass.diskutilInfo(itemPath)
+				
+				mountPoint = None
+				if 'mountPath' in canidateDiskutilInfo:
+					mountPoint = canidateDiskutilInfo['mountPath']
+				
+				if itemPath in [mountPoint, canidateDiskutilInfo['bsdPath'], canidateDiskutilInfo['bsdName']]:
+					processInformation['diskutilInfo'] = canidateDiskutilInfo
+			except:
+				pass # if could be the path to a closed image
+		
+		if 'diskutilInfo' in processInformation:
+			if processInformation['diskutilInfo']['diskType'] != 'Disk Image':
+				return (0, processInformation)
+			
+			# make sure we have the path to the mount point
+			itemPath = processInformation['diskutilInfo']['mountPath']
+		
 		# -- use 'hdiutil imageinfo' to see if it is an image
 		
 		if not 'dmgFilePath' in processInformation:
@@ -397,9 +417,6 @@ class dmg(volume):
 		# -- make the score decision
 		
 		if 'dmgFilePath' in processInformation:
-			
-			if not 'instanceKeys' in processInformation:
-				processInformation['instanceKeys'] = {}
 			
 			if shadowFilePath is None:
 				processInformation['instanceKeys'][myClass.__name__] = processInformation['dmgFilePath']

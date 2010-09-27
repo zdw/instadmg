@@ -5,7 +5,7 @@ import os, weakref, warnings
 warnings.simplefilter("ignore", DeprecationWarning)
 
 try:
-	from .pathHelpers			import normalizePath
+	from .pathHelpers					import normalizePath
 except ImportError:
 	from .Resources.pathHelpers			import normalizePath
 
@@ -58,7 +58,7 @@ class container(object):
 	def __init__(self, itemPath, processInformation=None, **kwargs):
 		
 		if self.itemAlreadySetup is False:
-		
+			
 			self.filePath = itemPath
 			self.displayName = os.path.basename(itemPath)
 			
@@ -71,7 +71,7 @@ class container(object):
 	
 	def getDisplayName(self):
 		'''Get a user-oriented string for this item'''
-		return displayName
+		return self.displayName
 	
 	def getWorkingPath(self, forVolume=None):
 		'''Return path used to work with this item, possibly a copy inside a chroot'''

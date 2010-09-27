@@ -8,10 +8,14 @@ try:
 	from .Resources.volumeTools				import getDiskutilInfo
 	from .Resources.managedSubprocess		import managedSubprocess
 	from .Resources.tempFolderManager		import tempFolderManager
+	from .Resources.volumeTools				import unmountVolume
+	from .Resources.pathHelpers				import pathInsideFolder
 except ImportError:
 	from .volumeTools						import getDiskutilInfo
 	from .managedSubprocess					import managedSubprocess
 	from .tempFolderManager					import tempFolderManager
+	from .volumeTools						import unmountVolume
+	from .pathHelpers						import pathInsideFolder
 
 
 class volume(folder):
@@ -106,6 +110,80 @@ class volume(folder):
 			return currentInfo['mountPath']
 		
 		return None
+	
+	def mount(self, mountPoint=None, mountInFolder=None, mountReadWrite=None):
+		
+		# -- police the input
+		
+		deviceInfo = self.diskutilInfo(self.bsdPath)
+		currentMountPoint = None
+		if 'mountPath' in deviceInfo:
+			currentMountPoint = deviceInfo['mountPath']
+		
+		# mountReadWrite
+		if mountReadWrite is None:
+			pass # nothing to do here
+		
+		elif mountReadWrite not in [True, False]:
+			raise ValueError('mountReadWrite can only by None, True, or False')
+			
+		elif currentMountPoint is not None and deviceInfo['mountedReadWrite'] != mountReadWrite:
+			raise RuntimeError('mount called with mountReadWrite=%s, but the volume was already mounted with mountReadWrite=%s' % (mountReadWrite, deviceInfo['mountedReadWrite']))
+		
+		# mountPoint/mountInFolder
+		
+		if mountPoint is not None and mountInFolder is not None:
+			raise ValueError('mount can only be called with mountPoint or mountInFolder, not both')
+		
+		if currentMountPoint is not None and mountPoint is not None:
+			if os.path.samefile(mountPoint, currentMountPoint):
+				return currentMountPoint # nothing to do here
+			else:
+				raise RuntimeError('This volume "%s" (%s) was already mounted at "%s" when it was requested at "%s"' % (self.getDisplayName(), self.bsdPath, currentMountPoint, mountPoint))
+		
+		elif mountPoint is not None and os.path.ismount(mountPoint):
+			raise ValueError('mount called with a mountpoint that already has something mounted at it: ' + str(mountPoint))
+		
+		elif mountPoint is not None and os.path.exists(mountPoint) and not os.path.isdir(mountPoint):
+			raise ValueError('mount called with a mountpoint that is not a folder: ' + str(mountPoint))
+		
+		elif mountPoint is not None and not os.path.exists(mountPoint) and os.path.isdir(os.path.dirname(mountPoint)):
+			# create a temporary folder for this
+			os.mkdir(mountPoint)
+			tempFolderManager.addManagedItem(mountPoint)
+		
+		elif mountPoint is not None and not os.path.isdir(os.path.dirname(mountPoint)):
+			 raise ValueError('mount called with a mountpoint whose parent folder is not a directory: ' + str(mountPoint))
+		
+		elif mountInFolder is not None and not os.path.isdir(mountInFolder):
+			raise ValueError('mount called with a mountInFolder value that is not a directory: ' + str(mountInFolder))
+		
+		elif currentMountPoint is not None and mountInFolder is not None:
+			if not pathInsideFolder(currentMountPoint, mountInFolder):
+				raise RuntimeError('mount called on %s (%s) with a mountInFolder value of "%s", but it was already mounted at: %s' % (self.getDisplayName(), self.bsdPath, currentMountPoint, mountPoint))
+			
+			# create the mount point
+			mountPoint = tempFolderManager.getNewMountPoint(parentFolder=mountInFolder)
+		
+		# -- build the command
+		
+		command = ['/usr/sbin/diskutil', 'mount']
+		
+		if mountReadWrite is True:
+			command.append('readOnly')
+		
+		if mountPoint is not None:
+			command += ['-mountPoint', mountPoint]
+		
+		command.append(self.bsdPath)
+		
+		# -- run the command
+		
+		managedSubprocess(command)
+		
+		# -- find and return the mount point
+		
+		return self.getMountPoint()
 	
 	def unmount(self):
 		currentMountPoint = self.getMountPoint()
@@ -238,19 +316,24 @@ class volume(folder):
 		# mountPath
 		if 'MountPoint' in diskutilInfo:
 			result['mountPath'] = str(diskutilInfo['MountPoint'])
+			
+			# mountedReadWrite
+			if diskutilInfo['WritableVolume'] is True:
+				result['mountedReadWrite'] = True
+			else:
+				result['mountedReadWrite'] = False
 		
 		# volumeName
 		if 'VolumeName' in diskutilInfo:
 			result['volumeName'] = str(diskutilInfo['VolumeName'])
 		
 		# bsdPath/bsdName
-		if 'DeviceNode' in diskutilInfo:
-			if diskutilInfo['DeviceNode'].startswith('/dev/'):
-				result['bsdPath'] = str(diskutilInfo['DeviceNode'])
-				result['bsdName'] = str(result['bsdPath'])[len('/dev/'):]
-			else:
-				result['bsdPath'] = '/dev/' + str(diskutilInfo['DeviceNode'])
-				result['bsdName'] = str(diskutilInfo['DeviceNode'])
+		if diskutilInfo['DeviceNode'].startswith('/dev/'):
+			result['bsdPath'] = str(diskutilInfo['DeviceNode'])
+			result['bsdName'] = str(result['bsdPath'])[len('/dev/'):]
+		else:
+			result['bsdPath'] = '/dev/' + str(diskutilInfo['DeviceNode'])
+			result['bsdName'] = str(diskutilInfo['DeviceNode'])
 		
 		# diskBsdPath/diskBsdName
 		if 'ParentWholeDisk' in diskutilInfo:
@@ -287,7 +370,35 @@ class volume(folder):
 	@classmethod
 	def scoreItemMatch(myClass, itemPath, processInformation, **kwargs):
 		
-		if os.path.ismount(itemPath):
+		# -- validate input
+		
+		if not hasattr(itemPath, 'capitalize'):
+			raise ValueError('Did not understand itempath: ' + str(itemPath))
+		
+		# -- check with informaiton from diskutil
+		
+		# make sure we have the information
+		if 'hdiutilInfo' not in processInformation:
+			try:
+				canidateDiskutilInfo = myClass.diskutilInfo(itemPath)
+				
+				mountPoint = None
+				if 'mountPath' in canidateDiskutilInfo:
+					mountPoint = canidateDiskutilInfo['mountPath']
+				
+				if itemPath in [mountPoint, canidateDiskutilInfo['bsdPath'], canidateDiskutilInfo['bsdName']]:
+					processInformation['diskutilInfo'] = canidateDiskutilInfo
+				else:
+					return (0, processInformation) # if diskutil does not understand it, it is not a volume
+			except:
+				return (0, processInformation) # if diskutil does not understand it, it is not a volume
+		
+		mountPoint = None
+		if 'mountPath' in processInformation['diskutilInfo']:
+			mountPoint = processInformation['diskutilInfo']['mountPath']
+		
+		if itemPath in [processInformation['diskutilInfo']['bsdPath'], processInformation['diskutilInfo']['bsdName']] or os.path.samefile(mountPoint, itemPath):
+			processInformation['instanceKeys'][myClass.__name__] = processInformation['diskutilInfo']['bsdPath']
 			return (myClass.getMatchScore(), processInformation)
 		
 		return (0, processInformation)

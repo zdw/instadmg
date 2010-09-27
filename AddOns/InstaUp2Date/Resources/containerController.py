@@ -8,7 +8,8 @@ def newContainerForPath(itemPath, **kwargs):
 	topScorer			= None
 	topScore			= 0
 	
-	processInformation	= {}	# information to be passed along between scoreItemMatch methods and finally the init
+	processInformation	= { 'instanceKeys':{} }
+		# information to be passed along between scoreItemMatch methods and finally the init
 	
 	for thisClass in container.container.getSubclasses():
 		if thisClass == container.container:

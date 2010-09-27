@@ -385,19 +385,21 @@ class instaUpToDate:
 		
 		# Output Volume Name
 		if self.catalogFileSettings.has_key("Output Volume Name"):
-			self.outputFilePath = self.catalogFileSettings["Output Volume Name"]
+			instaDMGCommand += ["-n", self.catalogFileSettings["Output Volume Name"]]
 		else:
-			self.outputFilePath = self.outputVolumeNameDefault
-		instaDMGCommand += ["-n", self.outputFilePath]
+			instaDMGCommand += ["-n", self.outputVolumeNameDefault]
 		
 		# Output File Name
 		if self.catalogFileSettings.has_key("Output File Name"):
-			instaDMGCommand += ["-m", self.catalogFileSettings["Output File Name"]]
-			self.outputFilePath = os.path.join(self.outputFilePath, self.catalogFileSettings["Output File Name"])
+			self.outputFilePath = os.path.join(commonConfiguration.standardOutputFolder, self.catalogFileSettings["Output File Name"])
 		else:
 			# default to the name portion of the catalog file name
-			instaDMGCommand += ["-m", os.path.splitext(os.path.basename(self.catalogFilePath))]
-			self.outputFilePath = os.path.join(self.outputFilePath, os.path.splitext(os.path.basename(self.catalogFilePath)))
+			self.outputFilePath = os.path.join(commonConfiguration.standardOutputFolder, os.path.splitext(os.path.basename(self.catalogFilePath)))
+		
+		if os.path.splitext(os.path.basename(self.outputFilePath))[1].lower() != '.dmg':
+			self.outputFilePath += '.dmg'
+		
+		instaDMGCommand += ["-m", os.path.basename(self.outputFilePath)]
 		
 		# Scratch foler
 		if scratchFolder is not None:
@@ -438,9 +440,6 @@ class instaUpToDate:
 		# restore the image onto the volume by bsd path
 		asrCommand = ['/usr/sbin/asr', 'restore', '--verbose', '--source', self.outputFilePath, '--target', targetVolume.bsdPath, '--erase', '--noprompt']
 		managedSubprocess(asrCommand)
-		
-		# make sure that the volume is mounted
-		targetVolume.mount()
 		
 		# bless the volume so that it is bootable
 		blessCommand = ['/usr/sbin/bless', '--device', targetVolume.bsdPath, '--verbose']
@@ -655,7 +654,7 @@ def main ():
 			
 			if options.restoreTarget is not None:
 				print('\nRestoring to volume' + options.restoreTarget.getDisplayName())
-				self.restoreImageToVolume(options.restoreTarget)
+				thisController.restoreImageToVolume(options.restoreTarget)
 	
 	print('\nDone')
 		
