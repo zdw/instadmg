@@ -334,14 +334,12 @@ class dmg(volume):
 	@classmethod
 	def scoreItemMatch(myClass, itemPath, processInformation, **kwargs):
 		
+		matchScore = 0
+		
 		# -- validate input
 		
 		if not hasattr(itemPath, 'capitalize'):
 			raise ValueError('scoreItemMatch requires a string, got: %s (%s)' % (str(itemPath), type(itemPath)))
-		
-		# -- validate input
-		
-		matchScore = 0
 		
 		shadowFilePath = None
 		if 'shadowFile' in kwargs and kwargs['shadowFile'] is not False:
@@ -357,13 +355,13 @@ class dmg(volume):
 			# mountPoint
 			if (
 				# mountPoint
-				os.path.samefile(itemPath, thisMountedImage['mountPoint']) or
+				(os.path.exists(itemPath) and os.path.samefile(itemPath, thisMountedImage['mountPoint'])) or
 				
 				# shadow file
-				('shadowFilePath' in thisMountedImage and os.path.samefile(itemPath, thisMountedImage['shadowFilePath'])) or
+				('shadowFilePath' in thisMountedImage and os.path.exists(itemPath) and os.path.samefile(itemPath, thisMountedImage['shadowFilePath'])) or
 				
 				# file path to dmg
-				os.path.samefile(itemPath, thisMountedImage['filePath']) or
+				(os.path.exists(itemPath) and os.path.samefile(itemPath, thisMountedImage['filePath'])) or
 				
 				# bsdName/bsdPath
 				itemPath in [thisMountedImage['bsdName'], thisMountedImage['bsdPath']]

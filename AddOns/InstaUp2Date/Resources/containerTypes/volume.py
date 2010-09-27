@@ -59,6 +59,8 @@ class volume(folder):
 		if 'volumeName' in diskutilInfo:
 			self.volumeName = diskutilInfo['volumeName']
 			self.displayName = diskutilInfo['volumeName']
+		else:
+			self.displayName = diskutilInfo['bsdPath']
 		
 		# bsdName/bsdPath
 		if 'bsdName' in diskutilInfo:
@@ -314,7 +316,7 @@ class volume(folder):
 		result = {}
 		
 		# mountPath
-		if 'MountPoint' in diskutilInfo:
+		if 'MountPoint' in diskutilInfo and diskutilInfo['MountPoint'] not in [None, '']:
 			result['mountPath'] = str(diskutilInfo['MountPoint'])
 			
 			# mountedReadWrite
@@ -389,7 +391,7 @@ class volume(folder):
 				if itemPath in [mountPoint, canidateDiskutilInfo['bsdPath'], canidateDiskutilInfo['bsdName']]:
 					processInformation['diskutilInfo'] = canidateDiskutilInfo
 				else:
-					return (0, processInformation) # if diskutil does not understand it, it is not a volume
+					return (0, processInformation) # we are getting information for this items parent
 			except:
 				return (0, processInformation) # if diskutil does not understand it, it is not a volume
 		
