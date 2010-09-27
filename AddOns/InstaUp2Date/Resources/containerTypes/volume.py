@@ -189,7 +189,7 @@ class volume(folder):
 	
 	def unmount(self):
 		currentMountPoint = self.getMountPoint()
-		if currentMountPoint is None:
+		if currentMountPoint in [None, '']:
 			return # ToDo: log this, maybe error out here
 		
 		if tempFolderManager.isManagedItem(currentMountPoint):

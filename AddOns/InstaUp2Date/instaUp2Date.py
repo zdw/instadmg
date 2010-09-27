@@ -418,7 +418,8 @@ class instaUpToDate:
 		print("\nRunning InstaDMG: %s\n" % " ".join(instaDMGCommand))
 		# we should be in the same directory as InstaDMG
 		
-		subprocess.call(instaDMGCommand)
+		if subprocess.call(instaDMGCommand) != 0:
+			raise RuntimeError('InstaDMG process did not run sucessfully')
 		# TODO: a lot of improvements in handling of InstaDMG
 	
 	def restoreImageToVolume(self, targetVolume):
