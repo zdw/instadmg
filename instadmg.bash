@@ -53,7 +53,7 @@ ENABLE_TESTING_VOLUME=false						# setting this and the TESTING_TARGET_VOLUME wi
 ENABLE_NON_PARANOID_MODE=false					# disable checking image checksums
 
 # Default folders
-INSTALLER_FOLDER="./InstallerFiles/BaseOS"		# Images of install DVDs
+INSTALLER_FOLDERS=("./InstallerFiles/BaseOS")	# Images of install DVDs
 INSTALLER_DISK=''								# User-supplied path to a specific installer disk
 SUPPORTING_DISKS=''								# Array of user-supplied supporting disks to mount
 
@@ -278,7 +278,7 @@ Usage:	$PROGRAM [options]
 Note:	This program must be run as root (sudo is acceptable)
 
 Options:
-	-b <folder path>	Look for the base image in this folder ($INSTALLER_FOLDER)
+	-b <folder path>	Look for the base image in this folder (${INSTALLER_FOLDERS[@]})
 	-c <folder path>	Look for custom pkgs in this folder ($CUSTOM_FOLDER)
 	-f			Enable non-paranoid mode (skip checking image checksumms)
 	-h			Print the useage information (this) and exit
@@ -476,7 +476,7 @@ check_setup () {
 	fi
 	
 	# If the ASR_OUPUT_FILE_NAME does not end in .dmg, add it
-	if [ "`/bin/echo $ASR_OUPUT_FILE_NAME | /usr/bin/awk 'tolower($1) ~ /.*\.dmg$/ { print "true" }'`" != "true" ]; then
+	if [ "`/bin/echo $ASR_OUPUT_FILE_NAME | /usr/bin/awk 'tolower() ~ /.*\.dmg$/ { print "true" }'`" != "true" ]; then
 		ASR_OUPUT_FILE_NAME="$ASR_OUPUT_FILE_NAME.dmg"
 	fi
 	
@@ -501,10 +501,14 @@ startup() {
 	FOLDER_LIST="UPDATE_FOLDER CUSTOM_FOLDER ASR_FOLDER BASE_IMAGE_CACHE LOG_FOLDER TEMPORARY_FOLDER"
 	
 	if [ -z "$INSTALLER_DISK" ]; then
-		# We need to check the INSTALLER_FOLDER
-		FOLDER_LIST="$FOLDER_LIST INSTALLER_FOLDER"
+		# check the INSTALLER_FOLDERS
+		for THIS_FOLDER in "${INSTALLER_FOLDERS[@]}"; do
+			if [ ! -d "$THIS_FOLDER" ]; then
+				log "An installer folder is missing or was not a folder: $THIS_FOLDER" error
+				exit 1
+			fi
+		done
 	fi
-	
 	
 	for FOLDER_ITEM in $FOLDER_LIST; do
 		# sanitize the folder paths to make sure that they don't end in /
@@ -544,20 +548,25 @@ find_base_os() {
 		fi
 				
 		IFS=$'\n'
-		for IMAGE_FILE in $(/usr/bin/find "$INSTALLER_FOLDER" -iname '*.dmg'); do
+		for THIS_INSTALLERFOLDER in "$INSTALLER_FOLDERS"; do
 			FOUND_IMAGE_FILE=false
-			for (( namesCount = 0 ; namesCount < ${#ALLOWED_INSTALLER_DISK_NAMES[@]} ; namesCount++ )); do
-				if [ "$IMAGE_FILE" == "$INSTALLER_FOLDER/${ALLOWED_INSTALLER_DISK_NAMES[$namesCount]}" ]; then
-					CURRENT_OS_INSTALL_FILE="$IMAGE_FILE"
-					log "Found primary OS installer disk: $CURRENT_OS_INSTALL_FILE" information
-					FOUND_IMAGE_FILE=true
-					break
+			for IMAGE_FILE in $(/usr/bin/find "$THIS_INSTALLERFOLDER" -iname '*.dmg'); do
+				for (( namesCount = 0 ; namesCount < ${#ALLOWED_INSTALLER_DISK_NAMES[@]} ; namesCount++ )); do
+					if [ "$IMAGE_FILE" == "$INSTALLER_FOLDERS/${ALLOWED_INSTALLER_DISK_NAMES[$namesCount]}" ]; then
+						CURRENT_OS_INSTALL_FILE="$IMAGE_FILE"
+						log "Found primary OS installer disk: $CURRENT_OS_INSTALL_FILE" information
+						FOUND_IMAGE_FILE=true
+						break
+					fi
+				done
+				
+				if [ $FOUND_IMAGE_FILE == false ]; then
+					# if it is not a primary disk, it must be a supporting one
+					SUPPORTING_DISKS[${#SUPPORTING_DISKS[@]}]="$INSTALLER_FOLDERS/$IMAGE_FILE"
 				fi
 			done
-			
-			if [ $FOUND_IMAGE_FILE == false ]; then
-				# if it is not a primary disk, it must be a supporting one
-				SUPPORTING_DISKS[${#SUPPORTING_DISKS[@]}]="$INSTALLER_FOLDER/$IMAGE_FILE"
+			if [ $FOUND_IMAGE_FILE == true ]; then
+				break
 			fi
 		done
 	else
@@ -598,8 +607,8 @@ mount_cached_image() {
 	fi
 	
 	INSTALLER_CHOICES_FILE=''
-	if [ $OS_REV_MAJOR -gt 4 ] && [ -e "$INSTALLER_FOLDER/InstallerChoices.xml" ]; then
-		INSTALLER_CHOICES_FILE="$INSTALLER_FOLDER/InstallerChoices.xml"
+	if [ $OS_REV_MAJOR -gt 4 ] && [ -e "$INSTALLER_FOLDERS/InstallerChoices.xml" ]; then
+		INSTALLER_CHOICES_FILE="$INSTALLER_FOLDERS/InstallerChoices.xml"
 		
 		INSTALLER_CHOICES_CHEKSUM=`/usr/bin/openssl dgst -sha1 "$INSTALLER_CHOICES_FILE" | awk 'sub(".*= ", "")'`
 		OLD_STYLE_TARGET_IMAGE_CHECKSUM="${TARGET_IMAGE_CHECKSUM}:${INSTALLER_CHOICES_CHEKSUM}"
@@ -740,8 +749,8 @@ install_system() {
 	
 	# Check for InstallerChoices file, note we are excluding < 10.5
 	if [ $OS_REV_MAJOR -gt 4 ]; then
-		if [ -e "$INSTALLER_FOLDER/InstallerChoices.xml" ]; then
-			INSTALLER_CHOICES_FILE="$INSTALLER_FOLDER/InstallerChoices.xml"
+		if [ -e "$INSTALLER_FOLDERS/InstallerChoices.xml" ]; then
+			INSTALLER_CHOICES_FILE="$INSTALLER_FOLDERS/InstallerChoices.xml"
 		fi
 	else
 		log "Running on Pre-10.5. InstallerChoices.xml files do not work" information
@@ -1193,7 +1202,7 @@ clean_up() {
 
 while getopts "b:c:d:fhi:l:m:n:o:qrst:u:vw:yzI:J:K:" opt; do
 	case $opt in
-		b ) INSTALLER_FOLDER="$OPTARG";;
+		b ) INSTALLER_FOLDERS[${#INSTALLER_FOLDERS[@]}]="$OPTARG";;
 		c ) CUSTOM_FOLDER="$OPTARG";;
 		d ) CONSOLE_LOG_LEVEL="$OPTARG";;
 		f ) ENABLE_NON_PARANOID_MODE=true;;
