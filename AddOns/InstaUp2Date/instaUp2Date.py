@@ -488,7 +488,7 @@ def main ():
 	
 	optionsParser.add_option('', '--add-catalog-folder', action='append', default=None, type='string', dest='catalogFolders', help='Set the folders searched for catalog files', metavar="FILE_PATH")
 	optionsParser.add_option('', '--set-cache-folder', action='store', default=None, type='string', dest='cacheFolder', help='Set the folder used to store downloaded files', metavar="FILE_PATH")
-	optionsParser.add_option('', '--add-source-folder', action='append', default=None, type='string', dest='searchFolders', help='Set the folders searched for items to install', metavar="FILE_PATH")
+	optionsParser.add_option('', '--add-source-folder', action='append', default=[], type='string', dest='searchFolders', help='Set the folders searched for items to install', metavar="FILE_PATH")
 	
 	# post-processing
 	
@@ -581,8 +581,8 @@ def main ():
 	if options.cacheFolder is None:
 		options.cacheFolder = commonConfiguration.standardCacheFolder
 	
-	if options.searchFolders is None:
-		options.searchFolders = commonConfiguration.standardUserItemsFolder
+	if commonConfiguration.standardUserItemsFolder not in options.searchFolders:
+		options.searchFolders.append(commonConfiguration.standardUserItemsFolder)
 	
 	# ----- setup system ----
 	
