@@ -74,7 +74,6 @@ def main():
 			try:
 				thisVolume = containerController.newContainerForPath(thisMountPoint)
 			except Exception, error:
-				print error
 				continue
 			
 			if not thisVolume.isContainerType('volume'):

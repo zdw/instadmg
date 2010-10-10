@@ -38,10 +38,7 @@ class dmg(volume):
 		
 		# -- validate and store input
 		
-		# get the information from diskutil via the volume class
-		super(self.__class__, self).classInit(itemPath, processInformation)
-		
-		# reset key diffferences from the superclass
+		# key differences from the superclass
 		
 		if 'dmgFilePath' in processInformation:
 			self.filePath = normalizePath(processInformation['dmgFilePath'], followSymlink=True)
@@ -52,6 +49,9 @@ class dmg(volume):
 			self.shadowFilePath = processInformation['shadowFilePath']
 		else:
 			self.shadowFilePath = self.validateShadowfile(shadowFile)
+		
+		# get the information from diskutil via the volume class
+		super(self.__class__, self).classInit(itemPath, processInformation)
 		
 		# get and store the information from hdiutil
 		
@@ -82,6 +82,9 @@ class dmg(volume):
 		
 		return self.shadowFilePath
 	
+	def getStoragePath(self):
+		return self.filePath
+	
 	def getMountPoint(self):
 		'''Get the mount point with the current shadow file settings'''
 		
@@ -106,6 +109,10 @@ class dmg(volume):
 		currentMountPoint = self.getMountPoint()
 		if currentMountPoint is not None:
 			return currentMountPoint
+		
+		# validate that this is not already mounted
+		
+		# ToDo: work here
 		
 		# mountPoint/mountInFolder
 		if mountPoint is not None and mountInFolder is not None:
@@ -153,7 +160,9 @@ class dmg(volume):
 		command = ['/usr/bin/hdiutil', 'attach', self.getStoragePath(), '-plist', '-mountpoint', mountPoint, '-nobrowse', '-owners', 'on']
 		
 		if mountReadWrite is True and self.shadowFilePath is None and self.writeable is False:
-			shadowFile = tempFolderManager.getNewTempFile(suffix='.shadow')
+			self.shadowFilePath = tempFolderManager.getNewTempFile(suffix='.shadow')
+			# delete it, otherwise hdiutil will get ornery
+			os.unlink(self.shadowFilePath)
 		elif mountReadWrite is False and self.shadowFilePath is None:
 			command += ['-readonly']
 		
@@ -213,6 +222,8 @@ class dmg(volume):
 		if shadowFile is True:
 			# generate a temporary one
 			shadowFile = tempFolderManager.getNewTempFile(suffix='.shadow')
+			# delete it, otherwise hdiutil will get ornery
+			os.unlink(shadowFile)
 			
 		elif shadowFile is not None:
 			shadowFile = normalizePath(shadowFile, followSymlink=True)
@@ -335,15 +346,14 @@ class dmg(volume):
 	def scoreItemMatch(myClass, itemPath, processInformation, **kwargs):
 		
 		matchScore = 0
+		shadowFilePath = None
+		if 'shadowFile' in kwargs:
+			shadowFilePath = kwargs['shadowFile']
 		
 		# -- validate input
 		
 		if not hasattr(itemPath, 'capitalize'):
 			raise ValueError('scoreItemMatch requires a string, got: %s (%s)' % (str(itemPath), type(itemPath)))
-		
-		shadowFilePath = None
-		if 'shadowFile' in kwargs and kwargs['shadowFile'] is not False:
-			shadowFilePath = myClass.validateShadowfile(kwargs['shadowFile'])
 		
 		# -- see if itemPath matches a mounted image
 		

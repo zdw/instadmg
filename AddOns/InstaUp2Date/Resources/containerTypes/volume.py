@@ -53,7 +53,16 @@ class volume(folder):
 		if 'diskutilInfo' in processInformation:
 			diskutilInfo = processInformation['diskutilInfo']
 		else:
-			diskutilInfo = self.diskutilInfo(self.getStoragePath())
+			wasMounted = True
+			mountPoint = self.getMountPoint()
+			if mountPoint is None:
+				wasMounted = False
+				mountPoint = self.mount()
+			
+			diskutilInfo = self.diskutilInfo(self.getMountPoint())
+			
+			if wasMounted is False:
+				self.unmount()
 		
 		# volumeName
 		if 'volumeName' in diskutilInfo:
