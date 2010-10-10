@@ -283,9 +283,6 @@ class tempFolderManager(object):
 		
 		targetPath = pathHelpers.normalizePath(targetPath)
 		
-		if not os.path.lexists(targetPath):
-			raise ValueError('addmanagedItem called with a targetPath that does not exist: ' + targetPath)
-		
 		if myClass.getManagedPathForPath(targetPath) is not None:
 			return # we are already managing this space
 
@@ -372,7 +369,7 @@ class tempFolderManager(object):
 		return None
 	
 	@classmethod
-	def getNewTempItem(myClass, fileOrFolder, parentFolder=None, prefix=None, suffix=None):
+	def getNewTempItem(myClass, fileOrFolder, parentFolder=None, prefix=None, suffix=None, supressCreation=False):
 		'''Create a new managed file or folder and return the path'''
 		
 		if not fileOrFolder in ['file', 'folder']:
@@ -396,7 +393,9 @@ class tempFolderManager(object):
 		elif not os.path.isdir(str(parentFolder)):
 			raise ValueError('getNewTempFolder called with a parentFolder path that does not exist is is not a directory: ' + str(parentFolder))
 		
-		if fileOrFolder == 'file':
+		if supressCreation is True:
+			pathToReturn = tempfile.mktemp(dir=parentFolder, prefix=prefix, suffix=suffix)
+		elif fileOrFolder == 'file':
 			openFile, pathToReturn = tempfile.mkstemp(dir=parentFolder, prefix=prefix, suffix=suffix)
 			os.close(openFile)
 		else:
@@ -414,10 +413,10 @@ class tempFolderManager(object):
 		return pathToReturn
 	
 	@classmethod
-	def getNewTempFolder(myClass, parentFolder=None, prefix=None, suffix=None):
+	def getNewTempFolder(myClass, parentFolder=None, prefix=None, suffix=None, supressCreation=False):
 		'''Create a new managed file or folder and return the path'''
 		
-		return myClass.getNewTempItem('folder', parentFolder=parentFolder, prefix=prefix, suffix=suffix)
+		return myClass.getNewTempItem('folder', parentFolder=parentFolder, prefix=prefix, suffix=suffix, supressCreation=supressCreation)
 	
 	@classmethod
 	def getNewMountPoint(myClass, parentFolder=None, prefix=None, suffix=None):
@@ -427,10 +426,10 @@ class tempFolderManager(object):
 		return newMountPoint
 	
 	@classmethod
-	def getNewTempFile(myClass, parentFolder=None, prefix=None, suffix=None):
+	def getNewTempFile(myClass, parentFolder=None, prefix=None, suffix=None, supressCreation=False):
 		'''Create a new managed file or folder and return the path'''
 		
-		return myClass.getNewTempItem('file', parentFolder=parentFolder, prefix=prefix, suffix=suffix)
+		return myClass.getNewTempItem('file', parentFolder=parentFolder, prefix=prefix, suffix=suffix, supressCreation=supressCreation)
 	
 	#---------- instance methods ----------
 	

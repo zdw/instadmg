@@ -160,9 +160,7 @@ class dmg(volume):
 		command = ['/usr/bin/hdiutil', 'attach', self.getStoragePath(), '-plist', '-mountpoint', mountPoint, '-nobrowse', '-owners', 'on']
 		
 		if mountReadWrite is True and self.shadowFilePath is None and self.writeable is False:
-			self.shadowFilePath = tempFolderManager.getNewTempFile(suffix='.shadow')
-			# delete it, otherwise hdiutil will get ornery
-			os.unlink(self.shadowFilePath)
+			self.shadowFilePath = tempFolderManager.getNewTempFile(suffix='.shadow', supressCreation=True)
 		elif mountReadWrite is False and self.shadowFilePath is None:
 			command += ['-readonly']
 		
@@ -221,9 +219,7 @@ class dmg(volume):
 		# shadowFile
 		if shadowFile is True:
 			# generate a temporary one
-			shadowFile = tempFolderManager.getNewTempFile(suffix='.shadow')
-			# delete it, otherwise hdiutil will get ornery
-			os.unlink(shadowFile)
+			shadowFile = tempFolderManager.getNewTempFile(suffix='.shadow', supressCreation=True)
 			
 		elif shadowFile is not None:
 			shadowFile = normalizePath(shadowFile, followSymlink=True)
@@ -233,7 +229,7 @@ class dmg(volume):
 			
 			elif os.path.isdir(shadowFile):
 				# a directory to put the shadow file in
-				shadowFile = tempFolderManager.getNewTempFile(parentFolder=shadowFile, suffix='.shadow')
+				shadowFile = tempFolderManager.getNewTempFile(parentFolder=shadowFile, suffix='.shadow', supressCreation=True)
 			
 			elif os.path.isdir(os.path.dirname(shadowFile)):
 				# the path does not exist, but the directory it is in looks good
