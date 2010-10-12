@@ -53,7 +53,7 @@ ENABLE_TESTING_VOLUME=false						# setting this and the TESTING_TARGET_VOLUME wi
 ENABLE_NON_PARANOID_MODE=false					# disable checking image checksums
 
 # Default folders
-INSTALLER_FOLDERS=("./InstallerFiles/BaseOS")	# Images of install DVDs
+INSTALLER_FOLDERS=(`AddOns/InstaUp2Date/Resources/pathHelpers.py --normalize-path --follow-symlinks --supress-return "./InstallerFiles/BaseOS"`)	# Images of install DVDs
 INSTALLER_DISK=''								# User-supplied path to a specific installer disk
 SUPPORTING_DISKS=''								# Array of user-supplied supporting disks to mount
 
@@ -87,21 +87,22 @@ ALLOWED_INSTALLER_DISK_NAMES=("Mac OS X Install Disc 1.dmg" "Mac OS X Install DV
 CHROOT_EXCLUDED_CODES=("edu.uc.daap.createuser.pkg")
 
 #<!-------------------- Working Variables ------------------>
-HOST_MOUNT_FOLDER=''					# Enclosing folder for the base image mount point, and others if not using chroot
-TARGET_TEMP_FOLDER=''					# If using chroot packages will be copied into temp folders in here before install
+HOST_MOUNT_FOLDER=''				# Enclosing folder for the base image mount point, and others if not using chroot
+TARGET_TEMP_FOLDER=''				# If using chroot packages will be copied into temp folders in here before install
 
-TARGET_IMAGE_MOUNT=''					# Where the target is mounted
-TARGET_IMAGE_FILE=''					# Location of the base image dmg if using cached images, the whole image dmg otherwise
-TARGET_IMAGE_CHECKSUM=''				# Checksum reported by diskutil for the OS Install disk image
+TARGET_IMAGE_MOUNT=''				# Where the target is mounted
+TARGET_IMAGE_FILE=''				# Location of the base image dmg if using cached images, the whole image dmg otherwise
+TARGET_IMAGE_CHECKSUM=''			# Checksum reported by diskutil for the OS Install disk image
 
-SHADOW_FILE_LOCATION=''					# Location of the shadow file that is grafted onto the TARGET_IMAGE_MOUNT
+SHADOW_FILE_LOCATION=''				# Location of the shadow file that is grafted onto the TARGET_IMAGE_MOUNT
 
-CURRENT_OS_INSTALL_FILE=''				# Location of the primary installer disk
-CURRENT_OS_INSTALL_MOUNT=''				# Mounted location of the primary installer disk
-CURRENT_OS_INSTALL_AUTOMOUNTED=false	# 
+OS_INSTALL_FILE=''					# Location of the primary installer disk
+OS_INSTALL_MOUNT=''					# Mounted location of the primary installer disk
+OS_INSTALL_AUTOMOUNTED=false 
+OS_INSTALL_CHOICES_FILE=''			# Location of installer choices file for the BaseOS
 
-PACKAGE_DMG_MOUNT=''					# mount point for dmg packages (only while in use)
-PACKAGE_DMG_FILE=''						# path to the dmg file of dmg packages (only while in use)
+PACKAGE_DMG_MOUNT=''				# mount point for dmg packages (only while in use)
+PACKAGE_DMG_FILE=''					# path to the dmg file of dmg packages (only while in use)
 
 OS_REV_MAJOR=''
 OS_REV_MINOR=''
@@ -118,7 +119,7 @@ MOUNTED_DMG_MOUNT_POINTS=()
 MODIFIED_INSTALLD_PLIST_FOLDER=''
 MODIFIED_INSTALLD_PLISTS=()
 
-LATEST_IMAGE_MOUNT=''					# back-channel to let the mount_dmg command communicate back auto-mounts
+LATEST_IMAGE_MOUNT=''				# back-channel to let the mount_dmg command communicate back auto-mounts
 
 #<!----------------------- Logging ------------------------->
 
@@ -300,6 +301,7 @@ Options:
 	-I <dmg path>		Use dmg at this path as the installer disk.
 	-J <dmg path>		Mount dmg at this path during installs.
 	-K <folder path>	Use folder as a source for updates, call multiple time in order for multiple folders.
+	-L <file path>		Use file as installerChoices file for base install
 EOF
 	if [ -z $1 ]; then
 		exit 1;
@@ -547,17 +549,31 @@ find_base_os() {
 			exit 1
 		fi
 				
-		IFS=$'\n'
-		for THIS_INSTALLERFOLDER in "$INSTALLER_FOLDERS"; do
+		for THIS_INSTALLERFOLDER in "${INSTALLER_FOLDERS[@]}"; do
 			FOUND_IMAGE_FILE=false
-			for IMAGE_FILE in $(/usr/bin/find "$THIS_INSTALLERFOLDER" -iname '*.dmg'); do
-				for (( namesCount = 0 ; namesCount < ${#ALLOWED_INSTALLER_DISK_NAMES[@]} ; namesCount++ )); do
-					if [ "$IMAGE_FILE" == "$INSTALLER_FOLDERS/${ALLOWED_INSTALLER_DISK_NAMES[$namesCount]}" ]; then
-						CURRENT_OS_INSTALL_FILE="$IMAGE_FILE"
-						log "Found primary OS installer disk: $CURRENT_OS_INSTALL_FILE" information
+			CANIDATE_IMAGES=()
+			
+			for THIS_CASE in 'DMG' 'dmg'; do
+				LOCATED_ITEMS=($THIS_INSTALLERFOLDER/*.$THIS_CASE)
+				if [ "$LOCATED_ITEMS" != "$THIS_INSTALLERFOLDER/"'*'".$THIS_CASE" ]; then
+					CANIDATE_IMAGES=("${CANIDATE_IMAGES[@]-}" "${LOCATED_ITEMS[@]}")
+				fi
+			done
+			
+			for IMAGE_FILE in "${CANIDATE_IMAGES[@]-}"; do
+				for THIS_NAME in "${ALLOWED_INSTALLER_DISK_NAMES[@]}"; do
+					shopt -s nocasematch # case insensitive matching
+					if [[ "$IMAGE_FILE" == */$THIS_NAME ]]; then
+						OS_INSTALL_FILE="$IMAGE_FILE"
+						log "Found primary OS installer disk: $OS_INSTALL_FILE" information
 						FOUND_IMAGE_FILE=true
-						break
+						
+						# if we were not supplied with an installerChoices file, look beside this image for one
+						if [ -z "$OS_INSTALL_CHOICES_FILE" ] && [ $OS_REV_MAJOR -gt 4 ] && [ -f "$THIS_INSTALLERFOLDER/InstallerChoices.xml" ]; then
+							OS_INSTALL_CHOICES_FILE="$THIS_INSTALLERFOLDER/InstallerChoices.xml"
+						fi
 					fi
+					shopt -u nocasematch
 				done
 				
 				if [ $FOUND_IMAGE_FILE == false ]; then
@@ -574,14 +590,14 @@ find_base_os() {
 		
 		# Check for the disk at the path supplied
 		if [ -f "$INSTALLER_DISK" ]; then
-			CURRENT_OS_INSTALL_FILE="$INSTALLER_DISK"
+			OS_INSTALL_FILE="$INSTALLER_DISK"
 		else
 			log "Unable to find installer disk at supplied path: $INSTALLER_DISK" error
 			exit 1
 		fi
 	fi
 		
-	if [ -z "$CURRENT_OS_INSTALL_FILE" ]; then
+	if [ -z "$OS_INSTALL_FILE" ]; then
 		log "Unable to find primary installer disk" error
 		exit 1
 	fi
@@ -596,21 +612,20 @@ mount_cached_image() {
 	# compatibility for old-style checksums (using colons)
 	OLD_STYLE_TARGET_IMAGE_CHECKSUM=''	# using colons
 	
-	CURRENT_OS_INSTALL_FILE=`AddOns/InstaUp2Date/Resources/pathHelpers.py --normalize-path --follow-symlinks --supress-return "$CURRENT_OS_INSTALL_FILE" 2>&1`
+	OS_INSTALL_FILE=`AddOns/InstaUp2Date/Resources/pathHelpers.py --normalize-path --follow-symlinks --supress-return "$OS_INSTALL_FILE" 2>&1`
 	
-	TARGET_IMAGE_CHECKSUM=`/usr/bin/hdiutil imageinfo "$CURRENT_OS_INSTALL_FILE" | /usr/bin/awk '/^Checksum Value:/ { print $3 }' | /usr/bin/sed 's/\\$//'`
+	TARGET_IMAGE_CHECKSUM=`/usr/bin/hdiutil imageinfo "$OS_INSTALL_FILE" | /usr/bin/awk '/^Checksum Value:/ { print $3 }' | /usr/bin/sed 's/\\$//'`
 	
 	# sanity check
 	if [ -z "$TARGET_IMAGE_CHECKSUM" ]; then
-		log "Unable to get checksum for image: $CURRENT_OS_INSTALL_FILE" error
+		log "Unable to get checksum for image: $OS_INSTALL_FILE" error
 		exit 1
 	fi
 	
-	INSTALLER_CHOICES_FILE=''
-	if [ $OS_REV_MAJOR -gt 4 ] && [ -e "$INSTALLER_FOLDERS/InstallerChoices.xml" ]; then
-		INSTALLER_CHOICES_FILE="$INSTALLER_FOLDERS/InstallerChoices.xml"
-		
-		INSTALLER_CHOICES_CHEKSUM=`/usr/bin/openssl dgst -sha1 "$INSTALLER_CHOICES_FILE" | awk 'sub(".*= ", "")'`
+	# get the checksum on the installer choices file, if there is one
+	
+	if [ ! -z "$OS_INSTALL_CHOICES_FILE" ]; then
+		INSTALLER_CHOICES_CHEKSUM=`/usr/bin/openssl dgst -sha1 "$OS_INSTALL_CHOICES_FILE" | awk 'sub(".*= ", "")'`
 		OLD_STYLE_TARGET_IMAGE_CHECKSUM="${TARGET_IMAGE_CHECKSUM}:${INSTALLER_CHOICES_CHEKSUM}"
 		TARGET_IMAGE_CHECKSUM="${TARGET_IMAGE_CHECKSUM}_${INSTALLER_CHOICES_CHEKSUM}"
 	fi
@@ -625,10 +640,6 @@ mount_cached_image() {
 		log "No cached image found" information
 		return
 	fi
-	
-	
-	
-	
 	
 	# Create mount point for the (read-only) target
 	TARGET_IMAGE_MOUNT=`/usr/bin/mktemp -d "$HOST_MOUNT_FOLDER/$MOUNT_POINT_TEMPLATE"`
@@ -665,23 +676,23 @@ mount_cached_image() {
 mount_os_install() {
 	log "Mounting Mac OS X installer image" section
 	
-	mount_dmg "$CURRENT_OS_INSTALL_FILE" "" ""
+	mount_dmg "$OS_INSTALL_FILE" "" ""
 	if [ $? -ne 0 ]; then
-		log "Unable to mount the Install Disc: $CURRENT_OS_INSTALL_FILE" error
+		log "Unable to mount the Install Disc: $OS_INSTALL_FILE" error
 		exit 1
 	fi
 	
-	CURRENT_OS_INSTALL_MOUNT=$LATEST_IMAGE_MOUNT
+	OS_INSTALL_MOUNT=$LATEST_IMAGE_MOUNT
 		
 	# check to make sure we are leaving something useful
-	if [ -z "$CURRENT_OS_INSTALL_MOUNT" ]; then
+	if [ -z "$OS_INSTALL_MOUNT" ]; then
 		log "No OS install disk or cached build was found" error
 		exit 1
 	fi
 	
 	# Check that the host OS is the same dot version as the target, or newer
-	TARGET_OS_REV=`/usr/bin/defaults read "$CURRENT_OS_INSTALL_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion`
-	TARGET_OS_REV_MAJOR=`/usr/bin/defaults read "$CURRENT_OS_INSTALL_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion | awk -F "." '{ print $2 }'`
+	TARGET_OS_REV=`/usr/bin/defaults read "$OS_INSTALL_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion`
+	TARGET_OS_REV_MAJOR=`/usr/bin/defaults read "$OS_INSTALL_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion | awk -F "." '{ print $2 }'`
 	TARGET_OS_REV_BUILD=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductBuildVersion`
 	TARGET_OS_NAME=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductName`
 	if [ $OS_REV_MAJOR -lt $TARGET_OS_REV_MAJOR ]; then
@@ -691,7 +702,9 @@ mount_os_install() {
 	fi
 	
 	log "Mac OS X installer image mounted" information
-	
+}
+
+mount_supporting_images() {
 	if [ ${#SUPPORTING_DISKS[@]} -gt 0 ]; then
 		log "Mounting supporting disks" section
 		for (( diskCount = 0 ; diskCount < ${#SUPPORTING_DISKS[@]} ; diskCount++ )); do
@@ -743,22 +756,17 @@ create_and_mount_image() {
 
 # Install from installation media to the DMG
 install_system() {
-	log "Beginning Installation from $CURRENT_OS_INSTALL_MOUNT" section
+	log "Beginning Installation from $OS_INSTALL_MOUNT" section
 	
-	INSTALLER_CHOICES_FILE=''
-	
-	# Check for InstallerChoices file, note we are excluding < 10.5
-	if [ $OS_REV_MAJOR -gt 4 ]; then
-		if [ -e "$INSTALLER_FOLDERS/InstallerChoices.xml" ]; then
-			INSTALLER_CHOICES_FILE="$INSTALLER_FOLDERS/InstallerChoices.xml"
-		fi
-	else
-		log "Running on Pre-10.5. InstallerChoices.xml files do not work" information
+	# Fail if there is an installerChoices file and we are running < 10.5
+	if [ $OS_REV_MAJOR -lt 5 ] && [ ! -z "$OS_INSTALL_CHOICES_FILE" ]; then
+		log "Running on Pre-10.5. InstallerChoices.xml files do not work" error
+		exit 1
 	fi
 	
 	OS_INSTALLER_PACKAGE=''
-	if [ -e "$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" ]; then
-		OS_INSTALLER_PACKAGE="$CURRENT_OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg"
+	if [ -e "$OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" ]; then
+		OS_INSTALLER_PACKAGE="$OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg"
 	else
 		log "The OS Install File is missing the OS Installer Package!" error
 		exit 1
@@ -767,12 +775,12 @@ install_system() {
 	# Fix a bug in 'installer' on certain versions of the OS
 	/bin/mkdir -p "$TARGET_IMAGE_MOUNT/Library/Caches"
 	
-	if [ -z "$INSTALLER_CHOICES_FILE" ]; then
-		log "Installing system from: $CURRENT_OS_INSTALL_MOUNT onto image at: $TARGET_IMAGE_MOUNT using language code: $ISO_CODE" information
+	if [ -z "$OS_INSTALL_CHOICES_FILE" ]; then
+		log "Installing system from: $OS_INSTALL_MOUNT onto image at: $TARGET_IMAGE_MOUNT using language code: $ISO_CODE" information
 		/usr/sbin/installer -verboseR -dumplog -pkg "$OS_INSTALLER_PACKAGE" -target "$TARGET_IMAGE_MOUNT" -lang $ISO_CODE 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	else
-		log "Installing system from: $CURRENT_OS_INSTALL_MOUNT onto image at: $TARGET_IMAGE_MOUNT using InstallerChoices file: $INSTALLER_CHOICES_FILE and language code: $ISO_CODE" information
-		/usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$INSTALLER_CHOICES_FILE" -pkg "$OS_INSTALLER_PACKAGE" -target "$TARGET_IMAGE_MOUNT" -lang "$ISO_CODE" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+		log "Installing system from: $OS_INSTALL_MOUNT onto image at: $TARGET_IMAGE_MOUNT using InstallerChoices file: $OS_INSTALL_CHOICES_FILE and language code: $ISO_CODE" information
+		/usr/sbin/installer -verboseR -dumplog -applyChoiceChangesXML "$OS_INSTALL_CHOICES_FILE" -pkg "$OS_INSTALLER_PACKAGE" -target "$TARGET_IMAGE_MOUNT" -lang "$ISO_CODE" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 
 	if [ $? -ne 0 ]; then
@@ -781,11 +789,11 @@ install_system() {
 	fi
 	
 	# Eject the installer disk
-	if [ $CURRENT_OS_INSTALL_AUTOMOUNTED == true ]; then
-		unmount_dmg "$CURRENT_OS_INSTALL_MOUNT" "Primary OS install disk"
-		/bin/rmdir "$CURRENT_OS_INSTALL_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+	if [ $OS_INSTALL_AUTOMOUNTED == true ]; then
+		unmount_dmg "$OS_INSTALL_MOUNT" "Primary OS install disk"
+		/bin/rmdir "$OS_INSTALL_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	fi
-	CURRENT_OS_INSTALL_MOUNT=''
+	OS_INSTALL_MOUNT=''
 	# TODO: unmount supporting disks
 	
 	log "Base OS installed" information
@@ -1165,16 +1173,16 @@ clean_up() {
 	fi
 	
 	# Unmount everything that is still mounted
-	for (( workingMountCount = 0 ; workingMountCount < ${#MOUNTED_DMG_MOUNT_POINTS[@]} ; workingMountCount++ )); do
-		if [ ! -z ${MOUNTED_DMG_MOUNT_POINTS[$workingMountCount]} ]; then
-			unmount_dmg "${MOUNTED_DMG_MOUNT_POINTS[$workingMountCount]}" "Supporting Disk"
+	for THIS_MOUNT_POINT in "${MOUNTED_DMG_MOUNT_POINTS[@]}"; do
+		if [ ! -z "${THIS_MOUNT_POINT}" ]; then
+			unmount_dmg "${THIS_MOUNT_POINT}"
 		fi
 	done
 	
 	# TODO: close this image earlier
-	if [ ! -z "$CURRENT_OS_INSTALL_MOUNT" ] && [ -d "$TARGET_IMAGE_MOUNT" ] && [ $CURRENT_OS_INSTALL_AUTOMOUNTED == true ]; then
-		unmount_dmg "$CURRENT_OS_INSTALL_MOUNT" "Primary OS install disk"
-		/bin/rmdir "$CURRENT_OS_INSTALL_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+	if [ ! -z "$OS_INSTALL_MOUNT" ] && [ -d "$TARGET_IMAGE_MOUNT" ] && [ $OS_INSTALL_AUTOMOUNTED == true ]; then
+		unmount_dmg "$OS_INSTALL_MOUNT" "Primary OS install disk"
+		/bin/rmdir "$OS_INSTALL_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
 	if [ ! -z "$PACKAGE_DMG_MOUNT" ] && [ -d "$PACKAGE_DMG_MOUNT" ]; then
@@ -1200,9 +1208,9 @@ clean_up() {
 
 #<!------------------------- Main -------------------------->
 
-while getopts "b:c:d:fhi:l:m:n:o:qrst:u:vw:yzI:J:K:" opt; do
+while getopts "b:c:d:fhi:l:m:n:o:qrst:u:vw:yzI:J:K:L:" opt; do
 	case $opt in
-		b ) INSTALLER_FOLDERS[${#INSTALLER_FOLDERS[@]}]="$OPTARG";;
+		b ) INSTALLER_FOLDERS[${#INSTALLER_FOLDERS[@]}]=`AddOns/InstaUp2Date/Resources/pathHelpers.py --normalize-path --follow-symlinks --supress-return "$OPTARG"`;;
 		c ) CUSTOM_FOLDER="$OPTARG";;
 		d ) CONSOLE_LOG_LEVEL="$OPTARG";;
 		f ) ENABLE_NON_PARANOID_MODE=true;;
@@ -1225,6 +1233,7 @@ while getopts "b:c:d:fhi:l:m:n:o:qrst:u:vw:yzI:J:K:" opt; do
 		I )	INSTALLER_DISK="$OPTARG";; # Set the installer disk
 		J )	SUPPORTING_DISKS[${#SUPPORTING_DISKS[@]}]="$OPTARG";; # Add/set supporting disk(s)
 		K ) UPDATE_FOLDERS[${#UPDATE_FOLDERS[@]}]="$OPTARG";; # Add/set update folder(s)
+		L ) OS_INSTALL_CHOICES_FILE=`AddOns/InstaUp2Date/Resources/pathHelpers.py --normalize-path --follow-symlinks --supress-return "$OPTARG"`;; # Set the installer choices file for the base os
 		
 		\? ) usage;;
 	esac
@@ -1293,6 +1302,8 @@ if [ $DISABLE_BASE_IMAGE_CACHING == false ]; then
 	# Try a cached image
 	mount_cached_image
 fi
+
+mount_supporting_images
 
 if [ -z "$TARGET_IMAGE_MOUNT" ]; then
 	mount_os_install

@@ -35,10 +35,6 @@
 #	Sections
 #
 
-Base OS Disk:
-	# the first one should be disk 1 of an installer disk
-	# this is not yet implimented
-
 OS Updates:
 
 Apple Updates:

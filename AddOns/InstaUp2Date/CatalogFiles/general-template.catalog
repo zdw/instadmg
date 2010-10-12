@@ -1,0 +1,28 @@
+# Template for user-supplied catalog files
+
+#
+#	Settings
+#
+
+#Installer Choices File:	<file-name or path> tab <checksum string>
+#Supporting Disc:			<file-name or path> tab <checksum string>
+
+#ISO Language Code:			<iso language code>
+#Output Volume Name:		<volume name>
+#Output File Name:			<file name>
+
+#include-file:				<file-name or path>
+
+#
+#	Sections
+#	
+#	Takes lines in the form:
+#		tab <user visible name> tab <url, name, or path> tab <checksum string> [tab <choices file-name or path>]
+
+Apple Updates:
+
+System Settings:
+
+Third Party Software:
+
+Software Settings:

@@ -22,18 +22,19 @@ from Resources.cacheController			import cacheController
 
 #------------------------------SETTINGS------------------------------
 
-versionString				= "0.5b (svn revision: %i)" % __version__
+versionString						= "0.5b (svn revision: %i)" % __version__
 
-allowedCatalogFileSettings	= [ 'ISO Language Code', 'Output Volume Name', 'Output File Name', 'Installer Disc Builds' ]
+allowedCatalogFileSettings			= [ 'ISO Language Code', 'Output Volume Name', 'Output File Name', 'Installer Disc Builds' ]
+allowedCatalogChecksumFileSettings	= [ 'Installer Choices File', 'Supporting Disc' ]
 
 # these should be in the order they run in
-systemSectionTypes			= [ "OS Updates", "System Settings" ]
-addedSectionTypes			= [ "Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings" ]	
+systemSectionTypes					= [ "OS Updates", "System Settings" ]
+addedSectionTypes					= [ "Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings" ]	
 
 #------------------------RUNTIME ADJUSTMENTS-------------------------
 
-appleUpdatesFolderPath		= os.path.join(commonConfiguration.pathToInstaDMGFolder, "InstallerFiles", "BaseUpdates")
-customPKGFolderPath			= os.path.join(commonConfiguration.pathToInstaDMGFolder, "InstallerFiles", "CustomPKG")
+appleUpdatesFolderPath				= os.path.join(commonConfiguration.pathToInstaDMGFolder, "InstallerFiles", "BaseUpdates")
+customPKGFolderPath					= os.path.join(commonConfiguration.pathToInstaDMGFolder, "InstallerFiles", "CustomPKG")
 
 #-------------------------------CLASSES------------------------------
 
@@ -42,33 +43,40 @@ class instaUpToDate:
 		
 	#---------------------Class Variables-----------------------------
 	
-	sectionStartParser		= re.compile('^(?P<sectionName>[^\t]+):\s*(#.*)?$')
-	packageLineParser		= re.compile('^\t(?P<displayName>[^\t]*)\t(?P<fileLocation>[^\t]+)\t(?P<fileChecksum>\S+)(\t(?P<installerChoicesFile>[^\t\n]+))?\s*(#.*)?$')
-	emptyLineParser			= re.compile('^\s*(?P<comment>#.*)?$')
-	settingLineParser		= re.compile('^(?P<variableName>[^=]+) = (?P<variableValue>.*)')
-	includeLineParser		= re.compile('^\s*include-file:\s+(?P<location>.*)(\s*#.*)?$')
+	sectionStartParser			= re.compile('^(?P<sectionName>[^\t]+):\s*(#.*)?$')
+	packageLineParser			= re.compile('^\t(?P<displayName>[^\t]*)\t(?P<fileLocation>[^\t]+)\t(?P<fileChecksum>(?P<checksumType>\S+):(?P<checksumValue>\S+))(\t(?P<installerChoicesFile>[^\t\n]+))?\s*(#.*)?$')
+	emptyLineParser				= re.compile('^\s*(?P<comment>#.*)?$')
+	settingLineParser			= re.compile('^(?P<variableName>%s)\s*[=:]\s*(?P<variableValue>.*)' % "|".join(allowedCatalogFileSettings))
+	settingLineChecksumParser	= re.compile('^(?P<variableName>%s)\s*[=:]\s*(?P<variableValue>.*)(\t(?P<fileChecksum>(?P<checksumType>\S+):(?P<checksumValue>\S+)))' % "|".join(allowedCatalogChecksumFileSettings))
+	includeLineParser			= re.compile('^\s*include-file\s*[=:]\s*(?P<location>.*)(\s*#.*)?$')
 	
-	fileExtensions			= ['.catalog']
+	fileExtensions				= ['.catalog']
 	
 	#--------------------Instance Variables---------------------------
 	
-	catalogFilePath			= None	# the main catalog file
+	catalogFilePath				= None	# the main catalog file
 	
-	installerDiscPath		= None	# path to the installer disc to use
-	supportingDiscPaths		= None
+	installerDiscPath			= None	# path to the installer disc to use
 	
-	sectionFolders			= None
+	sectionFolders				= None
 	
-	packageGroups 			= None	# a Hash
-	parsedFiles 			= None	# an Array, for loop checking
+	packageGroups 				= None	# a Hash
+	parsedFiles 				= None	# an Array, for loop checking
 	
-	outputFilePath			= None	# path to the created dmg
+	outputFilePath				= None	# path to the created dmg
+	
+	# catalog file settings
+	outputVolumeName			= None
+	outputFileName				= None
+	installerDiscBuilds			= None
+	isoLanguageCode				= None
+	
+	installerChoicesFilePath	= None
+	
+	supportingDiscPath			= None
 	
 	# defaults
-	outputVolumeNameDefault = "Macintosh HD"
-	
-	# things below this line will usually come from the first catalog file (top) that sets them
-	catalogFileSettings		= None	# a hash
+	outputVolumeNameDefault		= 'Macintosh HD'
 
 	#---------------------Class Functions-----------------------------
 	
@@ -129,9 +137,9 @@ class instaUpToDate:
 		self.sectionFolders 		= []
 		self.catalogFolders			= []
 		self.packageGroups			= {}
-		self.catalogFileSettings	= {}
 		self.parsedFiles			= []
-		self.supportingDiscPaths	= []
+		
+		self.supportingDiscPath		= []
 				
 		# catalogFilePath
 		if not os.path.exists(catalogFilePath):
@@ -154,6 +162,7 @@ class instaUpToDate:
 		# sectionFolders
 		if not hasattr(sectionFolders, '__iter__'):
 			raise Exception('%s called with a sectionFolders attribute that was not an array: %s' % (self.__class__, sectionFolders))
+		
 		for thisFolder in sectionFolders:
 			if not hasattr(thisFolder, 'has_key') or not thisFolder.has_key('folderPath') or not thisFolder.has_key('sections'):
 				raise Exception('%s called with a sectionFolders that had a bad item in it: %s' % (self.__class__, thisFolder))
@@ -178,14 +187,10 @@ class instaUpToDate:
 					if str(thisSectionName) in thisSectionFolder['sections']:
 						raise Exception('Section type was repeated: ' + str(thisSectionName))
 					
-					newSection['sections'].append(str(thisSectionName))
-				
+				newSection['sections'].append(str(thisSectionName))
 				self.packageGroups[str(thisSectionName)] = []
 			
 			self.sectionFolders.append(newSection)
-		
-		# --- runtime checks ----
-		assert os.path.isfile(commonConfiguration.pathToInstaDMG), "InstaDMG was not where it was expected to be: %s" % commonConfiguration.pathToInstaDMG
 	
 	def getMainCatalogName(self):
 		return os.path.splitext(os.path.basename(self.catalogFilePath))[0]
@@ -221,27 +226,67 @@ class instaUpToDate:
 			if self.emptyLineParser.search(line):
 				continue
 			
-			# ------- settings lines -------
+			# ---- settings lines
 			settingLineMatch = self.settingLineParser.search(line)
-			if settingLineMatch:
-				try:
-					if allowedCatalogFileSettings.index( settingLineMatch.group("variableName") ):
-						if not(self.catalogFileSettings.has_key( settingLineMatch.group("variableName") )):
-							# Since it is not set, we can set it
-							# TODO: log something if there is a conflict
-							self.catalogFileSettings[settingLineMatch.group("variableName")] = settingLineMatch.group("variableValue")
-				except:
-					raise Exception('Unknown setting in catalog file: %s line number: %i\n%s' % (fileLocation, lineNumber, line)) # TODO: improve error handling
-					
+			if settingLineMatch is not None:
+				# get the variable name this would be
+				variableName = settingLineMatch.group("variableName").split()[0].lower() + "".join(x.capitalize() for x in settingLineMatch.group("variableName").split()[1:])
+				
+				# sanity check that this variable exists
+				if not hasattr(self, variableName):
+					raise InstallerChoicesFileException('The %s class does not have a "%s" variable as it should have. This error should never happen.' % (self.__class__.__name__, variableName), choicesFile=fileLocation, lineNumber=lineNumber)
+				
+				if hasattr(getattr(self, variableName), '__iter__'):
+					# if this variable as an array, append to it
+					getattr(self, variableName).append(settingLineMatch.group("variableValue")) # amazingly, this works
+				
+				elif getattr(self, variableName) is None:
+					setattr(self, variableName, settingLineMatch.group("variableValue"))
+				
+				# note: if the variable is already set, ignore this value
+				
 				continue
 			
-			# ----- file includes lines ----
+			# ---- settings lines with checksums
+			settingLineMatch = self.settingLineChecksumParser.search(line)
+			if settingLineMatch is not None:
+				
+				# get the variable name this would be
+				variableName = settingLineMatch.group("variableName").split()[0].lower() + "".join(x.capitalize() for x in settingLineMatch.group("variableName").split()[1:])
+				
+				checksumType	= settingLineMatch.group('checksumType')
+				checksumValue	= settingLineMatch.group('checksumValue')
+				
+				# find this item in the caches by name/checksum
+				progressReporter = displayTools.statusHandler(taskMessage='\t%s: %s -' % (settingLineMatch.group("variableName"), settingLineMatch.group("variableValue")))
+				itemPath = None
+				try:
+					itemPath = cacheController.findItem(settingLineMatch.group("variableValue"), checksumType, checksumValue, progressReporter=progressReporter)
+				except commonExceptions.FileNotFoundException:
+					raise commonExceptions.InstallerChoicesFileException('Unable to find %s: %s (checksum: %s)' % (settingLineMatch.group("variableName"), settingLineMatch.group("variableValue"), settingLineMatch.group("fileChecksum")), choicesFile=fileLocation, lineNumber=lineNumber)
+				
+				# sanity check that this variable exists
+				if not hasattr(self, variableName + 'Path'):
+					raise Exception('The %s class does not have a "%s" variable as it should have. This error should never happen.' % (self.__class__.__name__, variableName + 'Path'))
+				
+				if hasattr(getattr(self, variableName + 'Path'), '__iter__'):
+					# if this variable as an array, append to it
+					getattr(self, variableName + 'Path').append(itemPath) # amazingly, this works
+				
+				elif getattr(self, variableName + 'Path') is None:
+					setattr(self, variableName + 'Path', itemPath)
+				
+				# note: if the variable is already set, ignore this value
+				
+				continue
+			
+			# ---- file includes lines
 			includeLineMatch = self.includeLineParser.search(line)
 			if includeLineMatch:
 				self.parseCatalogFile( self.getCatalogFullPath(includeLineMatch.group("location"), self.catalogFolders) )
 				continue
 			
-			# ------- section lines --------
+			# ---- section lines
 			sectionTitleMatch = self.sectionStartParser.search(line)
 			if sectionTitleMatch:
 				if sectionTitleMatch.group("sectionName") not in self.packageGroups and sectionTitleMatch.group("sectionName") != "Base OS Disk":
@@ -250,7 +295,7 @@ class instaUpToDate:
 				currentSection = sectionTitleMatch.group("sectionName")
 				continue
 			
-			# --------- item lines ---------
+			# ---- item lines
 			packageLineMatch = self.packageLineParser.search(line)
 			if packageLineMatch:
 				if currentSection == None:
@@ -284,14 +329,15 @@ class instaUpToDate:
 				progressReporter = displayTools.statusHandler(taskMessage='	' + thisItem.displayName + ' -')
 				thisItem.findItem(progressReporter=progressReporter)
 	
-	def arrangeFolders(self, sectionFolders=None):
-		"Create the folder structure in the InstaDMG areas, and pop in soft-links to the items in the cache folder"
+	def arrangeFolders(self):
+		"Create the folder structure for InstaDMG, and pop in soft-links to the items in the cache folder"
 		
-		assert isinstance(sectionFolders, list), "sectionfolders is required, and must be a list of dicts"
+		assert isinstance(self.sectionFolders, list), "sectionfolders is required, and must be a list of dicts"
 		
 		import math
 		
-		for thisSectionFolder in sectionFolders:
+		for thisSectionFolder in self.sectionFolders:
+			
 			sectionTypes = thisSectionFolder["sections"]
 			updateFolder = thisSectionFolder["folderPath"]
 			
@@ -374,24 +420,28 @@ class instaUpToDate:
 		instaDMGCommand	= [ commonConfiguration.pathToInstaDMG, "-f" ]
 		
 		# ISO Language Code
-		if self.catalogFileSettings.has_key("ISO Language Code"):
-			instaDMGCommand += ["-i", self.catalogFileSettings["ISO Language Code"]]
+		if self.isoLanguageCode is not None:
+			instaDMGCommand += ["-i", self.isoLanguageCode]
 			# TODO: check with installer to see if it will accept this language code
 		
 		# Installer and Supporting Discs
 		instaDMGCommand += ['-I', self.installerDiscPath]
-		for thisDisc in self.supportingDiscPaths:
+		for thisDisc in self.supportingDiscPath:
 			instaDMGCommand += ['-J', thisDisc]
 		
+		# InstallerChoices file
+		if self.installerChoicesFilePath is not None:
+			instaDMGCommand += ["-L", self.installerChoicesFilePath]
+		
 		# Output Volume Name
-		if self.catalogFileSettings.has_key("Output Volume Name"):
-			instaDMGCommand += ["-n", self.catalogFileSettings["Output Volume Name"]]
+		if self.outputVolumeName is not None:
+			instaDMGCommand += ["-n", self.outputVolumeName]
 		else:
 			instaDMGCommand += ["-n", self.outputVolumeNameDefault]
 		
 		# Output File Name
-		if self.catalogFileSettings.has_key("Output File Name"):
-			self.outputFilePath = os.path.join(commonConfiguration.standardOutputFolder, self.catalogFileSettings["Output File Name"])
+		if self.outputFileName is not None:
+			self.outputFilePath = os.path.join(commonConfiguration.standardOutputFolder, self.outputFileName)
 		else:
 			# default to the name portion of the catalog file name
 			self.outputFilePath = os.path.join(commonConfiguration.standardOutputFolder, os.path.splitext(os.path.basename(self.catalogFilePath)))
@@ -565,19 +615,6 @@ def main ():
 			except commonExceptions.CatalogNotFoundException:
 				optionsParser.error("There does not seem to be a catalog file at: %s" % thisCatalogFile)
 	
-	sectionFolders = None
-	if options.processWithInstaDMG is True:
-		tempFolder = tempFolderManager.getNewTempFolder(prefix='items-')
-		
-		sectionFolders = [
-			{"folderPath":tempFolder, "sections":["OS Updates", "System Settings", "Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings"]}
-		]
-	else:
-		sectionFolders = [
-			{"folderPath":os.path.join(commonConfiguration.pathToInstaDMGFolder, "InstallerFiles", "BaseUpdates"), "sections":["OS Updates", "System Settings"]},
-			{"folderPath":os.path.join(commonConfiguration.pathToInstaDMGFolder, "InstallerFiles", "CustomPKG"), "sections":["Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings"]}
-		]
-	
 	if options.cacheFolder is None:
 		options.cacheFolder = commonConfiguration.standardCacheFolder
 	
@@ -603,6 +640,20 @@ def main ():
 	controllers = []
 	# create the InstaUp2Date controllers
 	for catalogFilePath in baseCatalogFiles:
+		
+		sectionFolders = None
+		if options.processWithInstaDMG is True:
+			tempFolder = tempFolderManager.getNewTempFolder(prefix='items-')
+			
+			sectionFolders = [
+				{"folderPath":tempFolder, "sections":["OS Updates", "System Settings", "Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings"]}
+			]
+		else:
+			sectionFolders = [
+				{"folderPath":os.path.join(commonConfiguration.pathToInstaDMGFolder, "InstallerFiles", "BaseUpdates"), "sections":["OS Updates", "System Settings"]},
+				{"folderPath":os.path.join(commonConfiguration.pathToInstaDMGFolder, "InstallerFiles", "CustomPKG"), "sections":["Apple Updates", "Third Party Software", "Third Party Settings", "Software Settings"]}
+			]
+		
 		controllers.append(instaUpToDate(catalogFilePath, sectionFolders, options.catalogFolders)) # note: we have already sanitized catalogFilePath
 	
 	# process the catalog files
@@ -623,8 +674,8 @@ def main ():
 	for thisController in controllers:
 		print('\nFinding the Installer disc for ' + thisController.getMainCatalogName())
 		foundInstallerDiscs = None
-		if thisController.catalogFileSettings.has_key('Installer Disc Builds'):
-			foundInstallerDiscs = findInstallerDisc.findInstallerDisc(allowedBuilds=thisController.catalogFileSettings['Installer Disc Builds'])
+		if thisController.installerDiscBuilds is not None:
+			foundInstallerDiscs = findInstallerDisc.findInstallerDisc(allowedBuilds=thisController.installerDiscBuilds)
 		else:
 			foundInstallerDiscs = findInstallerDisc.findInstallerDisc()
 		
@@ -634,7 +685,7 @@ def main ():
 		for thisDisc in foundInstallerDiscs['SupportingDiscs']:
 			thisDiscPath = thisDisc.getStoragePath()
 			print('\tFound Supporting Disc:\t' + thisDiscPath)
-			thisController.supportingDiscPaths.append(thisDiscPath)
+			thisController.supportingDiscPath.append(thisDiscPath)
 	
 	# run the job
 	for thisController in controllers:
@@ -647,7 +698,7 @@ def main ():
 		
 		# create the folder strucutres needed
 		print('\tSetting up InstaDMG folders')
-		thisController.arrangeFolders(sectionFolders=sectionFolders)
+		thisController.arrangeFolders()
 		
 		if options.processWithInstaDMG is True:
 			# the run succeded, and it has been requested to run InstaDMG
