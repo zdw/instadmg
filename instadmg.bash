@@ -54,8 +54,6 @@ ENABLE_NON_PARANOID_MODE=false					# disable checking image checksums
 
 # Default folders
 INSTALLER_FOLDERS=(`AddOns/InstaUp2Date/Resources/pathHelpers.py --normalize-path --follow-symlinks --supress-return "./InstallerFiles/BaseOS"`)	# Images of install DVDs
-INSTALLER_DISK=''								# User-supplied path to a specific installer disk
-SUPPORTING_DISKS=''								# Array of user-supplied supporting disks to mount
 
 UPDATE_FOLDER="./InstallerFiles/BaseUpdates"	# Combo update first, followed by additional numbered folders
 CUSTOM_FOLDER="./InstallerFiles/CustomPKG"		# All other update pkg's
@@ -113,7 +111,8 @@ TARGET_OS_REV_MAJOR=''
 TARGET_OS_REV_BUILD=''
 TARGET_OS_NAME=''
 
-SUPPORTING_DISKS=()
+INSTALLER_DISK=''					# User-supplied path to a specific installer disk
+SUPPORTING_DISKS=()					# Array of user-supplied supporting disks to mount
 MOUNTED_DMG_MOUNT_POINTS=()
 
 MODIFIED_INSTALLD_PLIST_FOLDER=''
@@ -576,9 +575,9 @@ find_base_os() {
 					shopt -u nocasematch
 				done
 				
-				if [ $FOUND_IMAGE_FILE == false ]; then
+				if [ $FOUND_IMAGE_FILE == false ] && [ ! -z "$IMAGE_FILE" ]; then
 					# if it is not a primary disk, it must be a supporting one
-					SUPPORTING_DISKS[${#SUPPORTING_DISKS[@]}]="$INSTALLER_FOLDERS/$IMAGE_FILE"
+					SUPPORTING_DISKS[${#SUPPORTING_DISKS[@]}]="$IMAGE_FILE"
 				fi
 			done
 			if [ $FOUND_IMAGE_FILE == true ]; then
@@ -1173,7 +1172,7 @@ clean_up() {
 	fi
 	
 	# Unmount everything that is still mounted
-	for THIS_MOUNT_POINT in "${MOUNTED_DMG_MOUNT_POINTS[@]}"; do
+	for THIS_MOUNT_POINT in "${MOUNTED_DMG_MOUNT_POINTS[@]-}"; do
 		if [ ! -z "${THIS_MOUNT_POINT}" ]; then
 			unmount_dmg "${THIS_MOUNT_POINT}"
 		fi
