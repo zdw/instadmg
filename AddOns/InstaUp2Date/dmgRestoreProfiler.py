@@ -4,10 +4,11 @@ import subprocess, time
 
 import Resources.pathHelpers			as pathHelpers
 import Resources.commonConfiguration	as commonConfiguration
+import Resources.containerController	as containerController
+
 from Resources.tempFolderManager		import tempFolderManager
 from Resources.managedSubprocess		import managedSubprocess
 from Resources.displayTools				import secondsToReadableTime, bytesToRedableSize
-from Resources.containerController		import newContainerForPath
 
 if __name__ == "__main__":
 	import optparse, sys, os, re, tempfile, shutil
@@ -64,7 +65,7 @@ if __name__ == "__main__":
 			foundFiles = []
 			for thisFile in os.listdir(thisArgument):
 				
-				thisItem = newContainerForPath(os.path.join(thisArgument, thisFile))
+				thisItem = containerController.newItemForPath(os.path.join(thisArgument, thisFile))
 				
 				if thisItem.isContainerType('dmg'):
 					sourceFiles.append(thisItem)
@@ -73,7 +74,7 @@ if __name__ == "__main__":
 		
 		elif os.path.isfile(thisArgument):
 			
-			thisItem = newContainerForPath(thisArgument)
+			thisItem = containerController.newItemForPath(thisArgument)
 			if thisItem.isContainerType('dmg'):
 				sourceFiles.append(thisItem)
 			else:

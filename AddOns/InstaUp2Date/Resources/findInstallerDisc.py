@@ -6,7 +6,8 @@ __version__ = '$Revision: 266 $'.split()[1]
 
 import os, re, sys
 
-import containerController, pathHelpers, commonConfiguration, commonExceptions, macOSXVersionParser
+from containerController		import containerController
+import pathHelpers, commonConfiguration, commonExceptions, macOSXVersionParser
 
 legacyOSDiscNames 		= ['Mac OS X Install Disc 1.dmg', 'Mac OS X Install DVD.dmg']
 
@@ -71,7 +72,7 @@ def findInstallerDisc(allowedBuilds=None, searchItems=None, systemType='MacOS X 
 	for thisItem in searchItems:
 		thisContainer = None
 		try:
-			thisContainer = containerController.newContainerForPath(thisItem)
+			thisContainer = containerController.newItemForPath(thisItem)
 		except:
 			raise ValueError('Unable to understand the search item: ' + str(thisItem))
 		
@@ -105,7 +106,7 @@ def findInstallerDisc(allowedBuilds=None, searchItems=None, systemType='MacOS X 
 				else:
 					candidateConainter	= None
 					try:
-						candidateConainter = containerController.newContainerForPath(thisItem)
+						candidateConainter = containerController.newItemForPath(thisItem)
 					except:
 						pass
 					
@@ -156,7 +157,7 @@ def findInstallerDisc(allowedBuilds=None, searchItems=None, systemType='MacOS X 
 					baseImageCandidate = thisItem
 				else:
 					try:
-						baseImageCandidate = containerController.newContainerForPath(thisItem)
+						baseImageCandidate = containerController.newItemForPath(thisItem)
 					except:
 						continue
 				

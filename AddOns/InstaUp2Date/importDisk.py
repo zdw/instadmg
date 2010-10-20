@@ -7,7 +7,7 @@ import sys, os, time
 import Resources.commonConfiguration	as commonConfiguration
 import Resources.displayTools			as displayTools
 import Resources.volumeTools			as volumeTools
-import Resources.containerController	as containerController
+from Resources.containerController		import containerController
 from Resources.managedSubprocess		import managedSubprocess
 
 #class puppetStringsMonitor(threading.Thread):
@@ -72,7 +72,7 @@ def main():
 		for thisMountPoint in volumeTools.getMountedVolumes():
 						
 			try:
-				thisVolume = containerController.newContainerForPath(thisMountPoint)
+				thisVolume = containerController.newItemForPath(thisMountPoint)
 			except Exception, error:
 				continue
 			
@@ -123,7 +123,7 @@ def main():
 	elif len(args) == 1:
 		# user has supplied the mount point to use
 		try:
-			chosenMount = containerController.newContainerForPath(args[0])
+			chosenMount = containerController.newItemForPath(args[0])
 		except:
 			optionParser.error('The path "%s" is not valid' % args[0])
 		
