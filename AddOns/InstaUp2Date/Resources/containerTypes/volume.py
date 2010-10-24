@@ -329,7 +329,7 @@ class volume(folder):
 			result['mountPath'] = str(diskutilInfo['MountPoint'])
 			
 			# mountedReadWrite
-			if diskutilInfo['WritableVolume'] is True:
+			if ('Writable' in diskutilInfo and diskutilInfo['Writable'] is True) or ('WritableVolume' in diskutilInfo and diskutilInfo['WritableVolume'] is True):
 				result['mountedReadWrite'] = True
 			else:
 				result['mountedReadWrite'] = False
