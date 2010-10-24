@@ -2,9 +2,9 @@
 
 import os
 
-from container		import container
+from containerBase		import containerBase
 
-class folder(container):
+class folder(containerBase):
 	'''Class to handle folders'''
 	
 	# ------ instance properties

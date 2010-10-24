@@ -14,7 +14,7 @@ import Resources.commonConfiguration	as commonConfiguration
 import Resources.displayTools			as displayTools
 import Resources.findInstallerDisc		as findInstallerDisc
 import Resources.commonExceptions		as commonExceptions
-from Resources.containerController		import containerController
+from Resources.container				import container
 from Resources.managedSubprocess		import managedSubprocess
 from Resources.tempFolderManager		import tempFolderManager
 from Resources.installerPackage			import installerPackage
@@ -575,7 +575,7 @@ def main ():
 				optionsParser.error('When using the --restore-onto-volume option option only a single catalog file can be processed')
 			
 			try:
-				options.restoreTarget = containerController.newItemForPath(options.restoreTarget)
+				options.restoreTarget = container(options.restoreTarget)
 			except:
 				optionsParser.error("Could not understand the value of the --restore-onto-volume option: " + str(options.restoreTarget))
 			

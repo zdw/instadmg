@@ -2,9 +2,9 @@
 
 import os
 
-from container		import container
+from containerBase		import containerBase
 
-class file(container):
+class file(containerBase):
 	'''Class to handle files'''
 	
 	# ------ instance properties

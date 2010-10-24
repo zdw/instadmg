@@ -9,7 +9,7 @@ try:
 except ImportError:
 	from .Resources.pathHelpers			import normalizePath
 
-class container(object):
+class containerBase(object):
 	'''An abstract class underlying file, folder, volume, and dmg classes'''
 	
 	# ------ instance properties
@@ -28,7 +28,7 @@ class container(object):
 	
 	# ------ instance methods
 	
-	def __new__(myClass, itemPath, processInformation=None, **kwargs):
+	def __new__(myClass, itemPath, processInformation={}, **kwargs):
 		'''Ensure that only a single object gets created for each targeted object'''
 		
 		# ensure that the class has been setup
@@ -114,7 +114,7 @@ class container(object):
 	
 	@classmethod
 	def getMatchScore(myClass):
-		if myClass.__name__ != 'container':
+		if myClass.__name__ != 'containerBase':
 			return myClass.__mro__[1].getMatchScore() + myClass.matchScoreIncrement
 		
 		return myClass.matchScoreIncrement

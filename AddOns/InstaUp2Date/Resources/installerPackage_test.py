@@ -7,7 +7,7 @@ from installerPackage		import installerPackage
 import commonConfiguration
 from tempFolderManager 		import tempFolderManager
 from commonExceptions		import FileNotFoundException
-from containerController	import containerController
+from container				import container
 from cacheController		import cacheController
 from cacheController_test	import cacheControllerTest
 
@@ -28,7 +28,7 @@ class packageTesting(unittest.TestCase):
 		sampleItemDMG.findItem(progressReporter=False)
 		
 		# mount the image
-		dmgItem = containerController.newItemForPath(sampleItemDMG.getItemLocalPath())
+		dmgItem = container(sampleItemDMG.getItemLocalPath())
 		dmgItem.mount(mountReadWrite=False)
 		
 		samplePackagePath = os.path.join(dmgItem.getWorkingPath(), 'AirPortClientUpdate2009001.pkg')

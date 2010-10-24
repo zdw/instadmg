@@ -3,7 +3,7 @@
 import os, unittest, re
 
 import dmg
-from .containerController		import containerController
+from .container					import container
 from .pathHelpers				import pathInsideFolder, normalizePath
 from .commonConfiguration		import legacyOSDiscFolder, standardOSDiscFolder
 from .tempFolderManager			import tempFolderManager
@@ -32,7 +32,7 @@ class dmg_test(unittest.TestCase):
 		# -- simple tests
 		
 		# confirm that the class picks up on it as a dmg
-		testItem = containerController.newItemForPath(testItemPath)
+		testItem = container(testItemPath)
 		self.assertEqual(testItem.getContainerType(), 'dmg', 'Expected containerType for "%s" to be "dmg", but got: %s' % (testItemPath, testItem.getContainerType()))
 		
 		# chack that it gives back the correct storeage path
@@ -85,21 +85,21 @@ class dmg_test(unittest.TestCase):
 		testItem.unmount()
 		
 		# -- singleton tests - make sure the same item is only created once
-		duplicateItem = containerController.newItemForPath(testItemPath)
-		self.assertEqual(duplicateItem, testItem, 'When feeding the same dmg (%s) into containerController twice, got seperate items')
+		duplicateItem = container(testItemPath)
+		self.assertEqual(duplicateItem, testItem, 'When feeding the same dmg (%s) into container twice, got seperate items')
 		
 		# shadow file - make sure that an item with a shadow file is not registered as the same item without a shadow file
-		itemWithShadowFile = containerController.newItemForPath(testItemPath, shadowFile=True)
+		itemWithShadowFile = container(testItemPath, shadowFile=True)
 		self.assertNotEqual(itemWithShadowFile, duplicateItem, 'An item created with a shadow file returned the same object as one created without a shadow file')
 		
 		# different shadow file - should be yet another item
-		secondItemWithShadowFile = containerController.newItemForPath(testItemPath, shadowFile=True)
+		secondItemWithShadowFile = container(testItemPath, shadowFile=True)
 		self.assertNotEqual(secondItemWithShadowFile, duplicateItem, 'The second item created with a shadow file returned the same object as one created without a shadow file')
 		self.assertNotEqual(itemWithShadowFile, secondItemWithShadowFile, 'The second item created with a shadow file returned the same object with the first shadow file')
 		
-		# mountpoint test - feed containerController the mountpoint and make sure it comes back with the same item
-		mountPointItem = containerController.newItemForPath(duplicateItem.getWorkingPath())
-		self.assertEqual(duplicateItem, mountPointItem, 'When fed the mount point of an item containerController should have returned the same item, but it did not')
+		# mountpoint test - feed container the mountpoint and make sure it comes back with the same item
+		mountPointItem = container(duplicateItem.getWorkingPath())
+		self.assertEqual(duplicateItem, mountPointItem, 'When fed the mount point of an item container should have returned the same item, but it did not')
 		
 		# -- getMacOSInformation
 		
