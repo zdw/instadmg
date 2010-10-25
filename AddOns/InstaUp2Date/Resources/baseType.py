@@ -13,7 +13,8 @@ class baseType(object):
 		processInformation	= { 'instanceKeys':{} }
 			# information to be passed along between scoreItemMatch methods and finally the init
 		
-		
+		# process any per-type setup
+		myClass.typeSetup(itemPath, processInformation, **kwargs)
 		
 		for thisClass in myClass.baseClass.getSubclasses():
 			if thisClass in [myClass.baseClass, object]:

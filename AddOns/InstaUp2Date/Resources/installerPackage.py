@@ -11,20 +11,9 @@ from cacheController		import cacheController
 
 
 class installerPackage:
-	"This class represents a .pkg installer, and does much of the work."
-		
-	#---------------------Class Variables-----------------------------
-	
-	cacheFolder				= None		# the path to a writeable folder
-	sourceFolders			= []		# paths to folders to search when looking for files
-	
-	verifiedFiles			= {}
-	
-	fileNameChecksumRegex	= re.compile('^(.+?/)?(?P<fileName>.*)( (?P<checksumType>\S+)-(?P<checksumValue>[^\.]+))(?P<fileExtension>\.[^\.]+)?$')
+	"This class represents a .pkg installer"
 	
 	#--------------------- Class Methods -----------------------------
-	
-	# ToDo: manage the cache size
 	
 	@classmethod
 	def isValidInstaller(myClass, pkgPath, chrootPath=None, installerChoicesFilePath=None):
@@ -34,11 +23,15 @@ class installerPackage:
 		
 		# ---- validate and normalize input
 		
+		# pkg path
+		
 		if pkgPath is None:
 			raise ValueError('The pkgPath given to isValidInstaller can not be none')
 		elif not os.path.isdir(pkgPath) and not os.path.isfile(pkgPath):
 			raise ValueError('The pkgPath given to isValidInstaller does not look correct: ' + str(pkgPath))
 		pkgPath = pathHelpers.normalizePath(pkgPath, followSymlink=True)
+		
+		# chroot path
 		
 		if chrootPath is not None and not os.path.ismount(chrootPath):
 			raise ValueError('The chrootPath given to isValidInstaller must be a mount point, this was not: ' + str(chrootPath))
@@ -46,11 +39,14 @@ class installerPackage:
 		if chrootPath is not None:
 			chrootPath = pathHelpers.normalizePath(chrootPath, followSymlink=True)
 		
+		# installer choices
+		
 		if installerChoicesFilePath is not None and not os.path.isfile(installerChoicesFilePath):
 			raise ValueError('The installerChoicesFilePath given to isValidInstaller must be a file, this was not: ' + str(installerChoicesFilePath))
 		installerChoicesFilePath = pathHelpers.normalizePath(installerChoicesFilePath, followSymlink=True)
 		
-		# validate that the installer command is avalible
+		# ---- validate that the installer command is avalible
+		
 		if chrootPath is None and not os.access(pathToInstaller, os.F_OK | os.X_OK):
 			raise RuntimeError('The installer command was not avalible where it was expected to be, or was not useable: ' + pathToInstaller)
 		elif chrootPath is not None and not os.access(os.path.join(chrootPath, pathToInstaller[1:]), os.F_OK | os.X_OK):
@@ -101,15 +97,16 @@ class installerPackage:
 		
 		# ---- validate input and set instance variables
 		
-		# sourceLocation
-		if hasattr(sourceLocation, 'capitalize'):
-			# remove file:// if it is the sourceLocation
-			if sourceLocation.startswith('file://'):
-				sourceLocation = nameOrLocation[len('file://'):]
+		# -- source location
 		
-			self.source = sourceLocation
-		else:
+		if not hasattr(sourceLocation, 'capitalize'):
 			raise ValueError("Recieved an empty or invalid sourceLocation: " + str(sourceLocation))
+		
+		# remove file:// if it is the sourceLocation
+		if sourceLocation.startswith('file://'):
+			sourceLocation = nameOrLocation[len('file://'):]
+	
+		self.source = sourceLocation
 		
 		parsedSourceLocationURL = urlparse.urlparse(sourceLocation)
 		
@@ -117,7 +114,7 @@ class installerPackage:
 		if parsedSourceLocationURL.scheme not in ['', 'http', 'https']:
 			raise ValueError('findItem can not process urls types other than http, https, or file')
 					
-		# displayName
+		# -- displayName
 		if hasattr(displayName, 'capitalize'):
 			self.displayName = displayName
 		elif displayName is None and sourceLocation is not None:
@@ -129,7 +126,7 @@ class installerPackage:
 		else:
 			raise ValueError("Recieved an empty or invalid displayName: " + str(displayName))
 			
-		# checksum and checksumType
+		# -- checksum and checksumType
 		if hasattr(checksumString, 'capitalize') and checksumString.count(":") > 0:
 			self.checksumType, self.checksumValue = checksumString.split(":", 1)
 			
@@ -141,7 +138,7 @@ class installerPackage:
 		else:
 			raise ValueError('Recieved an empty or invalid checksumString: ' + str(checksumString))
 		
-		# installerChoices
+		# -- installerChoices
 		if installerChoices is not None and os.path.isfile(installerChoices):
 			self.installerChoicesPath = pathHelpers.normalizePath(installerChoices, followSymlink=True)
 		elif installerChoices is not None:

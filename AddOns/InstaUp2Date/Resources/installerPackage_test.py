@@ -4,7 +4,7 @@ import os, unittest, stat, urllib
 
 from installerPackage		import installerPackage
 
-import commonConfiguration
+import commonTestConfiguration
 from tempFolderManager 		import tempFolderManager
 from commonExceptions		import FileNotFoundException
 from container				import container
@@ -21,14 +21,8 @@ class packageTesting(unittest.TestCase):
 		if self.samplePackagePath is not None:
 			return self.samplePackagePath
 		
-		# download a smaller update from Apple if it is not already cached
-		cacheController.setCacheFolder(tempFolderManager.getNewTempFolder())
-		cacheController.addSourceFolders(commonConfiguration.standardCacheFolder)
-		sampleItemDMG = installerPackage('http://support.apple.com/downloads/DL792/en_US/AirPortClientUpdate2009001.dmg', 'sha1:168065c8bf2e6530a3053899ac7a6a210e9397d7')
-		sampleItemDMG.findItem(progressReporter=False)
-		
-		# mount the image
-		dmgItem = container(sampleItemDMG.getItemLocalPath())
+		# get and mount the image
+		dmgItem = container(commonTestConfiguration.getDownloadedPkgInDmgPath())
 		dmgItem.mount(mountReadWrite=False)
 		
 		samplePackagePath = os.path.join(dmgItem.getWorkingPath(), 'AirPortClientUpdate2009001.pkg')

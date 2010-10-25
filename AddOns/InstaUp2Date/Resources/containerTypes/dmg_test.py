@@ -3,31 +3,17 @@
 import os, unittest, re
 
 import dmg
-from .container					import container
-from .pathHelpers				import pathInsideFolder, normalizePath
-from .commonConfiguration		import legacyOSDiscFolder, standardOSDiscFolder
-from .tempFolderManager			import tempFolderManager
+from .commonTestConfiguration		import	getFirstOSInstallerDiscPath
+from .container						import	container
+from .pathHelpers					import	pathInsideFolder, normalizePath
+from .tempFolderManager				import	tempFolderManager
 
 class dmg_test(unittest.TestCase):
 	
 	def test_installerImages(self):
 		'''Test the class with a dmg from the BaseOS or InstallerDisks folders'''
 		
-		testItemPath = None
-		for thisItem in os.listdir(legacyOSDiscFolder):
-			if os.path.splitext(thisItem)[1].lower() == '.dmg':
-				testItemPath = os.path.join(legacyOSDiscFolder, thisItem)
-				break
-		
-		if testItemPath is None:
-			for thisItem in os.listdir(standardOSDiscFolder):
-				if os.path.splitext(thisItem)[1].lower() == '.dmg':
-					testItemPath = os.path.join(standardOSDiscFolder, thisItem)
-					break
-		
-		if testItemPath is None:
-			print("\nWarning: There were no dmg's in the output folder, so no dmg testing could be done")
-			return
+		testItemPath = getFirstOSInstallerDiscPath()
 		
 		# -- simple tests
 		
