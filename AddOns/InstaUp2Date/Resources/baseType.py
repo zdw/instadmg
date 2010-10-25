@@ -13,6 +13,8 @@ class baseType(object):
 		processInformation	= { 'instanceKeys':{} }
 			# information to be passed along between scoreItemMatch methods and finally the init
 		
+		
+		
 		for thisClass in myClass.baseClass.getSubclasses():
 			if thisClass in [myClass.baseClass, object]:
 				continue
@@ -23,7 +25,7 @@ class baseType(object):
 			
 			thisScore = 0
 			try:
-				thisScore, processInformation = thisClass.scoreItemMatch(itemPath, processInformation, **kwargs)
+				thisScore = thisClass.scoreItemMatch(itemPath, processInformation, **kwargs)
 			except Exception, e:
 				# ToDo: log this
 				continue
@@ -36,6 +38,10 @@ class baseType(object):
 			raise ValueError('There are no subclasses that match this item: ' + itemPath)
 		
 		return topScorer(itemPath, processInformation, **kwargs)		
+	
+	@classmethod
+	def typeSetup(myClass, itemPath, processInformation, **kwargs):
+		'''Perform any type-level setup on this item, such as container setup'''
 	
 	def __init__(myClass, itemPath, **kwargs):
 		raise NotImplementedError('This should have been implimented by an appropriate subclass')

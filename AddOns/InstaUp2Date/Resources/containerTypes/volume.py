@@ -401,9 +401,9 @@ class volume(folder):
 				if itemPath in [mountPoint, canidateDiskutilInfo['bsdPath'], canidateDiskutilInfo['bsdName']]:
 					processInformation['diskutilInfo'] = canidateDiskutilInfo
 				else:
-					return (0, processInformation) # we are getting information for this items parent
+					return 0 # we are getting information for this items parent
 			except:
-				return (0, processInformation) # if diskutil does not understand it, it is not a volume
+				return 0 # if diskutil does not understand it, it is not a volume
 		
 		mountPoint = None
 		if 'mountPath' in processInformation['diskutilInfo']:
@@ -411,9 +411,9 @@ class volume(folder):
 		
 		if itemPath in [processInformation['diskutilInfo']['bsdPath'], processInformation['diskutilInfo']['bsdName']] or os.path.samefile(mountPoint, itemPath):
 			processInformation['instanceKeys'][myClass.__name__] = processInformation['diskutilInfo']['bsdPath']
-			return (myClass.getMatchScore(), processInformation)
+			return myClass.getMatchScore()
 		
-		return (0, processInformation)
+		return 0
 	
 	@classmethod
 	def isVolume(self):

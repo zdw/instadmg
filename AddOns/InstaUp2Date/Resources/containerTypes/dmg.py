@@ -396,7 +396,7 @@ class dmg(volume):
 		
 		if 'diskutilInfo' in processInformation:
 			if processInformation['diskutilInfo']['diskType'] != 'Disk Image':
-				return (0, processInformation)
+				return 0
 			
 			# make sure we have the path to the mount point
 			itemPath = processInformation['diskutilInfo']['mountPath']
@@ -428,7 +428,7 @@ class dmg(volume):
 				processInformation['dmgShadowFilePath'] = myClass.validateShadowfile(shadowFilePath)
 				processInformation['instanceKeys'][myClass.__name__] = processInformation['dmgFilePath'] + '&' + processInformation['dmgShadowFilePath']
 			
-			return myClass.getMatchScore(), processInformation
+			return myClass.getMatchScore()
 		
-		return 0, processInformation
+		return 0
 	

@@ -19,6 +19,6 @@ class file(containerBase):
 	def scoreItemMatch(myClass, itemPath, processInformation, **kwargs):
 		
 		if os.path.isfile(itemPath):
-			return (myClass.getMatchScore(), processInformation)
+			return myClass.getMatchScore()
 		
-		return (0, processInformation)
+		return 0
