@@ -77,7 +77,7 @@ class containerBase(object):
 		'''Return path used to work with this item, possibly a copy inside a chroot'''
 		return self.filePath
 	
-	def setupForUseAtPath(self, path):
+	def setupForUseInVolume(self, path):
 		raise NotImplementedError('This method is virtual, and should be implimented in the subclasses')
 	
 	def getStoragePath(self):
