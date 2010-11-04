@@ -10,6 +10,9 @@ class folder_test(unittest.TestCase):
 	def test_applicationsFolder(self):
 		'''Test that the Applications folder is processed as a folder'''
 		
-		thisItem = container('/Applications')
+		testPath = '/System'
+		thisItem = container(testPath)
 		
-		self.assertEqual(thisItem.getContainerType(), 'folder', 'Expected containerType for /Applications to be "folder", but got: ' + thisItem.getContainerType())
+		self.assertEqual(thisItem.getContainerType(), 'folder', 'Expected containerType for %s to be "folder", but got: %s' % (testPath, thisItem.getContainerType()))
+		
+		self.assertEqual(thisItem.getTopLevelItems(), os.listdir(testPath), 'Expected getContainerType for %s to be %s, but got: %s' % (testPath, os.listdir(testPath), thisItem.getTopLevelItems()))

@@ -13,6 +13,10 @@ class folder(containerBase):
 	
 	# ------ instance methods
 	
+	def getTopLevelItems(self):
+		'''Return an array of files in this folder'''
+		return os.listdir(self.filePath)
+	
 	# ------ class methods
 	
 	@classmethod
@@ -22,6 +26,3 @@ class folder(containerBase):
 			return myClass.getMatchScore()
 		
 		return 0
-	
-		
-		

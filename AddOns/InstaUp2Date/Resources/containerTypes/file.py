@@ -13,6 +13,11 @@ class file(containerBase):
 	
 	# ------ instance methods
 	
+	def getTopLevelItems(self):
+		'''Since this is only a single file, return the file path'''
+		
+		return [self.filePath]
+	
 	# ------ class methods
 	
 	@classmethod

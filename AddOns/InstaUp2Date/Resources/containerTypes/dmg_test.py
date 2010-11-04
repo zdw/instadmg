@@ -86,7 +86,7 @@ class dmg_test(unittest.TestCase):
 		# mountpoint test - feed container the mountpoint and make sure it comes back with the same item
 		mountPointItem = container(duplicateItem.getWorkingPath())
 		self.assertEqual(duplicateItem, mountPointItem, 'When fed the mount point of an item container should have returned the same item, but it did not')
-		
+
 		# -- getMacOSInformation
 		
 		macOSInformation = duplicateItem.getMacOSInformation()
@@ -104,3 +104,18 @@ class dmg_test(unittest.TestCase):
 		# macOSInstallerDisc
 		self.assertTrue(macOSInformation['macOSInstallerDisc'] is not None, 'Could not get the macOSBuild from the disc: ' + testItemPath)
 		self.assertTrue(macOSInformation['macOSInstallerDisc'] is True, 'The disc did not evaluate as an installer disc as expected: ' + testItemPath)
+		
+		# -- getTopLevelItems
+		
+		# test with an open dmg
+		
+		duplicateItem.mount() # should be a no-op
+		listOfItems = os.listdir(duplicateItem.getMountPoint())
+		
+		self.assertEqual(listOfItems, duplicateItem.getTopLevelItems(), 'Expected results of getTopLevelItems on mounted dmg "%s" to be "%s", but got: %s' % (testItemPath, listOfItems, duplicateItem.getTopLevelItems()))
+		
+		# close the dmg and try again
+		
+		duplicateItem.unmount()
+		self.assertEqual(listOfItems, duplicateItem.getTopLevelItems(), 'Expected results of getTopLevelItems on mounted dmg "%s" to be "%s", but got: %s' % (testItemPath, listOfItems, duplicateItem.getTopLevelItems()))
+		self.assertFalse(duplicateItem.isMounted(), 'The dmg was not auto-unmounted after checking for the top level items')

@@ -10,16 +10,19 @@ class volume_test(unittest.TestCase):
 	def test_rootVolume(self):
 		'''Test that the / is processed as a volume'''
 		
-		thisItem = container('/')
-		self.assertEqual(thisItem.getContainerType(), 'volume', 'Expected containerType for / to be "volume", but got: ' + thisItem.getContainerType())
+		itemPath = '/'
+		testItem = container(itemPath)
+		
+		self.assertEqual(testItem.getContainerType(), 'volume', 'Expected containerType for %s to be "volume", but got: %s' % (itemPath, testItem.getContainerType()))
 		
 		# bsdPath
-		self.assertTrue(thisItem.bsdPath is not None)
+		self.assertTrue(testItem.bsdPath is not None)
 		
 		# test that bsd paths are treated the same
-		duplicateItem = container(thisItem.bsdPath)
-		self.assertEqual(duplicateItem, thisItem, 'Expected item from "/" and the bsdPath to that (%s) to result in the same item, they did not' % thisItem.bsdPath)
-
+		self.assertEqual(container(testItem.bsdPath), testItem, 'Expected item from "%s" and the bsdPath to that (%s) to result in the same item, they did not' % (itemPath, testItem.bsdPath))
+		
+		# check that getTopLevelItems returns the correct items
+		self.assertEqual(os.listdir(itemPath), testItem.getTopLevelItems(), 'Expected results of getTopLevelItems for "%s" to be "%s", but got: %s' % (itemPath, os.listdir(itemPath), testItem.getTopLevelItems()))
 
 if __name__ == '__main__':
 	unittest.main()

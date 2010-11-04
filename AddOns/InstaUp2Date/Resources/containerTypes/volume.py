@@ -206,6 +206,22 @@ class volume(folder):
 		else:
 			unmountVolume(currentMountPoint)
 	
+	def getTopLevelItems(self):
+		'''Return an array of files in the top-level of this volume, mounting (then unmounting) if necessary'''
+		
+		# make sure that is mounted
+		wasMounted = self.isMounted()
+		if wasMounted is False:
+			self.mount()
+		
+		results = os.listdir(self.getMountPoint())
+		
+		# unount the volume if we just mounted it
+		if wasMounted is False:
+			self.unmount()
+		
+		return results
+	
 	def getMacOSInformation(self):
 		
 		# -- see if we already have this information

@@ -2,7 +2,7 @@
 
 import os, weakref, warnings
 
-warnings.simplefilter("ignore", DeprecationWarning)
+warnings.simplefilter("ignore", DeprecationWarning) # supress the warnings about new not taking paramaters
 
 try:
 	from .pathHelpers					import normalizePath
@@ -66,6 +66,8 @@ class containerBase(object):
 		
 		self.itemAlreadySetup = True
 	
+	# ---- subclass methods
+	
 	def classInit(self, itemPath, processInformation, **kwargs):
 		'''Perform validation and setup specific to this class'''
 	
@@ -74,16 +76,19 @@ class containerBase(object):
 		return self.displayName
 	
 	def getWorkingPath(self, forVolume=None):
-		'''Return path used to work with this item, possibly a copy inside a chroot'''
+		'''Return path used to work with this item, possibly a copy inside a volume for use with chroot'''
 		return self.filePath
 	
-	def setupForUseInVolume(self, path):
-		raise NotImplementedError('This method is virtual, and should be implimented in the subclasses')
+	def getTopLevelItems(self):
+		'''Return an array of files in the top-level of this container'''
+		raise NotImplementedError('This class must be implemented by the subclass')
 	
 	def getStoragePath(self):
 		'''Return path to the local archive path for this item'''
-		
 		return self.filePath
+	
+	def cleanupAfterUse(self):
+		'''Allow the item to cleanup, such as unmounting or deleting copies made for use in a chroot'''
 	
 	# ------ class methods
 	

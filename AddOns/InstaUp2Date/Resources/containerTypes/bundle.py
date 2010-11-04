@@ -2,9 +2,9 @@
 
 import os
 
-import folder
+import file
 
-class bundle(folder.folder):
+class bundle(file.file):
 	'''Class to handle bundles'''
 	
 	# ---- class methods
