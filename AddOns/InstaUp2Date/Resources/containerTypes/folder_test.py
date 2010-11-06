@@ -13,6 +13,6 @@ class folder_test(unittest.TestCase):
 		testPath = '/System'
 		thisItem = container(testPath)
 		
-		self.assertEqual(thisItem.getContainerType(), 'folder', 'Expected containerType for %s to be "folder", but got: %s' % (testPath, thisItem.getContainerType()))
+		self.assertEqual(thisItem.getType(), 'folder', 'Expected containerType for %s to be "folder", but got: %s' % (testPath, thisItem.getType()))
 		
-		self.assertEqual(thisItem.getTopLevelItems(), os.listdir(testPath), 'Expected getContainerType for %s to be %s, but got: %s' % (testPath, os.listdir(testPath), thisItem.getTopLevelItems()))
+		self.assertEqual(thisItem.getTopLevelItems(), os.listdir(testPath), 'Expected getType for %s to be %s, but got: %s' % (testPath, os.listdir(testPath), thisItem.getTopLevelItems()))

@@ -13,6 +13,6 @@ class file_test(unittest.TestCase):
 		targetPath	= '/etc/authorization'
 		thisItem	= container(targetPath)
 		
-		self.assertEqual(thisItem.getContainerType(), 'file', 'Expected containerType for %s to be "file", but got: %s' % (targetPath, thisItem.getContainerType()))
+		self.assertEqual(thisItem.getType(), 'file', 'Expected containerType for %s to be "file", but got: %s' % (targetPath, thisItem.getType()))
 		
 		self.assertEqual(thisItem.getTopLevelItems(), [targetPath], 'Expected the getTopLevelItems results for %s to be [%s], but got: %s' % (targetPath, targetPath, thisItem.getTopLevelItems()))

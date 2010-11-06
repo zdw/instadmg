@@ -77,7 +77,7 @@ def findInstallerDisc(allowedBuilds=None, searchItems=None, systemType='MacOS X 
 			raise ValueError('Unable to understand the search item: ' + str(thisItem))
 		
 		if not thisContainer.isContainerType('folder'): # note: dmg's are "folders"
-			raise ValueError('The search item "%s" was a %s, which is not useable .Must be dmg, volume, or folder' % (thisItem, thisContainer.getContainerType()))
+			raise ValueError('The search item "%s" was a %s, which is not useable .Must be dmg, volume, or folder' % (thisItem, thisContainer.getType(()))
 		
 		searchContainers.append(thisContainer)
 	

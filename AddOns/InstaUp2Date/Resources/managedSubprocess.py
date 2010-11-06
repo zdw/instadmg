@@ -20,7 +20,7 @@ class managedSubprocess(subprocess.Popen):
 		stderr = tempfile.TemporaryFile()
 		
 		# Note: this always absorbs stdout and stderr in case there is a problem
-		super(self.__class__, self).__init__(command, stdout=stdout.fileno(), stderr=stderr.fileno(), **kwargs)
+		super(self.__class__, self).__init__(command, close_fds=True, stdout=stdout.fileno(), stderr=stderr.fileno(), **kwargs)
 		
 		self.wait()
 		

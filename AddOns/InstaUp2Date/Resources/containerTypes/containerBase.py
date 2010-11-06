@@ -125,12 +125,12 @@ class containerBase(object):
 		return myClass.matchScoreIncrement
 	
 	@classmethod
-	def scoreItemMatch(myClass, itemPath, processInformation, **kwargs):
+	def scoreItemMatch(myClass, inputItem, processInformation, **kwargs):
 		'''All classes should impliment this method to help figure out which type should be used for each item'''
 		raise NotImplementedError('This method is virtual, and should be implimented in the subclasses')
 	
 	@classmethod
-	def getContainerType(myClass):
+	def getType(myClass):
 		return myClass.__name__
 		
 	@classmethod

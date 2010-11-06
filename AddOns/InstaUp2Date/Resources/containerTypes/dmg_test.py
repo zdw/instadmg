@@ -19,7 +19,7 @@ class dmg_test(unittest.TestCase):
 		
 		# confirm that the class picks up on it as a dmg
 		testItem = container(testItemPath)
-		self.assertEqual(testItem.getContainerType(), 'dmg', 'Expected containerType for "%s" to be "dmg", but got: %s' % (testItemPath, testItem.getContainerType()))
+		self.assertEqual(testItem.getType(), 'dmg', 'Expected containerType for "%s" to be "dmg", but got: %s' % (testItemPath, testItem.getType()))
 		
 		# chack that it gives back the correct storeage path
 		self.assertEqual(normalizePath(testItemPath, followSymlink=True), testItem.getStoragePath(), 'Item did not return the correct storage path (%s) but rather: %s' % (testItemPath, testItem.getStoragePath()))

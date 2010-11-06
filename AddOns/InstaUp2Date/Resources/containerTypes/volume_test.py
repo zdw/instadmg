@@ -13,7 +13,7 @@ class volume_test(unittest.TestCase):
 		itemPath = '/'
 		testItem = container(itemPath)
 		
-		self.assertEqual(testItem.getContainerType(), 'volume', 'Expected containerType for %s to be "volume", but got: %s' % (itemPath, testItem.getContainerType()))
+		self.assertEqual(testItem.getType(), 'volume', 'Expected containerType for %s to be "volume", but got: %s' % (itemPath, testItem.getType()))
 		
 		# bsdPath
 		self.assertTrue(testItem.bsdPath is not None)

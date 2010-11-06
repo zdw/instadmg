@@ -12,6 +12,6 @@ class folder_test(unittest.TestCase):
 		
 		thisItem = container('/Applications/Mail.app')
 		
-		self.assertEqual(thisItem.getContainerType(), 'bundle', 'Expected containerType for /Applications/Mail.app to be "bundle", but got: ' + thisItem.getContainerType())
+		self.assertEqual(thisItem.getType(), 'bundle', 'Expected containerType for /Applications/Mail.app to be "bundle", but got: ' + thisItem.getType())
 		
 		self.assertEqual(thisItem.getTopLevelItems(), [targetPath], 'Expected the getTopLevelItems results for %s to be [%s], but got: %s' % (targetPath, targetPath, thisItem.getTopLevelItems()))
