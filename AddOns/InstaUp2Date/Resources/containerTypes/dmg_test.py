@@ -43,14 +43,7 @@ class dmg_test(unittest.TestCase):
 		
 		# unmount the volume
 		testItem.unmount()
-		actualMountPoint = testItem.getMountPoint()
-		self.assertTrue(actualMountPoint is None, 'After unmounting the item (%s) there was still a mount point: %s' % (testItemPath, actualMountPoint))
-		
-		# check that getWorkingPath remounts the item
-		workingPath = testItem.getWorkingPath()
-		self.assertTrue(workingPath is not None, 'The working path returned from a unmounted item (%s) was None' % testItemPath)
-		self.assertTrue(os.path.ismount(workingPath), 'The working path returned from a unmounted item (%s) was not a mount point' % testItemPath)
-		testItem.unmount()
+		self.assertTrue(testItem.getMountPoint() is None, 'After unmounting the item (%s) there was still a mount point: %s' % (testItemPath, testItem.getMountPoint()))
 		
 		# -- mountpoint tests
 		
@@ -59,16 +52,27 @@ class dmg_test(unittest.TestCase):
 		self.assertEqual(targetMountPoint, actualMountPoint, 'Mounting the item (%s) at a specified mount point (%s) returned %s' % (testItemPath, targetMountPoint, actualMountPoint))
 		self.assertEqual(targetMountPoint, testItem.getMountPoint(), 'Mounting the item (%s) at a specified mount point (%s) resulted in a mount point of %s' % (testItemPath, targetMountPoint, testItem.getMountPoint()))
 		
-		# -- getWorkingPath with withinFolder tests
-		
-		# note: we already have an image mounted at a know point from the previous tests
-		newMountArea = tempFolderManager.getNewTempFolder()
-		newMountPoint = testItem.getWorkingPath(withinFolder=newMountArea)
-		self.assertTrue(newMountPoint is not None, 'After changing the mount point with getWorkingPath(withinFolder=value) the returned value was None')
-		self.assertTrue(os.path.ismount(newMountPoint), 'After changing the mount point with getWorkingPath(withinFolder=value) the returned value (%s) was not a mount point' % newMountPoint)
-		self.assertTrue(pathInsideFolder(newMountPoint, newMountArea), 'After changing the mount point with getWorkingPath(withinFolder=value) the returned value (%s) was not inside expected directory (%s)' % (newMountPoint, newMountArea))
-		
 		testItem.unmount()
+		
+		# prepareForUse with no options
+		
+		testItem.prepareForUse()
+		self.assertTrue(testItem.getMountPoint() is not None, 'After prepareForUse the item (%s) was not mounted' % testItemPath)
+		self.assertTrue(testItem.weMounted, 'After prepareForUse the item (%s) did not have the "weMounted" value set to True (%s)' % (testItemPath, testItem.weMounted))
+		
+		# prepareForUse with a folder
+		
+		enclosingFolder = tempFolderManager.getNewTempFolder()
+		
+		testItem.prepareForUse(inVolumeOrFolder=enclosingFolder)
+		self.assertTrue(testItem.getMountPoint() is not None, 'After prepareForUse the item (%s) was not mounted' % testItemPath)
+		self.assertTrue(pathInsideFolder(testItem.getMountPoint(), enclosingFolder), 'After prepareForUse with a inVolumeOrFolder (%s) the item (%s) was not mounted inside that folder, but rather at: %s' % (enclosingFolder, testItem.getDisplayName(), testItem.getMountPoint()))
+		
+		# cleanupAfterUse
+		
+		testItem.cleanupAfterUse()
+		self.assertTrue(testItem.getMountPoint() is None, 'After cleanupAfterUse the item (%s) there was still a mount point: %s' % (testItemPath, testItem.getMountPoint()))
+		self.assertFalse(testItem.weMounted, 'After cleanupAfterUse the item (%s) did not have the "weMounted" value set to False (%s)' % (testItemPath, testItem.weMounted))
 		
 		# -- singleton tests - make sure the same item is only created once
 		duplicateItem = container(testItemPath)
@@ -84,6 +88,7 @@ class dmg_test(unittest.TestCase):
 		self.assertNotEqual(itemWithShadowFile, secondItemWithShadowFile, 'The second item created with a shadow file returned the same object with the first shadow file')
 		
 		# mountpoint test - feed container the mountpoint and make sure it comes back with the same item
+		duplicateItem.prepareForUse()
 		mountPointItem = container(duplicateItem.getWorkingPath())
 		self.assertEqual(duplicateItem, mountPointItem, 'When fed the mount point of an item container should have returned the same item, but it did not')
 

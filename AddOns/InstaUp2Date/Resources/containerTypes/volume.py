@@ -38,6 +38,8 @@ class volume(folder):
 	macOSVersion			= None
 	macOSBuild				= None
 	macOSInstallerDisc		= None
+	
+	weMounted			= False	# set to True if this code mounted the dmg
 		
 	# ------ class properties
 	
@@ -194,17 +196,66 @@ class volume(folder):
 		
 		# -- find and return the mount point
 		
+		self.weMounted = True
 		return self.getMountPoint()
 	
 	def unmount(self):
+		
 		currentMountPoint = self.getMountPoint()
 		if currentMountPoint in [None, '']:
 			return # ToDo: log this, maybe error out here
+		
+		if self.weMounted is not True:
+			raise ValueError('Asked to unmount a volume that we did not mount: %s' % self.getDisplayName())
 		
 		if tempFolderManager.isManagedItem(currentMountPoint):
 			tempFolderManager.cleanupItem(currentMountPoint)
 		else:
 			unmountVolume(currentMountPoint)
+			self.weMounted = False
+	
+	def prepareForUse(self, inVolumeOrFolder=None):
+		
+		enclosingFolder = None
+		
+		# vaidate input
+		if inVolumeOrFolder is not None:
+			
+			if os.path.ismount(inVolumeOrFolder):
+				if not os.path.isdir(os.path.join(inVolumeOrFolder, "Volumes")):
+					raise Exception('When preparing "%s" for use was given "%s", but that path does not have a "Volumes" folder in it' % (self.getDisplayName(), inVolumeOrFolder))
+				enclosingFolder = os.path.join(inVolumeOrFolder, "Volumes")
+				
+			elif os.path.isdir(inVolumeOrFolder):
+				enclosingFolder = inVolumeOrFolder
+			
+			else:
+				raise ValueError('inVolumeOrFolder nots not exist, or was not recognized: ' + str(inVolumeOrFolder))
+		
+		mountPoint = self.getMountPoint()
+		
+		if mountPoint is not None:
+			
+			if enclosingFolder is not None and pathInsideFolder(mountPoint, enclosingFolder) is False: # otherwise we are ok with where it is mounted
+				
+				if self.weMounted is False:
+					raise RuntimeError('Was asked to make sure that "%s" was mounted in "%s" (rather in "%s"), but it was already mounted, and not by this system' % (self.getDisplayName(), enclosingFolder, mountPoint))
+				
+				# re-mount the volume as desired
+				self.unmount()
+				self.mount(mountInFolder=enclosingFolder)
+			
+		else:
+			# mount it
+			self.mount(mountInFolder=enclosingFolder)
+		
+	def cleanupAfterUse(self):
+		
+		if self.isMounted() is True and self.weMounted is True:
+			self.unmount()
+		
+		if self.weMounted is True:
+			self.weMounted = False
 	
 	def getTopLevelItems(self):
 		'''Return an array of files in the top-level of this volume, mounting (then unmounting) if necessary'''
@@ -237,9 +288,10 @@ class volume(folder):
 		
 		# -- get the information from the disc
 		
-		wasAlreadyMounted = False
-		if self.isMounted():
-			wasAlreadyMounted = True
+		wasAlreadyMounted = True
+		if self.isMounted() is False:
+			wasAlreadyMounted = False
+			self.mount()
 		
 		currentMountPoint = self.getWorkingPath()
 		

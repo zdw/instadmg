@@ -9,7 +9,7 @@ class nakedApplication_test(unittest.TestCase):
 	
 	def test_folderInstantiation(self):
 		
-		testPath = tempFolderManager.getNewTempFolder()
+		testPath = tempFolderManager.getNewTempFolder(prefix="folderWithApp.")
 		
 		testAppFolderPath = os.path.join(testPath, 'TestApp.app')
 		os.mkdir(testAppFolderPath)

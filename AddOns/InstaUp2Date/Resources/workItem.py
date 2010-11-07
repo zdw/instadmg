@@ -67,7 +67,11 @@ class workItem(object):
 				topScorer = thisClass
 			
 		if topScorer is None:
-			raise ValueError('There are no "%s" subclasses that match this item: %s. Subclasses: %s' % (parentClass.getType(), str(inputItem), parentClass.getSubclasses()))
+			sourcePath = inputItem
+			if hasattr(inputItem, 'getStoragePath'):
+				sourcePath = inputItem.getStoragePath()
+			
+			raise ValueError('There are no "%s" subclasses that match this item: %s, subclasses: %s' % (parentClass.getType(), sourcePath, parentClass.getSubclasses()))
 		
 		return topScorer(inputItem, processInformation, **kwargs)	
 	
@@ -150,7 +154,9 @@ class workItem(object):
 		self.container = self.findItemForParentClass(containerBase.containerBase, self.sourceLocation, **kwargs)
 		
 		# -- find the action subtype
+		self.container.prepareForUse() # open things up so we can work faster
 		self.action = self.findItemForParentClass(actionBase.actionBase, self.container, **kwargs)
+		self.container.cleanupAfterUse()
 		
 		# ToDo: a method to figure out when the same item is requested twice
 	

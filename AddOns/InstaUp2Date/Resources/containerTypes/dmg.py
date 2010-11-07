@@ -27,7 +27,6 @@ class dmg(volume):
 	dmgChecksumType			= None
 	dmgChecksumValue		= None
 	
-	
 	# ------ class properties
 	
 	wholeDiskRegEx			= re.compile('^(?P<bsdPath>/dev/(?P<bsdName>disk\d+))$')
@@ -191,23 +190,16 @@ class dmg(volume):
 		if actualMountedPath is None:
 			raise RuntimeError('Error: image could not be mounted')
 		
+		self.weMounted = True
 		return actualMountedPath
 	
-	def getWorkingPath(self, withinFolder=None):
+	def getWorkingPath(self):
 		'''Return the mounted path, mounting or re-mounting if necessary'''
-		
-		if withinFolder is not None and not os.path.isdir(withinFolder):
-			raise ValueError('When using the withinFolder option the item must be a folder')
 		
 		currentMountPoint = self.getMountPoint()
 		
 		if currentMountPoint is None:
-			return self.mount(mountInFolder=withinFolder)
-		
-		elif withinFolder is not None and not pathInsideFolder(currentMountPoint, withinFolder):
-			# re-mount inside the path
-			self.unmount()
-			return self.mount(mountInFolder=withinFolder)
+			raise RuntimeError('prepareForUse must be called before getWorkingPath is called on: %s' % self.getDisplayName())
 		
 		return str(currentMountPoint)
 	

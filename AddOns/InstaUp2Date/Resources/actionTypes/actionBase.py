@@ -1,13 +1,19 @@
 #!/usr/bin/python
 
+import weakref, warnings
+
+warnings.simplefilter("ignore", DeprecationWarning) # supress the warnings about "new" not taking paramaters
+
 class actionBase(object):
 	'''An abstract class underlying the classes that install things on target dmgs'''
 	
-	container		= None
+	container				= None
+	
+	matchScoreIncrement		= 5
 
 	# -------- class methods
 	
-	def __init__(self, container, **kwargs):
+	def __init__(self, container, processInformation=None, **kwargs):
 		
 		# ToDo: validate that container is a container
 		
@@ -16,22 +22,32 @@ class actionBase(object):
 		# -- setup the subclass
 		self.subclassInit(container, **kwargs)
 	
-	def __new__(self, container, **kwargs):
-		'''Evaluate this path for each of the subclasses, and instantiate one that gives back the highest value'''
+	def __new__(myClass, itemPath, processInformation, **kwargs):
+		'''Ensure that only a single object gets created for each targeted object'''
 		
-		topScorer	= None
-		topScore	= 0
+		# ensure that the class has been setup
+		try:
+			myClass.__instances__
+		except AttributeError:
+			myClass.__instances__ = weakref.WeakValueDictionary()
 		
-		for thisClass in self.listSubclasses():
-			thisScore = thisClass.scoreItemMatch(itemPath)
-			if thisScore > topScore:
-				topScore = thisScore
-				topScorer = thisClass
+		# get the instance key
+		instanceKey = itemPath
+		if 'instanceKeys' in processInformation and myClass.__name__ in processInformation['instanceKeys']:
+			instanceKey = processInformation['instanceKeys'][myClass.__name__]
 		
-		if topScorer is None:
-			raise ValueError('There are no subclasses that match this item: ' + itemPath)
+		# check if we already have an object for this
+		if instanceKey not in myClass.__instances__:
+			
+			returnObject = object.__new__(myClass, itemPath, processInformation, **kwargs)
+			
+			# do the setup on this object with the modified values
+			returnObject.__init__(itemPath, processInformation, **kwargs)
+			
+			# get a weak refernce
+			myClass.__instances__[instanceKey] = returnObject
 		
-		return thisClass(itemPath, kwargs)
+		return myClass.__instances__[instanceKey]
 	
 	@classmethod
 	def getSubclasses(myClass):
@@ -43,6 +59,13 @@ class actionBase(object):
 		raise NotImplementedError('This method is virtual, and should be implimented in the subclasses')
 	
 	@classmethod
+	def getMatchScore(myClass):
+		if myClass not in myClass.__mro__[:-2]: # this is not the base class or 'object'
+			return myClass.__mro__[1].getMatchScore() + myClass.matchScoreIncrement
+		
+		return myClass.matchScoreIncrement
+	
+	@classmethod
 	def getType(myClass):
 		return myClass.__name__
 	
@@ -50,7 +73,6 @@ class actionBase(object):
 	
 	def subclassInit(self, itemPath, **kwargs):
 		'''Any subclasses that need to set themselves up should impliment this'''
-		raise NotImplementedError('This method is virtual, and should be implimented byt the appropriate subclass')
 	
 	# ---- container methods
 	

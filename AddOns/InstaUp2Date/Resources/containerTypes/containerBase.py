@@ -28,7 +28,7 @@ class containerBase(object):
 	
 	# ------ instance methods
 	
-	def __new__(myClass, itemPath, processInformation={}, **kwargs):
+	def __new__(myClass, itemPath, processInformation, **kwargs):
 		'''Ensure that only a single object gets created for each targeted object'''
 		
 		# ensure that the class has been setup
@@ -75,20 +75,23 @@ class containerBase(object):
 		'''Get a user-oriented string for this item'''
 		return self.displayName
 	
-	def getWorkingPath(self, forVolume=None):
+	def getStoragePath(self):
+		'''Return path to the local archive path for this item'''
+		return self.filePath
+	
+	def prepareForUse(self, inVolume=None):
+		'''Return path to the local archive path for this item - noop for most types'''
+	
+	def getWorkingPath(self):
 		'''Return path used to work with this item, possibly a copy inside a volume for use with chroot'''
 		return self.filePath
 	
 	def getTopLevelItems(self):
 		'''Return an array of files in the top-level of this container'''
 		raise NotImplementedError('This class must be implemented by the subclass')
-	
-	def getStoragePath(self):
-		'''Return path to the local archive path for this item'''
-		return self.filePath
-	
+
 	def cleanupAfterUse(self):
-		'''Allow the item to cleanup, such as unmounting or deleting copies made for use in a chroot'''
+		'''Allow the item to cleanup, such as unmounting or deleting copies made for use in a chroot - noop for most types'''
 	
 	# ------ class methods
 	
