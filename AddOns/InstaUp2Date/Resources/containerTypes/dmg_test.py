@@ -115,12 +115,13 @@ class dmg_test(unittest.TestCase):
 		# test with an open dmg
 		
 		duplicateItem.mount() # should be a no-op
-		listOfItems = os.listdir(duplicateItem.getMountPoint())
-		
+		listOfItems = [os.path.join(duplicateItem.getMountPoint(), itemName) for itemName in os.listdir(duplicateItem.getMountPoint())]
 		self.assertEqual(listOfItems, duplicateItem.getTopLevelItems(), 'Expected results of getTopLevelItems on mounted dmg "%s" to be "%s", but got: %s' % (testItemPath, listOfItems, duplicateItem.getTopLevelItems()))
 		
 		# close the dmg and try again
 		
 		duplicateItem.unmount()
-		self.assertEqual(listOfItems, duplicateItem.getTopLevelItems(), 'Expected results of getTopLevelItems on mounted dmg "%s" to be "%s", but got: %s' % (testItemPath, listOfItems, duplicateItem.getTopLevelItems()))
+		strippedItemList = [os.path.basename(itemPath) for itemPath in listOfItems]
+		actualStripedItemList = [os.path.basename(itemPath) for itemPath in duplicateItem.getTopLevelItems()]
+		self.assertEqual(strippedItemList, actualStripedItemList, 'Expected results of getTopLevelItems on mounted dmg "%s" to be "%s", but got: %s' % (testItemPath, strippedItemList, actualStripedItemList))
 		self.assertFalse(duplicateItem.isMounted(), 'The dmg was not auto-unmounted after checking for the top level items')

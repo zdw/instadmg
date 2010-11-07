@@ -190,5 +190,7 @@ class workItem(object):
 	def getActionType(self):
 		return self.getAction().getType()
 	
-	def performAction(self):
-		raise NotImplementedError()
+	def performActionOnVolume(self, targetVolume):
+		if self.foundAction() is not True:
+			raise RuntimeError('This method can not be called until locateFiles has been called')
+		self.getAction().performActionOnVolume(targetVolume)

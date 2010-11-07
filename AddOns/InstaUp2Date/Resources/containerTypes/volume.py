@@ -265,7 +265,7 @@ class volume(folder):
 		if wasMounted is False:
 			self.mount()
 		
-		results = os.listdir(self.getMountPoint())
+		results = [os.path.join(self.getWorkingPath(), itemName) for itemName in os.listdir(self.getMountPoint())]
 		
 		# unount the volume if we just mounted it
 		if wasMounted is False:

@@ -15,7 +15,7 @@ class folder(containerBase):
 	
 	def getTopLevelItems(self):
 		'''Return an array of files in this folder'''
-		return os.listdir(self.filePath)
+		return [os.path.join(self.filePath, itemName) for itemName in os.listdir(self.filePath)]
 	
 	# ------ class methods
 	

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import os
+import os, shutil
 
 import actionBase
 
@@ -35,3 +35,45 @@ class nakedApplication(actionBase.actionBase):
 			return myClass.getMatchScore()
 		
 		return 0
+	
+	# ---- instance methods
+	
+	def performActionOnVolume(self, targetVolume):
+		'''Copy the .apps into the /Applications folder on the target volume'''
+		
+		# -- validate input
+		
+		targetVolumePath = None
+		
+		if hasattr(targetVolume, 'getWorkingPath'):
+			targetVolumePath = targetVolume.getWorkingPath()
+		
+		elif hasattr(targetVolume, 'capitalize'):
+			targetVolumePath = str(targetVolume)
+		
+		else:
+			raise ValueError('The item given as the targetVolume could not be understood: %s (%s)' % (str(targetVolume), type(targetVolume)))
+		
+		if not os.path.exists(targetVolumePath):
+			raise ValueError('The given targetVolume (%s) does not exist: ' + targetVolumePath)
+		
+		targetFolder = os.path.join(targetVolumePath, 'Applications')
+		if not os.path.isdir(targetFolder):
+			raise ValueError('The given targetVolume (%s) does not have an Applications folder' % targetVolumePath)
+		
+		# --
+		
+		self.container.prepareForUse()
+		
+		for itemPath in self.container.getTopLevelItems():
+			
+			# filter out non .app items
+			if not itemPath.lower().endswith('.app'):
+				continue
+			
+			# copy the item in
+			shutil.copytree(itemPath, os.path.join(targetVolumePath, 'Applications', os.path.basename(itemPath)), symlinks=True)
+			# ToDo: log this
+		
+		self.container.cleanupAfterUse()
+				

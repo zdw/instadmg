@@ -22,7 +22,8 @@ class volume_test(unittest.TestCase):
 		self.assertEqual(container(testItem.bsdPath), testItem, 'Expected item from "%s" and the bsdPath to that (%s) to result in the same item, they did not' % (itemPath, testItem.bsdPath))
 		
 		# check that getTopLevelItems returns the correct items
-		self.assertEqual(os.listdir(itemPath), testItem.getTopLevelItems(), 'Expected results of getTopLevelItems for "%s" to be "%s", but got: %s' % (itemPath, os.listdir(itemPath), testItem.getTopLevelItems()))
+		expectedItems = [os.path.join(itemPath, itemName) for itemName in os.listdir(itemPath)]
+		self.assertEqual(expectedItems, testItem.getTopLevelItems(), 'Expected results of getTopLevelItems for "%s" to be "%s", but got: %s' % (itemPath, expectedItems, testItem.getTopLevelItems()))
 
 if __name__ == '__main__':
 	unittest.main()

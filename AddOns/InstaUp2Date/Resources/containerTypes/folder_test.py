@@ -15,4 +15,5 @@ class folder_test(unittest.TestCase):
 		
 		self.assertEqual(thisItem.getType(), 'folder', 'Expected containerType for %s to be "folder", but got: %s' % (testPath, thisItem.getType()))
 		
-		self.assertEqual(thisItem.getTopLevelItems(), os.listdir(testPath), 'Expected getType for %s to be %s, but got: %s' % (testPath, os.listdir(testPath), thisItem.getTopLevelItems()))
+		expectedItems = [os.path.join(testPath, itemName) for itemName in os.listdir(testPath)]
+		self.assertEqual(thisItem.getTopLevelItems(), expectedItems, 'Expected getType for %s to be %s, but got: %s' % (testPath, expectedItems, thisItem.getTopLevelItems()))
