@@ -60,7 +60,7 @@ class actionBase(object):
 	
 	@classmethod
 	def getMatchScore(myClass):
-		if myClass not in myClass.__mro__[:-2]: # this is not the base class or 'object'
+		if myClass not in myClass.__mro__[-2:]: # this is not the base class or 'object'
 			return myClass.__mro__[1].getMatchScore() + myClass.matchScoreIncrement
 		
 		return myClass.matchScoreIncrement
@@ -76,7 +76,7 @@ class actionBase(object):
 	
 	# ---- container methods
 	
-	# ---- install methods
+	# ---- action methods
 	
-	def install(self):
-		raise NotImplementedError('This method is virtual, and should be implimented byt the appropriate subclass')		
+	def performActionOnVolume(self, targetVolume):
+		raise NotImplementedError('This method is virtual, and should be implimented by the appropriate subclass')

@@ -122,7 +122,7 @@ class containerBase(object):
 	
 	@classmethod
 	def getMatchScore(myClass):
-		if myClass.__name__ != 'containerBase':
+		if myClass not in myClass.__mro__[-2:]: # this is not the base class or 'object'
 			return myClass.__mro__[1].getMatchScore() + myClass.matchScoreIncrement
 		
 		return myClass.matchScoreIncrement

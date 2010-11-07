@@ -107,11 +107,12 @@ def findInstallerDisc(allowedBuilds=None, searchItems=None, systemType='MacOS X 
 					candidateConainter	= None
 					try:
 						candidateConainter = container(thisItem)
-					except:
+					except Exception, e:
+						#print e
 						pass
 					
 					# we are in legacy mode, so fail if the name matches one of our preset names
-					if os.path.basename(candidateConainter.getStoragePath()) in legacyOSDiscNames:
+					if os.path.basename(candidateConainter.getStoragePath()) in legacyOSDiscNames or os.path.basename(thisItem) in legacyOSDiscNames:
 						if candidateConainter is None or not candidateConainter.isContainerType('dmg'): # note: volume would work here as well but needs InstaDMG support
 							raise ValueError('In legacy mode the item "%s" was named like an installer disc, but was not a dmg' % thisItem)
 						results['InstallerDisc'] = candidateConainter
@@ -188,7 +189,16 @@ def findInstallerDisc(allowedBuilds=None, searchItems=None, systemType='MacOS X 
 				'SupportingDiscs':[]
 			}
 	
-	raise commonExceptions.FileNotFoundException('Unable to find OS Installer disc in any provided folder: ' + str(searchItems))
+	folderString = ""
+	stringItems = []
+	for thisItem in searchItems:
+		if os.path.isdir(thisItem):
+			stringItems.append(str(os.listdir(thisItem)))
+		else:
+			stringItems.append(thisItem)
+	if len(stringItems) > 0:
+		folderString = " (" + ", ".join(stringItems) + ")"
+	raise commonExceptions.FileNotFoundException('Unable to find OS Installer disc in any provided folder: %s%s' % (str(searchItems), folderString))
 
 def main():
 	
