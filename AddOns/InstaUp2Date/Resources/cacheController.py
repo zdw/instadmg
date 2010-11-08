@@ -25,15 +25,15 @@ class cacheController:
 		# the first cacheFolder is used to store new files, and must be write-able
 		
 		if newCacheFolder is None:
-			raise ValueError('%s\'s setCacheFolder was given None as an input' % myClass.__name__)
+			raise ValueError("%s's setCacheFolder was given None as an input" % myClass.__name__)
 		elif not hasattr(newCacheFolder, 'capitalize'):
-			raise ValueError('%s\'s setCacheFolder recieved a newCacheFolder value that it did not understand: %s' % (myClass.__name__, newCacheFolder))
+			raise ValueError("%s's setCacheFolder recieved a newCacheFolder value that it did not understand: %s" % (myClass.__name__, newCacheFolder))
 		elif not os.path.isdir(newCacheFolder):
-			raise ValueError('%s\'s setCacheFolder given a path that was not a valid directory: %s' % (myClass.__name__, newCacheFolder))
+			raise ValueError("%s's setCacheFolder given a path that was not a valid directory: %s" % (myClass.__name__, newCacheFolder))
 		
 		# confirm that this path is writeable
 		if not os.access(newCacheFolder, os.W_OK):
-			raise ValueError('The value given to %s\'s setCacheFolder method must be a write-able folder: %s' % (myClass.__name__, newCacheFolder))
+			raise ValueError("The value given to %s's setCacheFolder method must be a write-able folder: %s" % (myClass.__name__, newCacheFolder))
 		
 		# make sure we have a canonical path
 		newCacheFolder = pathHelpers.normalizePath(newCacheFolder, followSymlink=True)
@@ -131,7 +131,7 @@ class cacheController:
 	@classmethod
 	def getSourceFolders(myClass):
 		if myClass.sourceFolders is None or len(myClass.sourceFolders) == 0:
-			raise RuntimeWarning('The %s class\'s cache folders must be setup before getSourceFolders is called' % myClass.__name__)
+			return []
 		
 		return myClass.sourceFolders
 	

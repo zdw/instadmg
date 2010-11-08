@@ -1,9 +1,11 @@
 #!/usr/bin/python
 
-import urlparse, hashlib, traceback
+import urlparse, hashlib, traceback, os
 
 from containerTypes		import *
 from actionTypes		import *
+
+from cacheController	import cacheController
 
 class workItem(object):
 	
@@ -14,6 +16,8 @@ class workItem(object):
 	# ---- instance variables
 	
 	source				= None
+	
+	displayName			= None	# a user-visible name
 	
 	container			= None	# should be a containerType
 	action				= None	# should be a actionType
@@ -79,7 +83,7 @@ class workItem(object):
 	
 	# -- setup
 	
-	def __init__(self, source, checksumString=None, processItem=False, **kwargs):
+	def __init__(self, source, displayName=None, checksum=None, processItem=False, **kwargs):
 		'''Parse the input to make sure that it looks right, optionally finding and differntiating the item'''
 		
 		# -- parse and store input
@@ -102,23 +106,20 @@ class workItem(object):
 		
 			# checksumString
 		
-			if checksumString is None and parsedSourceLocation.scheme in ['', None]: # local file
-				pass
-			
-			elif checksumString is None:
+			if checksum is None:
 				raise ValueError('When using a remote url (not a local file) a checksum must be provided')
 			
-			elif hasattr(checksumString, 'capitalize'):
-				if not checksumString.count(':'):
-					raise ValueError('checksumString must have exactly one colon (":") in it, had: %i (%s)' % (checksumString.count(':'), checksumString))
+			elif hasattr(checksum, 'capitalize'):
+				if not checksum.count(':'):
+					raise ValueError('checksumString must have exactly one colon (":") in it, had: %i (%s)' % (checksum.count(':'), checksum))
 				# ToDo: check the checksum type if we can
 				# note: pass on if not
 			
 			else:
-				raise ValueError('checksumString must be a string, got: %s (%s)' % (str(checksumString), type(checksumString)))
+				raise ValueError('checksum must be a string, got: %s (%s)' % (str(checksum), type(checksum)))
 			
-			if checksumString is not None:
-				self.checksumType, self.checksumValue = checksumString.split(':')
+			if checksum is not None:
+				self.checksumType, self.checksumValue = checksum.split(':')
 				self.checksumValue = self.checksumValue.strip()
 				self.checksumType = self.checksumType.lower().strip()
 		
@@ -136,6 +137,27 @@ class workItem(object):
 		else:
 			raise ValueError('source must be a string or a container, got: %s (%s)' % (str(source), type(source)))
 		
+		# displayName
+		
+		if displayName is not None and hasattr(displayName, 'capitalize'):
+			self.displayName = str(displayName)
+		
+		elif displayName is not None:
+			raise ValueError('Unable to understand the value given as displayName: %s (%s)' % (str(displayName), type(displayName)))
+		
+		elif self.container is not None:
+			self.displayName = self.container.getDisplayName()
+		
+		elif self.sourceLocation is not None:
+			
+			parsedSourceLocation = urlparse.urlparse(self.sourceLocation)
+			
+			if parsedSourceLocation.scheme in [None, '']:
+				self.displayName = os.path.basename(self.sourceLocation)
+			
+			elif parsedSourceLocation.scheme in self.allowedUrlSchemes:
+				self.displayName = os.path.basename(parsedSourceLocation.path)
+		
 		# squirrel away kwargs for later
 		
 		self.kwargs = kwargs
@@ -145,13 +167,23 @@ class workItem(object):
 		if processItem is True:
 			self.locateFiles()
  	
-	def locateFiles(self, cacheFolder=None, additionalSourceLocations=None):
+	def locateFiles(self, cacheFolder=None, additionalSourceLocations=None, progressReporter=None):
 		'''Find the actual files, and figure out what subclass of action is appropriate'''
 		
 		kwargs = self.kwargs
 		
+		# -- get a local path for the container
+		
+		# progressReporter
+		if progressReporter is True:
+			progressReporter = displayTools.statusHandler(taskMessage='Searching for ' + nameOrLocation)
+		elif progressReporter is False:
+			progressReporter = None
+		
+		localSourceLocation = cacheController.findItem(self.sourceLocation, self.checksumType, self.checksumValue, self.displayName, additionalSourceLocations, progressReporter)
+		
 		# -- find the container subtype, and instantiate it
-		self.container = self.findItemForParentClass(containerBase.containerBase, self.sourceLocation, **kwargs)
+		self.container = self.findItemForParentClass(containerBase.containerBase, localSourceLocation, **kwargs)
 		
 		# -- find the action subtype
 		self.container.prepareForUse() # open things up so we can work faster

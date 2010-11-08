@@ -13,7 +13,7 @@ class workItemTest(unittest.TestCase):
 		
 		checksumType, checksumValue = checksumString.split(':')
 		
-		testItem = workItem(targetSource, checksumString=checksumString, **kwargs)
+		testItem = workItem(targetSource, checksum=checksumString, **kwargs)
 		self.assertEqual(testItem.sourceLocation, targetSourceLocation, 'Using a %s (%s) to create an item but sourceLocation was: %s' % (testName, targetSource, testItem.sourceLocation))
 		self.assertEqual(checksumType, testItem.checksumType, 'Using a %s (%s) to create an item but checksumType was: % rather than the expected: %s' % (testName, targetSource, testItem.checksumType, checksumType))
 		self.assertEqual(checksumValue, testItem.checksumValue, 'Using a %s (%s) to create an item but checksumValue was: %s rather than the expected: %s' % (testName, targetSource, testItem.checksumValue, checksumValue))

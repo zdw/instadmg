@@ -72,7 +72,7 @@ class pathHelpersTests(unittest.TestCase):
 		
 		self.assertRaises(ValueError, pathHelpers.pathInsideFolder, "", "/tmp")
 		self.assertRaises(ValueError, pathHelpers.pathInsideFolder, "", "/mach_kernel")
-		self.assertRaises(ValueError, pathHelpers.pathInsideFolder, "", "/tmp/bob")
+		self.assertRaises(ValueError, pathHelpers.pathInsideFolder, "", "/tmp/should_never_exist")
 
 if __name__ == "__main__":
 	unittest.main()
