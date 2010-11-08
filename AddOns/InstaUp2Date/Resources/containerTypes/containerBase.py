@@ -15,10 +15,9 @@ class containerBase(object):
 	# ------ instance properties
 	
 	filePath				= None		# path to the item in the filesystem
-	
-	chrootFilePath			= None		# the full path to a copy useable in a chroot environment
-	
 	displayName				= None
+	
+	instanceKey				= None		# string used to confirm the uniqueness of the object
 	
 	# ------ class properties
 	
@@ -49,6 +48,7 @@ class containerBase(object):
 			
 			# do the setup on this object with the modified values
 			returnObject.__init__(itemPath, processInformation, **kwargs)
+			returnObject.instanceKey = instanceKey
 			
 			# get a weak refernce
 			myClass.__instances__[instanceKey] = returnObject
@@ -65,6 +65,9 @@ class containerBase(object):
 			self.classInit(itemPath, processInformation, **kwargs)
 		
 		self.itemAlreadySetup = True
+	
+	def getInstanceKey(self):
+		return self.instanceKey
 	
 	# ---- subclass methods
 	

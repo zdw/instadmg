@@ -13,17 +13,25 @@ class actionBase(object):
 
 	# -------- class methods
 	
-	def __init__(self, container, processInformation=None, **kwargs):
+	def __init__(self, inputItem, processInformation=None, **kwargs):
 		
-		# ToDo: validate that container is a container
+		if not hasattr(inputItem, "isContainerType"):
+			raise ValueError('%s recieved an inputItem that was not a container: %s (%s)' % (self.__class__.__name__, str(inputItem), type(inputItem)))
 		
-		self.container = container
+		self.container = inputItem
 		
 		# -- setup the subclass
-		self.subclassInit(container, **kwargs)
+		self.subclassInit(inputItem, **kwargs)
 	
-	def __new__(myClass, itemPath, processInformation, **kwargs):
+	def __new__(myClass, inputItem, processInformation, **kwargs):
 		'''Ensure that only a single object gets created for each targeted object'''
+		
+		# -- validate input 
+		
+		if not hasattr(inputItem, "getStoragePath"):
+			raise ValueError('inputItem must be a subclass of containerBase, got: %s (%s)' % (str(inputItem), type(inputItem)))
+		
+		# --
 		
 		# ensure that the class has been setup
 		try:
@@ -32,17 +40,17 @@ class actionBase(object):
 			myClass.__instances__ = weakref.WeakValueDictionary()
 		
 		# get the instance key
-		instanceKey = itemPath
+		instanceKey = inputItem.getInstanceKey()
 		if 'instanceKeys' in processInformation and myClass.__name__ in processInformation['instanceKeys']:
 			instanceKey = processInformation['instanceKeys'][myClass.__name__]
 		
 		# check if we already have an object for this
 		if instanceKey not in myClass.__instances__:
 			
-			returnObject = object.__new__(myClass, itemPath, processInformation, **kwargs)
+			returnObject = object.__new__(myClass, inputItem, processInformation, **kwargs)
 			
 			# do the setup on this object with the modified values
-			returnObject.__init__(itemPath, processInformation, **kwargs)
+			returnObject.__init__(inputItem, processInformation, **kwargs)
 			
 			# get a weak refernce
 			myClass.__instances__[instanceKey] = returnObject
