@@ -1,23 +1,51 @@
 #!/usr/bin/python
 
-#from installer import installer
-#
-#from .commonExceptions	import FileNotFoundException, InstallerChoicesFileException
-##from .managedSubprocess	import managedSubprocess
-#
-#class pkgInstaller(installer):
-#	'''This class handles installing .pkg/mpkg files'''
-#	
-#	@classmethod
-#	def scoreItemMatch(myClass, pathToTarget):
-#		if not os.path.exists(pathToTarget):
-#			raise ValueError('There was no item at the path provided: %s' % pathToTarget)
-#		
-#		# try this item out with the installer command line tool to see if it is recognized
-#	
-#	def subclassInit(self, itemPath, installerChoicesFilePath=None, **kwargs):
-#		
-#		self.validateInstallerChoicesFile(installerChoicesFilePath) # will raise an exception if it is not valid
+import os
+
+import actionBase
+
+class pkgInstaller(actionBase.actionBase):
+	
+	installerChoicesFilePath	= None
+	
+	@classmethod
+	def scoreItemMatch(myClass, inputItem, processInformation, **kwargs):
+		
+		# -- validate input
+		
+		if not hasattr(inputItem, "isContainerType"):
+			raise ValueError('inputItem must be a subclass of containerBase, got: %s (%s)' % (str(inputItem), type(inputItem)))
+		
+		if not hasattr(processInformation, '__iter__'):
+			raise ValueError('processInformation must be a dict, got: %s (%s)' % (str(processInformation), type(processInformation)))
+		
+		# -- score item
+		
+		# note: we are depending on 'prepareForUse' already having been called on intputItem
+		
+		foundApps = False
+		for thisItem in inputItem.getTopLevelItems():
+			if os.path.splitext(thisItem)[1].lower() in ['.pkg', '.mpkg']:
+				return myClass.getMatchScore()
+		
+		return 0
+	
+	@classmethod
+	def validatePKGInstaller(myClass, itemPath, targetVolume=None, installerChoicesFile=None):
+		'''Use the command-line installer to validate a target file'''
+		
+		# -- validate and normalize input
+		
+		# -- simple validation of file
+		
+		# -- use 'installer' to validate file
+	
+	def subclassInit(self, itemPath, **kwargs):
+		
+		if 'installerChoicesFile' in kwargs:
+			if self.validateInstallerChoicesFile(installerChoicesFilePath) is True:
+				self.installerChoicesFilePath = kwargs['installerChoicesFile']
+				
 #	
 #	@classmethod
 #	def validateInstallerChoicesFile(myClass, installerChoicesFile):

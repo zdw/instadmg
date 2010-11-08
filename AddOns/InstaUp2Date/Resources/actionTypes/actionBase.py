@@ -77,6 +77,20 @@ class actionBase(object):
 	def getType(myClass):
 		return myClass.__name__
 	
+	@classmethod
+	def isActionType(myClass, thisType, includeSubclasses=True):
+		'''If this item/class is the class or a subclass of the type given'''
+		
+		if includeSubclasses is False:
+			if myClass.__name__ == str(thisType):
+				return True
+		else:
+			for thisClass in myClass.__mro__:
+				if thisClass.__name__ == str(thisType):
+					return True
+		
+		return False
+	
 	# -------- instance methods
 	
 	def subclassInit(self, itemPath, **kwargs):
