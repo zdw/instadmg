@@ -4,21 +4,11 @@
 Installer Disc Builds:	10A432, 10B504, 10C540, 10D573, 10D575, 10F569
 
 Output Volume Name:		Macintosh HD
-Output File Name:		10.6.4 Vanilla
+Output File Name:		10.6.5 Vanilla
 
 OS Updates:
-	Mac OS X 10.6.4 Combo Update	http://support.apple.com/downloads/DL1048/en_US/MacOSXUpdCombo10.6.4.dmg	sha1:b7ea3ebe1d0a98dfdc4cb107cb7127f5ac2cdb96
-	Remote Desktop Client 3.3.2	http://support.apple.com/downloads/DL986/en_US/RemoteDesktopClient.dmg	sha1:707812be781a5e3635c552bef24382c1eced93cf
-	iLife Support 9.0.4	http://support.apple.com/downloads/DL1009/en_US/iLifeSupport904.dmg	sha1:7cda1492d1bab91383b5738a7cda2cde24f72d2c
+	Mac OS X 10.6.5 Combo Update	http://support.apple.com/downloads/DL1324/en_US/MacOSXUpdCombo10.6.5.dmg	sha1:add336a1af1c3914887d2217fbbc98b18e6fb57c
 	AirPort Base Station Update 2010-001 5.5.1	http://support.apple.com/downloads/DL955/en_US/AirPortUtility551.dmg	sha1:542636fb7d538795cf18db6aa4453c4bcb570c19
-	iTunes 10.0.1	http://appldnld.apple.com/iTunes10/061-9207.20100924.Nzse2/iTunes10.0.1.dmg	sha1:4c12b51e2a2b08a93687fdee0a79390c192117eb
-	
-	Security Update 2010-005 for SnowLeopard	http://support.apple.com/downloads/DL1094/en_US/SecUpd2010-005Snow.dmg	sha1:0f849caddd3b61383dabf423848f9f8059f4656e
-	Safari 5.0.2 SnowLeopard	http://appldnld.apple.com/Safari5/061-8798.20100907.Frde3/Safari5.0.2SnowLeopard.dmg	sha1:695730a04038240c340571abf62c08f1ad5a8a5c
-	Security Update 2010-006 for SnowLeopard	http://support.apple.com/downloads/DL1105/en_US/SecUpd2010-006Snow.dmg	sha1:84e2c0b95e932be42360273f99581ecf2c25fe34
-	Snow Leopard Graphics Update 1.0	http://support.apple.com/downloads/DL1083/en_US/SnowLeopardGraphicsUpdate1.0.dmg	sha1:4420f04cee43882e138a27e4b05a77bda9d1a436
-	Java For MacOSX 10.6 Update 3	http://support.apple.com/downloads/DL972/en_US/JavaForMacOSX10.6Update3.dmg	sha1:f671f0443959fe7388dad23044bcc51bf1bf5eae
-	
-	LED Cinema Display Update 1.0	http://support.apple.com/downloads/DL1107/en_US/LEDCinemaDisplaySWUpdate1.0.dmg	sha1:a02af82ad48869a4bea93db869afa01886f95d94
-	Apple Magic Trackpad MultiTouch Update 1.0	http://support.apple.com/downloads/DL1066/en_US/MagicTrackpadMultiTouchUpd1.0.dmg	sha1:9120843e2ae19e8333f512c6e53c81b34658e04a
-	Digital Camera RAW Compatibility Update 3.3	http://support.apple.com/downloads/DL1072/en_US/RAWCameraUpdate3.dmg	sha1:f8760397b2bd8c3d7d22270c551e733b248916b5
+	iTunes 10.1	http://appldnld.apple.com/iTunes10/061-9530.20101112.MSakc/iTunes10.1.dmg	sha1:e8fec05f2bf414585fdcebf52163c8c189779a6f
+	Java For MacOSX 10.6 Update 3	http://support.apple.com/downloads/DL972/en_US/JavaForMacOSX10.6Update3.dmg	sha1:f671f0443959fe7388dad23044bcc51bf1bf5eae	
+	iLife Support 9.0.4	http://support.apple.com/downloads/DL1009/en_US/iLifeSupport904.dmg	sha1:7cda1492d1bab91383b5738a7cda2cde24f72d2c
