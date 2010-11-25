@@ -26,6 +26,7 @@
 #
 #	These lines should probably be generated using the checksum.py tool
 
+#	See the base-template and general-template catalog files for the recommended 'nesting' of catalog files via 'include-file' Setting lines.
 
 #ISO Language Code = en
 #Output Volume Name = MacintoshHD

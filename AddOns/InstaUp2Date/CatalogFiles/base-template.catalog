@@ -1,10 +1,15 @@
-# Template for user-supplied base catalog files
+# Template for user-supplied base catalog files. 
+
+# It is recommended you put information specific to your install media and installerChoices.xml only in this file,
+# then use the include-file line to chain your general-template catalog file so its contents are included in the image.
+# This allows you to change the media build number in the event you need images for hardware that's newer than the latest
+# point update, yet still include the same installs referred to in the general-template catalog file.   
 
 #
 #	Settings
 #
 
-#Installer Disc Builds:		<comma-seperated list of builds>
+#Installer Disc Builds:		<comma-separated list of builds>
 #Installer Choices File:	<file-name or path> tab <checksum string>
 #Supporting Disc:			<file-name or path> tab <checksum string>
 

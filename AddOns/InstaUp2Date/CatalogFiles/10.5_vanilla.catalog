@@ -1,7 +1,7 @@
 # Creates a 10.5 image with all the items that would appear in software update
 # $Rev$ from $Date$
 
-Installer Disc Builds:	9A581, 9B18, 9C31, 9D34, 9E17, 9F33, 9G55, 9J61, 9L30, 9G66
+Installer Disc Builds:	9A581, 9B18, 9C31, 9D34, 9E17, 9F33, 9G55, 9G66, 9J61, 9L30
 
 Output Volume Name:		Macintosh HD
 Output File Name:		10.5.8 Vanilla
@@ -17,5 +17,5 @@ OS Updates:
 	AirPort Utility 5.3.2 Leopard	http://supportdownload.apple.com/download.info.apple.com/Apple_Support_Area/Apple_Software_Updates/Mac_OS_X/downloads/061-4614.20080611.vbh98/AirPortUtility_Leopard.dmg	sha1:f5105d0c5353a2838d191e04454e77280c0a8c81	
 	iLife Support 9.0.4	http://support.apple.com/downloads/DL1009/en_US/iLifeSupport904.dmg	sha1:7cda1492d1bab91383b5738a7cda2cde24f72d2c
 	Security Update 2010-007	http://support.apple.com/downloads/DL1329/en_US/SecUpd2010-007.dmg	sha1:50ff8cb66104cd2a01b66677864619e0fbed4d98
-	Safari 5.0.2 Leopard	http://appldnld.apple.com/Safari5/061-8789.20100907.Pre3E/Safari5.0.2Leopard.dmg	sha1:3b71a553b53b8c22e0f4f21842f500ef5d6ed0e7
+	Safari 5.0.3 Leopard	http://appldnld.apple.com/Safari5/061-9479.20101118.Mbht5/Safari5.0.3Leopard.dmg	sha1:32f56ef034fdb666448b15cab1ebab8d712afe21
 	iTunes 10.1	http://appldnld.apple.com/iTunes10/061-9530.20101112.MSakc/iTunes10.1.dmg	sha1:e8fec05f2bf414585fdcebf52163c8c189779a6f
