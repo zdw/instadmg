@@ -1,13 +1,13 @@
 Using an InstallerChoices.xml file.
 
-If your InstaDMG host is running on 10.5 the script will check for the existence of an InstallerChoices.xml file in the same directory as the instadmg script. If it finds one it will apply those selections to the install.
+If your InstaDMG host is running on 10.5 or greater, it will check for the existence of an InstallerChoices.xml file in the same directory as the mpkg you wish to change the installation of.
 
-In this folder are two files:
+In this folder are several files:
 
-OSInstall.mpkg_choiceIdentifiers.txt is a list of the choices that may be used on the 10.5.0 retail DVD.
+10.5_OSInstall.mpkg_choiceIdentifiers.txt is a list of the choices that may be used on any 10.5 retail Mac OS X install DVD, same for 10.6(.3).
 
-InstallerChoices.xml is an example answer file that will direct the installer to only install the English localization, not install the printer driver packs (Other than GutenPrint), and not install the Additional Fonts.
+10.6_InstallerChoices.xml is an example answer file that will direct the installer to not install "Popular and Nearby Printers", deselects any language besides English, deselects Additional Fonts, and includes Rosetta. 10.5_InstallerChoices.xml only installs the English localization, doesn't install other printer drivers besides GutenPrint, and doesn't install the Additional Fonts.
 
-To create your own InstallerChoices.xml file please read <http://www.afp548.com/forum/viewtopic.php?showtopic=18907>.
+To verify that the choices are still valid with future retail DVD releases, you can create your own InstallerChoices.xml file by following the method described here: http://www.afp548.com/forum/viewtopic.php?showtopic=18907
 
-Remember to only use an InstallerChoices.xml file for Leopard build trains.  Logic for detecting the OS to be installed will be added soon.
+Remember that an InstallerChoices.xml file can only be used for Leopard and more recent build trains.
