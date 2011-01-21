@@ -8,15 +8,13 @@ Output File Name:		10.5.8 Vanilla
 
 OS Updates:
 	Mac OS X 10.5.8 Combo Update	http://support.apple.com/downloads/DL866/en_US/MacOSXUpdCombo10.5.8.dmg	sha1:0a88c9ecfbe08faf1a2307929c67f38b4822dfcb
+	Remote Desktop Client 3.4	http://support.apple.com/downloads/DL1350/en_US/RemoteDesktopClient.dmg	sha1:46df7a3b31cd2b51213e1a6fd193d5073c004771
 	Front Row Update 2.1.7	http://support.apple.com/downloads/DL796/en_US/FrontRowUpdate2.1.7.dmg	sha1:f25aaf2dd305c264ea3cca76b374fca1e7157303
 	Java For MacOS X 10.5 Update 5	http://support.apple.com/downloads/DL924/en_US/JavaForMacOSX10.5Update5.dmg	sha1:20dd590192fb81a8f164b73727295ed2ac4f1693
 	Java For MacOS X 10.5 Update 8	http://support.apple.com/downloads/DL971/en_US/JavaForMacOSX10.5Update8.dmg	sha1:19058d949c9cd4a09e932a5ede4186686632fc4b
-	Remote Desktop Client 3.3.2	http://support.apple.com/downloads/DL986/en_US/RemoteDesktopClient.dmg	sha1:707812be781a5e3635c552bef24382c1eced93cf
 	iLife Support 9.0.4	http://support.apple.com/downloads/DL1009/en_US/iLifeSupport904.dmg	sha1:7cda1492d1bab91383b5738a7cda2cde24f72d2c
 	AirPort Utility 5.5.2	http://support.apple.com/downloads/DL955/en_US/AirPortUtility552.dmg	sha1:d687889612acbd01450dee1517de88ea963011a6
 	Safari 5.0.3 Leopard	http://appldnld.apple.com/Safari5/061-9479.20101118.Mbht5/Safari5.0.3Leopard.dmg	sha1:32f56ef034fdb666448b15cab1ebab8d712afe21
-	QuickTime 7.6.6 for Leopard	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/QuickTime/061-7507.20100330.Qt657/QuickTime766Leopard.dmg	sha1:dfa37357618789873d83f08ae45b510147477e17
+	QuickTime 7.6.9 for Leopard	http://appldnld.apple.com/QuickTime/061-9558.20101207.Qtgrt/QuickTime769Leopard.dmg	sha1:b580bfb4a66484f3ca12bcaf6e4adfde57574e20
 	Security Update 2010-007	http://support.apple.com/downloads/DL1329/en_US/SecUpd2010-007.dmg	sha1:50ff8cb66104cd2a01b66677864619e0fbed4d98
 	iTunes10.1.1	http://appldnld.apple.com/iTunes10/041-0027.20101215.AzsL3/iTunes10.1.1.dmg	sha1:69f1f89455c5550e4e6c78dc041ede2242bd7e06
-# This won't work since it is a pkg and not a dmg being referenced by URL, and is not considered as safe for mass deployment, since it is not hosted at Apple's official support downloads site.  That being said, you could make the resultant download work by moving it from where it is downloaded and then changing the line in the catalog file reference to its location to the InstaUp2DatePackages folder instead, or put the pkg into a dmg and generate a new checksum.  You could then safely remove the above line referencing Quicktime 7.6.6.
-#	QuickTime769_Leopard	http://swcdn.apple.com/content/downloads/31/26/061-9556/733f8jLLPVwvn5jTNLsTxx8pHhttztZ7wc/QuickTime769_Leopard.pkg	sha1:d3480f20a546d25be7cf07de1e2892022b16e0a7
