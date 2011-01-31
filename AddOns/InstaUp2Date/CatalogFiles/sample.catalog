@@ -13,18 +13,21 @@
 #			"Base OS Disk", "OS Updates", "Apple Updates", "System Settings", "Third Party Software", "Software Settings"
 #
 # 4) Installable item lines. Each line represents one item to install into the image. The format is:
-#		<tab> Display Name <tab> Source Location <tab> Checksum String
+#		<tab> Display Name <tab> Source Location <tab> Checksum String [tab <Choices File-Name or Path>]
 #
 #		<Display Name> a human readable name. It is not used other than in reporting.
 #
 #		<Source Location> the location that the item can be found at. This can be the file name, a file path, or a http/https url.
 #			If you use only the name of the file here the file should be in InstallerFiles/InstaUp2DatePackages
-#			Files can be: .pkg/.mpkgs or .apps either directly or wrapped in a .dmg
+#			Files can be: .pkg/.mpkgs or .apps either 'bare' or wrapped in a .dmg
 #
 #		<Checksum String> a string in the form <checksum type>:<checksum value> eg: sha1:524e0a707afbdeff798cdd9464d62f672136ab5a
 #			Any checksum type that is supported by the python hashlib is supported (ie: supported by OpenSSL).
 #
 #	These lines should probably be generated using the checksum.py tool
+# 
+# 		<Choices File-Name or Path> following the same methodology used to modify the base OS install, xml files can be generated
+# 			and made reference to on the same line as the applicable metapackage (mpkg) 
 
 #	See the base-template and general-template catalog files for the recommended 'nesting' of catalog files via 'include-file' Setting lines.
 

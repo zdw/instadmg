@@ -444,7 +444,7 @@ class instaUpToDate:
 			self.outputFilePath = os.path.join(commonConfiguration.standardOutputFolder, self.outputFileName)
 		else:
 			# default to the name portion of the catalog file name
-			self.outputFilePath = os.path.join(commonConfiguration.standardOutputFolder, os.path.splitext(os.path.basename(self.catalogFilePath)))
+			self.outputFilePath = os.path.join(commonConfiguration.standardOutputFolder, os.path.splitext(os.path.basename(self.catalogFilePath))[0])
 		
 		if os.path.splitext(os.path.basename(self.outputFilePath))[1].lower() != '.dmg':
 			self.outputFilePath += '.dmg'

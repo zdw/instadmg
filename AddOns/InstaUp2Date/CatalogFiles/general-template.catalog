@@ -1,8 +1,7 @@
 # Template for user-supplied catalog files
 
 # It is recommended you put installable items and include-file lines to reference the iLife and/or
-# iWork update catalogs in this file.  You would additionally include checksummed installerChoices.xml files
-# paired with the dmg's created from the corresponding iLife, iWork, or Office installer media(among others). 
+# iWork update catalogs in this file.
 
 #
 #	Settings
