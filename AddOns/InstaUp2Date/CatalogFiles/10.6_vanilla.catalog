@@ -4,12 +4,11 @@
 Installer Disc Builds:	10A432, 10B504, 10C540, 10D573, 10D575, 10F569
 
 Output Volume Name:		Macintosh HD
-Output File Name:		10.6.6 Vanilla
+Output File Name:		10.6.7 Vanilla
 
 OS Updates:
-	Mac OS X 10.6.6 Combo Update	http://support.apple.com/downloads/DL1349/en_US/MacOSXUpdCombo10.6.6.dmg	sha1:868768cbc88db1895161f74030e98e8ce2303151
-	Safari 5.0.4	http://appldnld.apple.com/Safari5/041-0045.20110308.Frd54/Safari5.0.4SnowLeopard.dmg	sha1:32afa782aefb1174359550b8167311cfe4854680
-	Java For MacOSX 10.6 Update 4	http://support.apple.com/downloads/DL1360/en_US/JavaForMacOSX10.6Update4.dmg	sha1:513d5c5b62fb1257b8bf582c1c11e02e944fa808
+	Mac OS X 10.6.7 Combo Update	http://support.apple.com/downloads/DL1361/en_US/MacOSXUpdCombo10.6.7.dmg	sha1:4f359529e08482be1fcbe3b7500c7a73062a8e8e
+	Java For Mac OS X 10.6 Update 4	http://support.apple.com/downloads/DL1360/en_US/JavaForMacOSX10.6Update4.dmg	sha1:513d5c5b62fb1257b8bf582c1c11e02e944fa808
 	iTunes 10.2.1	http://appldnld.apple.com/iTunes10/041-0475.20110308.mAcaz/iTunes10.2.1.dmg	sha1:27fa797873c68b44017a6769b9057e8428d54da8
 	AirPort Utility 5.5.2	http://support.apple.com/downloads/DL955/en_US/AirPortUtility552.dmg	sha1:d687889612acbd01450dee1517de88ea963011a6
 	Remote Desktop Client 3.4	http://support.apple.com/downloads/DL1350/en_US/RemoteDesktopClient.dmg	sha1:46df7a3b31cd2b51213e1a6fd193d5073c004771
