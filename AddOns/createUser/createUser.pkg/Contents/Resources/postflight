@@ -221,7 +221,7 @@ if [ ! -d "${TARGET_DIR}/var/db/shadow/hash" ]; then
 fi 
 
 #create shadow hash file and set perms
-echo "$password_hash">"${TARGET_DIR}/var/db/shadow/hash/$genUID"
+`cat "${SCRIPT_DIR}/password_hash">"${TARGET_DIR}/var/db/shadow/hash/$genUID"`
 /bin/chmod 600 "${TARGET_DIR}/var/db/shadow/hash/$genUID"
 
 #if admin flag is set, then add user to admin group
@@ -232,8 +232,5 @@ fi
 if [ $hide_user -eq 1 ]; then
 	/usr/bin/defaults write "${TARGET_DIR}/Library/Preferences/com.apple.loginwindow" HiddenUsersList -array-add $shortname
 fi
-
-#use the 'kickstart' function of the apple remote desktop agent to turn access on for the just-created user
-#/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate -configure -access -on -users $shortname -privs -all -restart -agent -target "$3"
 
 exit 0
