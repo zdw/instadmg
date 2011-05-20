@@ -3,16 +3,20 @@
 #
 # This Catalog will self-destruct after 10.6.8 (we can hope) or Lion, whichever comes first
 # PLEASE NOTE - this has different dependencies and should not be used with anything but
-# the grey disc that comes bundled with Early 2011 MacBook Pro's
+# the grey discs that come bundled with Early 2011 MacBook Pro's and iMacs (comment out the section that doesn't apply)
 # Please don't trust the rest of your fleet to this image, and sorry, but no warranty if you do! 
 
-Installer Disc Builds:	10J3210
+Installer Disc Builds:	10J3210, 10J3331a, 10J4026
 
 Output Volume Name:		Macintosh HD
-Output File Name:		10.6.7 Vanilla - Early2011MBP
+Output File Name:		10.6.7 Vanilla - Thunderbolt
 
 OS Updates:
+#---------------# MacBookPro8,1, 8,2 and 8,3
 	Mac OS X Early 2011 MBP Update 10.6.7	http://support.apple.com/downloads/DL1368/en_US/MacOSXUpd10.6.7MBPEarly2011.dmg	sha1:846e776582678d8ec3683d3466b239acda34c110
+	MacBook Pro Software Update 1.4	http://support.apple.com/downloads/DL1382/en_US/MacBookProSoftwareUpdate1.4.dmg	sha1:ce85236b6477beb36bd91e105989e25c3ea47622
+#---------------# iMac12,1, 12,2
+	Mac OS X Early 2011 iMac Update 10.6.7	http://support.apple.com/downloads/DL1383/en_US/MacOSXUpd10.6.7foriMacEarly2011.dmg	sha1:dd31f3afadb48165180415732e8590034458a80d
 
 Apple Updates:
 
@@ -21,3 +25,6 @@ Apple Updates:
 	iTunes 10.2.2	http://appldnld.apple.com/iTunes10/041-0533.20110418.AqP4r/iTunes10.2.2.dmg	sha1:7b94065174927dbce71182c89a00b3966021ceb8
 	Security Update 2011-002	http://support.apple.com/downloads/DL1376/en_US/SecUpd2011-002Snow.dmg	sha1:175c1adf0af15d817c272354dd75300ca6416792
 	Safari 5.0.5	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/Safari5/041-0564.20110413.Fi9pb/Safari5.0.5SnowLeopard.dmg	sha1:631cd280171938491c45a905e24904e7739eaefe
+	ProKit Update 7.0	http://support.apple.com/downloads/DL1385/en_US/ProKitUpdate7.0.dmg	sha1:992ff17ec2233a455225d06cb3ee17ef62a02445
+#---------------# Not necessary for iMacs, thanks @golby and @gmarnin
+	Snow Leopard Font Update	http://support.apple.com/downloads/DL1377/en_US/SnowLeopardFontUpdate.dmg	sha1:7d62a0936f9b572476ebc832db8604ea0e4932b6
