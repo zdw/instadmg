@@ -766,6 +766,8 @@ install_system() {
 	OS_INSTALLER_PACKAGE=''
 	if [ -e "$OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg" ]; then
 		OS_INSTALLER_PACKAGE="$OS_INSTALL_MOUNT/System/Installation/Packages/OSInstall.mpkg"
+	elif [ -e "$OS_INSTALL_MOUNT/Packages/OSInstall.mpkg" ]; then
+    OS_INSTALLER_PACKAGE="$OS_INSTALL_MOUNT/Packages/OSInstall.mpkg"
 	else
 		log "The OS Install File is missing the OS Installer Package!" error
 		exit 1
@@ -1320,7 +1322,7 @@ log "Target OS: $TARGET_OS_NAME $TARGET_OS_REV ($TARGET_OS_REV_BUILD)" informati
 prepare_image
 
 # disable chroot on 10.6
-if [ $OS_REV_MAJOR -eq 6 ]; then
+if [ ! $OS_REV_MAJOR -eq 5 ]; then
 	log "Chroot jails do not currently work with 10.6, so disabling them" warning
 	DISABLE_CHROOT=true
 fi

@@ -20,11 +20,13 @@ OS Updates:
 
 Apple Updates:
 
-	Remote Desktop Client 3.4	http://support.apple.com/downloads/DL1350/en_US/RemoteDesktopClient.dmg	sha1:46df7a3b31cd2b51213e1a6fd193d5073c004771
-	Java For Mac OS X 10.6 Update 4	http://support.apple.com/downloads/DL1360/en_US/JavaForMacOSX10.6Update4.dmg	sha1:513d5c5b62fb1257b8bf582c1c11e02e944fa808
-	iTunes 10.2.2	http://appldnld.apple.com/iTunes10/041-0533.20110418.AqP4r/iTunes10.2.2.dmg	sha1:7b94065174927dbce71182c89a00b3966021ceb8
 	Security Update 2011-002	http://support.apple.com/downloads/DL1376/en_US/SecUpd2011-002Snow.dmg	sha1:175c1adf0af15d817c272354dd75300ca6416792
 	Safari 5.0.5	http://appldnld.apple.com.edgesuite.net/content.info.apple.com/Safari5/041-0564.20110413.Fi9pb/Safari5.0.5SnowLeopard.dmg	sha1:631cd280171938491c45a905e24904e7739eaefe
+	AirPort Utility 5.5.3	http://support.apple.com/downloads/DL1390/en_US/AirPortUtility553.dmg	sha1:9a2ebd9333d780fe280120f58e4af5bea51a3958
+	iTunes 10.3.1	http://appldnld.apple.com/iTunes10/041-1632.20110607.SUch3/iTunes10.3.1.dmg	sha1:a4707d61a4d0b2d3a76b77b57a6a56f2eef9a5c1
+	Java For Mac OS X 10.6 Update 4	http://support.apple.com/downloads/DL1360/en_US/JavaForMacOSX10.6Update4.dmg	sha1:513d5c5b62fb1257b8bf582c1c11e02e944fa808
 	ProKit Update 7.0	http://support.apple.com/downloads/DL1385/en_US/ProKitUpdate7.0.dmg	sha1:992ff17ec2233a455225d06cb3ee17ef62a02445
+	Security Update 2011-003	http://support.apple.com/downloads/DL1387/en_US/SecUpd2011-003Snow.dmg	sha1:07843c32a8b367fbe4318bdf22dd98013a91cd51
+	Remote Desktop Client 3.4	http://support.apple.com/downloads/DL1350/en_US/RemoteDesktopClient.dmg	sha1:46df7a3b31cd2b51213e1a6fd193d5073c004771
 #---------------# Not necessary for iMacs, thanks @golby and @gmarnin
 	Snow Leopard Font Update	http://support.apple.com/downloads/DL1377/en_US/SnowLeopardFontUpdate.dmg	sha1:7d62a0936f9b572476ebc832db8604ea0e4932b6
