@@ -79,7 +79,7 @@ ASR_OUPUT_FILE_NAME="${CREATE_DATE}.dmg"		# Name of the final image file
 ASR_FILESYSTEM_NAME="InstaDMG"					# Name of the filesystem in the final image
 
 # Names allowed for the primary installer disk
-ALLOWED_INSTALLER_DISK_NAMES=("Mac OS X Install Disc 1.dmg" "Mac OS X Install DVD.dmg")
+ALLOWED_INSTALLER_DISK_NAMES=("Mac OS X Install Disc 1.dmg" "Mac OS X Install DVD.dmg" "InstallESD.dmg")
 
 # Bundle identifier codes to exclude from the chroot system
 CHROOT_EXCLUDED_CODES=("edu.uc.daap.createuser.pkg")
@@ -1323,11 +1323,15 @@ prepare_image
 
 # disable chroot on 10.6
 if [ ! $OS_REV_MAJOR -eq 5 ]; then
-	log "Chroot jails do not currently work with 10.6, so disabling them" warning
+	log "Chroot jails only work with 10.5, so disabling that functionality" warning
 	DISABLE_CHROOT=true
 fi
+# disable jailing the installer daemons on 10.7
+if [ $OS_REV_MAJOR -eq 7 ]; then
+	log "Installer daemon-jailing does not currently work with 10.7, disabling that functionality as well" warning
+	DISABLE_INSTALLD_CHROOT=true
 
-if [ $DISABLE_INSTALLD_CHROOT == false ]; then
+elif [ $DISABLE_INSTALLD_CHROOT == false ]; then
 	jail_installer_daemons
 fi
 

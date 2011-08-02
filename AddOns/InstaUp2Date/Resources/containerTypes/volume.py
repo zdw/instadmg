@@ -5,17 +5,17 @@ import os, Foundation
 from folder					import folder
 
 try:
-	from .Resources.volumeTools				import getDiskutilInfo
-	from .Resources.managedSubprocess		import managedSubprocess
-	from .Resources.tempFolderManager		import tempFolderManager
-	from .Resources.volumeTools				import unmountVolume
-	from .Resources.pathHelpers				import pathInsideFolder
+	from .volumeTools			import getDiskutilInfo
+	from .managedSubprocess				import managedSubprocess
+	from .tempFolderManager				import tempFolderManager
+	from .volumeTools			import unmountVolume
+	from .pathHelpers			import pathInsideFolder
 except ImportError:
-	from .volumeTools						import getDiskutilInfo
-	from .managedSubprocess					import managedSubprocess
-	from .tempFolderManager					import tempFolderManager
-	from .volumeTools						import unmountVolume
-	from .pathHelpers						import pathInsideFolder
+	from ..volumeTools			import getDiskutilInfo
+	from ..managedSubprocess			import managedSubprocess
+	from ..tempFolderManager			import tempFolderManager
+	from ..volumeTools			import unmountVolume
+	from ..pathHelpers			import pathInsideFolder
 
 
 class volume(folder):

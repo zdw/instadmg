@@ -3,10 +3,16 @@
 import os, unittest, re
 
 import dmg
-from .commonTestConfiguration		import	getFirstOSInstallerDiscPath
-from .container						import	container
-from .pathHelpers					import	pathInsideFolder, normalizePath
-from .tempFolderManager				import	tempFolderManager
+try:
+	from .commonTestConfiguration		import	getFirstOSInstallerDiscPath
+	from .container					import	container
+	from .pathHelpers					import	pathInsideFolder, normalizePath
+	from .tempFolderManager			import	tempFolderManager
+except ImportError:
+	from ..commonTestConfiguration		import	getFirstOSInstallerDiscPath
+	from ..container					import	container
+	from ..pathHelpers					import	pathInsideFolder, normalizePath
+	from ..tempFolderManager			import	tempFolderManager
 
 class dmg_test(unittest.TestCase):
 	

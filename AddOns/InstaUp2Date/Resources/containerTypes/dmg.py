@@ -10,9 +10,9 @@ try:
 	from .pathHelpers						import normalizePath, pathInsideFolder
 	
 except ImportError:
-	from .Resources.managedSubprocess		import managedSubprocess
-	from .Resources.tempFolderManager		import tempFolderManager
-	from .Resources.pathHelpers				import normalizePath, pathInsideFolder
+	from ..managedSubprocess		import managedSubprocess
+	from ..tempFolderManager		import tempFolderManager
+	from ..pathHelpers				import normalizePath, pathInsideFolder
 
 
 class dmg(volume):

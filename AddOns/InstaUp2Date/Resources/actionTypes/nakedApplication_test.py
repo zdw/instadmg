@@ -2,8 +2,12 @@
 
 import os, unittest
 
-from .workItem			import workItem
-from .tempFolderManager	import tempFolderManager
+try:
+	from .workItem				import workItem
+	from .tempFolderManager	import tempFolderManager
+except ImportError:
+	from ..workItem				import workItem
+	from ..tempFolderManager	import tempFolderManager
 
 class nakedApplication_test(unittest.TestCase):
 	

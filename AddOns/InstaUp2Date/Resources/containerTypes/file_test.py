@@ -3,7 +3,10 @@
 import os, unittest
 
 import file
-from .container		import container
+try:
+	from .container		import container
+except ImportError:
+	from ..container		import container
 
 class file_test(unittest.TestCase):
 	

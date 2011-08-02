@@ -2,10 +2,16 @@
 
 import os, unittest
 
-from .workItem			import workItem
-from .cacheController	import cacheController
-from .tempFolderManager	import tempFolderManager
-from .pathHelpers		import pathInsideFolder
+try:
+	from .workItem				import workItem
+	from .cacheController		import cacheController
+	from .tempFolderManager	import tempFolderManager
+	from .pathHelpers			import pathInsideFolder
+except ImportError:
+	from ..workItem				import workItem
+	from ..cacheController		import cacheController
+	from ..tempFolderManager	import tempFolderManager
+	from ..pathHelpers			import pathInsideFolder
 
 class pkgInstaller_test(unittest.TestCase):
 	

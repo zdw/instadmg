@@ -3,7 +3,10 @@
 import os, unittest
 
 import folder
-from .container		import container
+try:
+	from .container		import container
+except ImportError:
+	from ..container		import container
 
 class folder_test(unittest.TestCase):
 	

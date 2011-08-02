@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IsAdmin</key>
+	<integer>1</integer>
+	<key>IsHidden</key>
+	<integer>0</integer>
+	<key>NFSHomeDirectory</key>
+	<string>/Users/%u</string>
+	<key>RealName</key>
+	<string>Lion User</string>
+	<key>shortname</key>
+	<string>lionuser</string>
+</dict>
+</plist>

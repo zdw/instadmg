@@ -3,7 +3,10 @@
 import os, unittest
 
 import volume
-from .container		import container
+try:
+	from .container		import container
+except ImportError:
+	from ..container		import container
 
 class volume_test(unittest.TestCase):
 	

@@ -7,7 +7,7 @@ warnings.simplefilter("ignore", DeprecationWarning) # supress the warnings about
 try:
 	from .pathHelpers					import normalizePath
 except ImportError:
-	from .Resources.pathHelpers			import normalizePath
+	from ..pathHelpers			import normalizePath
 
 class containerBase(object):
 	'''An abstract class underlying file, folder, volume, and dmg classes'''
