@@ -155,7 +155,7 @@ class volumeManager(object):
 		if not os.path.ismount(mountPoint):
 			raise ValueError('The path "%s" is not a mount point' % mountPoint)
 		
-		if os.path.exists( os.path.join(mountPoint, "System/Installation/Packages/MacOSXServerInstall.mpkg") ):
+		if os.path.exists( os.path.join(mountPoint, "System/Installation/Packages/MacOSXServerInstall.mpkg") ) or os.path.exists( os.path.join(mountPoint, "Packages/OSInstall.mpkg") ):
 			return "MacOS X Server"
 		
 		elif os.path.exists( os.path.join(mountPoint, "System/Installation/Packages/OSInstall.mpkg") ):

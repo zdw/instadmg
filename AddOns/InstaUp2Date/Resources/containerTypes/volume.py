@@ -328,7 +328,7 @@ class volume(folder):
 		
 		# check if this is an installer disc
 		
-		if os.path.exists(os.path.join(currentMountPoint, "System/Installation/Packages/OSInstall.mpkg")):
+		if os.path.exists(os.path.join(currentMountPoint, "System/Installation/Packages/OSInstall.mpkg")) or os.path.exists( os.path.join(currentMountPoint, "Packages/OSInstall.mpkg") ):
 			result['macOSInstallerDisc']	= True
 			self.macOSInstallerDisc			= True
 		else:
