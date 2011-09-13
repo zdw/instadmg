@@ -1,15 +1,14 @@
 # Creates a 10.7 image with all the items that would appear in software update
 # $Rev: 425 $ from $Date: 2011-08-01 13:14:42 -0400 (Tue, 05 Jul 2011) $
 
-Installer Disc Builds:	11A511, 11B26
+Installer Disc Builds:	11A2061
 
-Output Volume Name:		Macintosh HD
-Output File Name:		10.7 Vanilla
+Output Volume Name:		ServerHD
+Output File Name:		10.7.1 Server
 
 OS Updates:
-# We're assuming your using the original 10.7.0 build 11A511 as your install 'media', otherwise comment the next line
-	OS X Lion Update 10.7.1	http://support.apple.com/downloads/DL1437/en_US/MacOSXUpd10.7.1.dmg	sha1:67c94a3b654007c42f55170029d057d3287806c7
+	OS X Lion Server Update - Mini 10.7.1	http://support.apple.com/downloads/DL1440/en_US/MacOSXServerUpd10.7.1.dmg	sha1:dabbacded8a00072110e6039d0b2bbe6c61aa4df
 	Java For Mac OS X 10.7	http://support.apple.com/downloads/DL1421/en_US/JavaForMacOSX10.7.dmg	sha1:004556073244bcce4945e733cf6ea9088ce2f1ac
 	Remote Desktop Client 3.5.1	http://support.apple.com/downloads/DL1423/en_US/RemoteDesktopClient.dmg	sha1:3b297ac77cf77087529dbfbaec4f2bfe7bd4956c
+	Server Admin Tools 10.7	http://support.apple.com/downloads/DL1419/en_US/ServerAdminTools.dmg	sha1:67b3ec25bdc6474332f30fa4229625b3eb90c1ad
 	Security Update 2011-005	http://support.apple.com/downloads/DL1447/en_US/SecUpd2011-005Lion.dmg	sha1:a2971772c45f53dc251cdcd1dfa21a651c54f03f
-	iTunes 10.4.1	http://appldnld.apple.com/iTunes10/041-2072.20110822.frk45/iTunes10.4.1.dmg	sha1:18c12446addcb7783cfa2954b514705c621fd674
