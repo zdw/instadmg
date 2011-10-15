@@ -58,7 +58,7 @@ def getDiskutilInfo(identifier):
 		result['diskType'] = 'Disk Image'
 	elif 'OpticalDeviceType' in volumeProperties:
 		result['diskType'] = 'Optical Disc'
-	elif volumeProperties['BusProtocol'] in ['SATA', 'FireWire', 'USB', 'SAS', 'Fibre Channel Interface']:
+	elif volumeProperties['BusProtocol'] in ['ATA', 'SCSI', 'SATA', 'FireWire', 'USB', 'SAS', 'Fibre Channel Interface']:
 		result['diskType'] = 'Hard Drive'
 	else:
 		raise NotImplementedError('getVolumeInfo does not know how to deal with this volume:\n' + str(volumeProperties))
