@@ -1,15 +1,14 @@
 # Creates a 10.7 image with all the items that would appear in software update
 # $Rev: 425 $ from $Date: 2011-08-01 13:14:42 -0400 (Tue, 05 Jul 2011) $
 
-Installer Disc Builds:	11A511, 11B26, 11C74
+Installer Disc Builds:	11A511, 11B26, 11C74, 11D50
 
 Output Volume Name:		Macintosh HD
 Output File Name:		10.7 Vanilla
 
 OS Updates:
-	Remote Desktop Client 3.5.1	http://support.apple.com/downloads/DL1423/en_US/RemoteDesktopClient.dmg	sha1:3b297ac77cf77087529dbfbaec4f2bfe7bd4956c
-# We're assuming your using the original 10.7.0 build 11A511 as your install 'media', otherwise comment the next line
-	OS X Lion Update 10.7.2	http://support.apple.com/downloads/DL1459/en_US/MacOSXUpdCombo10.7.2.dmg	sha1:accd06d610af57df24f62ce7af261395944620eb
-	iTunes 10.5.2	http://appldnld.apple.com/iTunes10/041-3446.20111212.Tgjr4/iTunes10.5.2.dmg	sha1:29fbe3c2220ac882276dfd194bc1b8ef6f912a6e
+# We're assuming your using the original 10.7.0 build 11A511 as your install 'media', otherwise comment out the next line
+	OS X Lion Update 10.7.3	http://support.apple.com/downloads/DL1484/en_US/MacOSXUpdCombo10.7.3.dmg	sha1:0862faacd3fc43063f8807e39d4f595b1100e0b8
+	AirPort Utility 6.0	http://support.apple.com/downloads/DL1483/en_US/AirPortUtility6.0.dmg	sha1:4e58a9e1af3ddefce843e49ef4b3f36c9c79793a
+	iTunes 10.5.3	http://appldnld.apple.com/iTunes10/041-3779.20120119.Bgty5/iTunes10.5.3.dmg	sha1:f27c4e65282f92726aae28d8759dbe4334c7f7ea
 	Java For Mac OS X 10.7	http://support.apple.com/downloads/DL1421/en_US/JavaForMacOSX10.7.dmg	sha1:7768e6aeb5adaa638c74d4c04150517ed99fed20
-	Safari 5.1.2	http://appldnld.apple.com/Safari5/041-3551.20111129.Fr43e/Safari5.1.2Lion.dmg	sha1:1038e57462ef0a4bdd1e1a196e2a757d67c6432b

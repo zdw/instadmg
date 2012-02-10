@@ -1,15 +1,13 @@
 # Creates a 10.7 image with all the items that would appear in software update
 # $Rev: 425 $ from $Date: 2011-08-01 13:14:42 -0400 (Tue, 05 Jul 2011) $
 
-Installer Disc Builds:	11A2061, 11B26, 11C74
+Installer Disc Builds:	11A2061, 11B26, 11C74, 11D50
 
 Output Volume Name:		ServerHD
 Output File Name:		10.7 Server
 
 OS Updates:
-	Remote Desktop Client 3.5.1	http://support.apple.com/downloads/DL1423/en_US/RemoteDesktopClient.dmg	sha1:3b297ac77cf77087529dbfbaec4f2bfe7bd4956c
-# We're assuming your using the un-forked 10.7.2 build 11C74 as your install 'media', otherwise remove the comment from the beginning of the next line
-#	OS X Lion Update 10.7.2 - Server	http://support.apple.com/downloads/DL1461/en_US/MacOSXServerUpdCombo10.7.2.dmg	sha1:25e86f5cf97b6644c7a025230431b1992962ec4a
+	OS X Lion Server Update 10.7.3	http://support.apple.com/downloads/DL1487/en_US/MacOSXServerUpdCombo10.7.3.dmg	sha1:4fde650514b902587dbc2e23aaec39d74c10ae1a
+	AirPort Utility 6.0	http://support.apple.com/downloads/DL1483/en_US/AirPortUtility6.0.dmg	sha1:4e58a9e1af3ddefce843e49ef4b3f36c9c79793a
 	Java For Mac OS X 10.7	http://support.apple.com/downloads/DL1421/en_US/JavaForMacOSX10.7.dmg	sha1:7768e6aeb5adaa638c74d4c04150517ed99fed20
-	Server Admin Tools 10.7.2	http://support.apple.com/downloads/DL1457/en_US/ServerAdminTools10.7.2.dmg	sha1:a2c7bef65607fbe90229d24622033d91319ebd2d
-	Safari 5.1.2	http://appldnld.apple.com/Safari5/041-3551.20111129.Fr43e/Safari5.1.2Lion.dmg	sha1:1038e57462ef0a4bdd1e1a196e2a757d67c6432b
+	Server Admin Tools 10.7.3	http://support.apple.com/downloads/DL1488/en_US/AdminTools10.7.3.dmg	sha1:a3f1eb194e2400b9f130512481ae7dd0b0097ca0
