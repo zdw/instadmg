@@ -8,7 +8,7 @@ Output File Name:		10.7 Vanilla
 
 OS Updates:
 # We're assuming your using the original 10.7.0 build 11A511 as your install 'media', otherwise comment out the next line
-	OS X Lion Update 10.7.3	http://support.apple.com/downloads/DL1484/en_US/MacOSXUpdCombo10.7.3.dmg	sha1:0862faacd3fc43063f8807e39d4f595b1100e0b8
+	OS X Lion Update 10.7.3	http://support.apple.com/downloads/DL1484/en_US/MacOSXUpdCombo10.7.3.dmg	sha1:b8322dbd1f7b55bf35aac4122ad2204c51307793
 	AirPort Utility 6.0	http://support.apple.com/downloads/DL1483/en_US/AirPortUtility6.0.dmg	sha1:4e58a9e1af3ddefce843e49ef4b3f36c9c79793a
 	iTunes 10.5.3	http://appldnld.apple.com/iTunes10/041-3779.20120119.Bgty5/iTunes10.5.3.dmg	sha1:f27c4e65282f92726aae28d8759dbe4334c7f7ea
 	Java For Mac OS X 10.7	http://support.apple.com/downloads/DL1421/en_US/JavaForMacOSX10.7.dmg	sha1:7768e6aeb5adaa638c74d4c04150517ed99fed20
