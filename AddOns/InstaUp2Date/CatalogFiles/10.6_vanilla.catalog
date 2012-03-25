@@ -8,10 +8,10 @@ Output File Name:		10.6.8 Vanilla
 
 OS Updates:
 	AirPort Utility 5.5.3	http://support.apple.com/downloads/DL1390/en_US/AirPortUtility553.dmg	sha1:9a2ebd9333d780fe280120f58e4af5bea51a3958
-	Remote Desktop Client 3.5.2	http://support.apple.com/downloads/DL1491/en_US/RemoteDesktopClient3.5.2.dmg	sha1:f4daa41af8e6397a09bb89423d97340af640cd13
+	Remote Desktop Client 3.5.2	http://support.apple.com/downloads/DL1491/en_US/RemoteDesktopClient3.5.2.dmg	sha1:6a34f9af10c5c7a76f1a962544983864ec6b5588
 	iLife Support 9.0.4	http://support.apple.com/downloads/DL1009/en_US/iLifeSupport904.dmg	sha1:7cda1492d1bab91383b5738a7cda2cde24f72d2c
-	Mac OS X 10.6.8 Combo Update v1.1	http://support.apple.com/downloads/DL1399/en_US/MacOSXUpdCombo10.6.8.dmg	sha1:86704547455d25af5f42bd30086ea625d071aea5
-	iTunes 10.5.3	http://appldnld.apple.com/iTunes10/041-3779.20120119.Bgty5/iTunes10.5.3.dmg	sha1:f27c4e65282f92726aae28d8759dbe4334c7f7ea
-	Java For Mac OS X 10.6 Update 6	http://support.apple.com/downloads/DL1360/en_US/JavaForMacOSX10.6.dmg	sha1:be0ac75b8bac967f1d39a94ebf9482a61fb7d70b
-	Security Update 2012-001	http://support.apple.com/downloads/DL1489/en_US/SecUpd2012-001Snow.dmg	sha1:29218a1a28efecd15b3033922d71f0441390490a
-	Safari 5.1.2	http://appldnld.apple.com/Safari5/041-3231.20111128.Xsl87/Safari5.1.2SnowLeopard.dmg	sha1:de534311f69943ddbf810759fb5e5c0581410c87
+	Mac OS X 10.6.8 Combo Update v1.1	http://support.apple.com/downloads/DL1399/en_US/MacOSXUpdCombo10.6.8.dmg	sha1:e0742e7537f80c9e01376ea3b3c09df993900643
+	iTunes 10.6	http://appldnld.apple.com/iTunes10/041-3540.20120307.Defjr/iTunes10.6.dmg	sha1:989eae5442d64dfc6dd4ce3ced38eba3fa9609c3
+	Java For Mac OS X 10.6 Update 6	http://support.apple.com/downloads/DL1360/en_US/JavaForMacOSX10.6.dmg	sha1:0f2614686936fce20d5bfb177e4b393c4e8b090e
+	Security Update 2012-001	http://support.apple.com/downloads/DL1489/en_US/SecUpd2012-001Snow.dmg	sha1:15cd1853a015b770b28aa65e39501d2b4ff3f4ec
+	Safari 5.1.4	http://appldnld.apple.com/Safari5/041-4760.20120312.Llk87/Safari5.1.4SnowLeopardManual.dmg	sha1:5703ffce7bbf4a283d0b5dec382b762501f8f3d4

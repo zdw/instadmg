@@ -1,10 +1,12 @@
-# iLife '11 Updates as of October 12, 2011
+# iLife '11 Updates as of March 25, 2012
 
 Third Party Software:
-	iWeb 3.0.4	http://support.apple.com/downloads/DL1413/en_US/iWeb304.dmg	sha1:4cd66325ecbc90614ddce5e371dafc49f5624bb2
-	iDVD 7.1.2	http://support.apple.com/downloads/DL1414/en_US/iDVD7.1.2Update.dmg	sha1:fa370a94f12a31fe1a107d4624bfe580877d25c2
-	Digital Camera Raw Compatibility Update 3.9	http://support.apple.com/downloads/DL1473/en_US/RAWCameraUpdate3.9.dmg	sha1:835a6c9c17dffe66a9dbab1a49da99283a55504b
-	GarageBand 6.0.4	http://support.apple.com/downloads/DL1410/en_US/GarageBand6.0.4Update.dmg	sha1:f69dd6f96c8b4aae513ee1de419fff19ad5d76aa
-	iMovie 9.0.4	http://support.apple.com/downloads/DL1412/en_US/iMovie9.0.4Update.dmg	sha1:5b2d0742bb5474746296f593b94313c64c73325d
-	iPhoto 9.1	http://support.apple.com/downloads/DL1322/en_US/iPhoto9.1Update.dmg	sha1:d4f3f38ff4000d30bd0c6ea4c4ef53497f62628a
-	iPhoto 9.2.1	http://support.apple.com/downloads/DL1462/en_US/iPhoto9.2.1Update.dmg	sha1:9b26f8ad324df8db36f8de51110d803fa1252cea
+	iWeb 3.0.4	http://support.apple.com/downloads/DL1413/en_US/iWeb304.dmg	sha1:fa3343ca39cd9b9d4b41a11c509f47f0a098bd83
+	iDVD 7.1.2	http://support.apple.com/downloads/DL1414/en_US/iDVD7.1.2Update.dmg	sha1:32801de30b53a02aa124274f2580c8331d5acc8a
+	Digital Camera Raw Compatibility Update 3.11	http://support.apple.com/downloads/DL1513/en_US/RAWCameraUpdate3.dmg	sha1:ba0bec59e5b7b38c9600f82d4321ad6f54050035
+	GarageBand 6.0.4	http://support.apple.com/downloads/DL1410/en_US/GarageBand6.0.4Update.dmg	sha1:58825a9694a1c8e906c1c59583d16658678add65
+	iMovie 9.0.4	http://support.apple.com/downloads/DL1412/en_US/iMovie9.0.4Update.dmg	sha1:702f21e434fe9a1711c083c1bc7b5bb89caad01e
+	iPhoto 9.1	http://support.apple.com/downloads/DL1322/en_US/iPhoto9.1Update.dmg	sha1:bfbf863dad051b07553f75a0b7e05e0e041bdc4c
+	iPhoto 9.2.1	http://support.apple.com/downloads/DL1462/en_US/iPhoto9.2.1Update.dmg	sha1:86c33676d76fbd5d1bff68bbe8aadd9998fcaf64
+	GarageBand 6.0.5 Update	http://support.apple.com/downloads/DL1507/en_US/GarageBand6.0.5Update.dmg	sha1:234acc0ef6fd6e4080965d95974e02053d66cb18
+	iPhoto 9.2.2 Update	http://support.apple.com/downloads/DL1508/en_US/iPhoto9.2.2Update.dmg	sha1:343584823b2c528d596201d8ead9e590c322fc06
