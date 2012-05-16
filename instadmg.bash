@@ -1327,7 +1327,7 @@ if [ ! $OS_REV_MAJOR -eq 5 ]; then
 	DISABLE_CHROOT=true
 fi
 # disable jailing the installer daemons on 10.7
-if [ $OS_REV_MAJOR -eq 7 ]; then
+if [ $OS_REV_MAJOR -ge 7 ]; then
 	log "Installer daemon-jailing does not currently work with 10.7, disabling that functionality as well" warning
 	DISABLE_INSTALLD_CHROOT=true
 

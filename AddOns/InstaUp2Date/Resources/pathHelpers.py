@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-__version__ = "$Revision$".split()[1]
+#__version__ = "$Revision$".split()[1]
 
 import os, sys
 

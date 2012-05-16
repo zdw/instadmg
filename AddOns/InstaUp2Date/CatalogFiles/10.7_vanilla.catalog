@@ -1,15 +1,17 @@
 # Creates a 10.7 image with all the items that would appear in software update
 # $Rev: 425 $ from $Date: 2011-08-01 13:14:42 -0400 (Tue, 05 Jul 2011) $
 
-Installer Disc Builds:	11A511, 11B26, 11C74, 11D50
+Installer Disc Builds:	11A511, 11B26, 11C74, 11D50, 11E53
 
 Output Volume Name:		Macintosh HD
 Output File Name:		10.7 Vanilla
 
 OS Updates:
-# We're assuming you're using the original 10.7.0 build 11A511 as your install 'media', otherwise comment out the next line
-	OS X Lion Update 10.7.3	http://support.apple.com/downloads/DL1484/en_US/MacOSXUpdCombo10.7.3.dmg	sha1:a8407b32eeaec220a8a43773182a22585fe396bd
+# We're assuming you're using the original 10.7.0 build 11A511 as your install 'media', otherwise comment out (add # to the beginning of) the next TWO lines
+	OS X Lion Combo Update 10.7.4	http://support.apple.com/downloads/DL1524/en_US/MacOSXUpdCombo10.7.4.dmg	sha1:b11d511a50d9b728532688768fcdee9c1930037f
 	AirPort Utility 6.0	http://support.apple.com/downloads/DL1483/en_US/AirPortUtility6.0.dmg	sha1:ddd7ae11362bdeeb224a78276eb13abbbabd9c45
+
+	Safari 5.1.7	http://appldnld.apple.com/Safari5/041-5467.20120509.F6PPX/Safari5.1.7LionManual.dmg	sha1:5024eb2e358feb6b87d6eff15438bf7ae99619b4
+	Flashback Removal Security Update	http://support.apple.com/downloads/DL1534/en_US/FlashbackRemovalUpdate.dmg	sha1:64231192a3b6d0ac8b0fe61c6ea7be5c829cc9f9
 	iTunes 10.6.1	http://appldnld.apple.com/iTunes10/041-4792.20120328.fRhny/iTunes10.6.1.dmg	sha1:e9067bd7b8add8ef6bba0799df1e5a245c6c8187
 	Java for OS X Lion 2012-003	http://support.apple.com/downloads/DL1515/en_US/JavaForOSX.dmg	sha1:6137f411978c1113ace6bb3bff783a168fa4f2fd
-	Safari 5.1.5	http://appldnld.apple.com/Safari5/041-5149.20120326.CdPo8/Safari5.1.5LionManual.dmg	sha1:c253c54faf399ef961a962425930e410cf3fe47e
