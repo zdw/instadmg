@@ -2,7 +2,7 @@
 
 '''Return the data for a shadow-hash file suitable for use in MacOS X'''
 
-__version__ = int('$Revision$'.split(" ")[1])
+__version__ = 371 # formerly: int('$Revision$'.split(" ")[1])
 
 def getShadowHashData(password, seedIntInput=None):
 	import random, struct, hashlib

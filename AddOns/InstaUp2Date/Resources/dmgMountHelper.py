@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-__version__ = "$Revision$"
+__version__ = 356 # hasn't changed since Lion's python version bump messed with paths, killing svn-based revision expansion. formerly: "$Revision$"
 
 import os, sys
 

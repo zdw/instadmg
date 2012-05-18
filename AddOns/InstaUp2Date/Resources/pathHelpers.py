@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-__version__ = "$Revision$".split()[1]
+__version__ = 451 # hasn't changed since Lion's python version bump messed with paths, killing svn-based revision expansion. formerly: "$Revision$".split()[1]
 
 import os, sys
 

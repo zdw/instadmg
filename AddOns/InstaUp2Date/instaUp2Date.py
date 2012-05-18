@@ -4,7 +4,7 @@
 #
 #	This script parses one or more catalog files to setup InstaDMG
 
-__version__		= int('$Revision$'.split(" ")[1])
+__version__		= 414 # hasn't changed since Jan 2011, killing svn-based revision expansion - formerly: int('$Revision$'.split(" ")[1])
 
 import os, sys, re
 import hashlib, urlparse, subprocess, datetime

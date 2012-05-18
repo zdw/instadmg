@@ -2,7 +2,7 @@
 
 '''Find the BaseOS to use based on path, version, or the default location'''
 
-__version__ = '$Revision: 266 $'.split()[1]
+__version__ = 266 # hasn't changed for a while, killing svn-based revision expansion. formerly: '$Revision: 266 $'.split()[1]
 
 import os, re, sys
 
