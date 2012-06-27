@@ -9,7 +9,7 @@
 # Latest news, releases, and user forums @ http://www.afp548.com
 #
 
-SVN_REVISION=450 # killing svn-based revision expansion as of 17 May 2012. formerly: `/bin/echo '$Revision$' | /usr/bin/awk '{ print $2 }'`
+SVN_REVISION=452 # killing svn-based revision expansion as of 17 May 2012. formerly: `/bin/echo '$Revision$' | /usr/bin/awk '{ print $2 }'`
 VERSION="1.6rc1 (svn revision: $SVN_REVISION)"
 PROGRAM=$( (basename $0) )
 
@@ -23,7 +23,7 @@ unset -f unalias
 unalias -a
 unset -f command
 
-# prevent uninialized vaiables from being used
+# prevent uninitialized variables from being used
 set -o nounset
 
 # set path to a known path

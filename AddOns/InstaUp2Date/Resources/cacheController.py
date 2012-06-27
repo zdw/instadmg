@@ -356,9 +356,9 @@ class cacheController:
 			processedBytes, processSeconds = checksum.checksumFileObject(hashGenerator, readFile, secondRemoteGuessedName, expectedLength, copyToPath=downloadTargetPath, progressReporter=progressReporter)
 			
 			if hashGenerator.hexdigest() != checksumValue:
-				os.unlink(downloadTargetPath)
+#				os.unlink(downloadTargetPath) # Why would we throw the file away just because of a hash mismatch?
 				readFile.close()
-				raise FileNotFoundException("Downloaded file did not match checksum: %s (%s vs. %s)" % (nameOrLocation, hashGenerator.hexdigest(), checksumValue))
+				raise FileNotFoundException("Downloaded file did not match checksum: %s (Find this: %s and replace it with this: %s)" % (nameOrLocation, checksumValue, hashGenerator.hexdigest()))
 			
 			if progressReporter is not None:
 				progressReporter.update(statusMessage=' downloaded and verified %s in %s (%s/sec)' % (displayTools.bytesToRedableSize(processedBytes), displayTools.secondsToReadableTime(time.time() - startTime), displayTools.bytesToRedableSize(processedBytes/processSeconds)))
