@@ -1,0 +1,10 @@
+Installer Disc Builds:	12A269, 12B19, 12C54
+
+Output Volume Name:	Macintosh HD
+Output File Name:	10.8_vanilla
+
+OS Updates:
+# We're assuming you're using the newest 10.8.2 build 12C54 as your install 'media', otherwise uncomment (remove # from the beginning of) the next line
+#	OS X Mountain Lion Update v10.8.2	http://support.apple.com/downloads/DL1581/en_US/OSXUpdCombo10.8.2.dmg	sha1:b08f10233d362e39f20b69f91d1d73f5e7b68a2c
+	iTunes 10.7	http://appldnld.apple.com/iTunes10/041-7195.20120912.d3uzQ/iTunes10.7.dmg	sha1:0ff7c404f87122f89d49ed6c411b3692f1016e0a
+	Java for OS X 2012-005	http://support.apple.com/downloads/DL1572/en_US/JavaForOSX.dmg	sha1:e0750c72972b8a2ccbcb3144bb31d74419276387

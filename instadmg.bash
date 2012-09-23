@@ -657,14 +657,13 @@ mount_cached_image() {
 		/usr/bin/hdiutil attach "$TARGET_IMAGE_FILE" -nobrowse -owners on -mountpoint "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	fi
 	
-	# Check that the host OS is the same dot version as the target, or newer
+	# Check that the host OS is the same major version as the target
 	TARGET_OS_REV=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion`
 	TARGET_OS_REV_MAJOR=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion | awk -F "." '{ print $2 }'`
 	TARGET_OS_REV_BUILD=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductBuildVersion`
 	TARGET_OS_NAME=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductName`
-	if [ $OS_REV_MAJOR -lt $TARGET_OS_REV_MAJOR ]; then
-		# we can't install a newer os from an older os
-		log "Trying to install a newer os ($TARGET_OS_REV_MAJOR) while running on an older os ($OS_REV_MAJOR), this is not possible" error
+	if [ $OS_REV_MAJOR -ne $TARGET_OS_REV_MAJOR ]; then
+		log "$PROGRAM line number $LINENO: Trying to install 10.$TARGET_OS_REV_MAJOR while running on 10.$OS_REV_MAJOR, this is unsupported" error
 		exit 1
 	fi
 	
@@ -689,14 +688,13 @@ mount_os_install() {
 		exit 1
 	fi
 	
-	# Check that the host OS is the same dot version as the target, or newer
+	# Check that the host OS is the same major version as the target
 	TARGET_OS_REV=`/usr/bin/defaults read "$OS_INSTALL_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion`
 	TARGET_OS_REV_MAJOR=`/usr/bin/defaults read "$OS_INSTALL_MOUNT/System/Library/CoreServices/SystemVersion" ProductVersion | awk -F "." '{ print $2 }'`
 	TARGET_OS_REV_BUILD=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductBuildVersion`
 	TARGET_OS_NAME=`/usr/bin/defaults read "$TARGET_IMAGE_MOUNT/System/Library/CoreServices/SystemVersion" ProductName`
-	if [ $OS_REV_MAJOR -lt $TARGET_OS_REV_MAJOR ]; then
-		# we can't install a newer os from an older os
-		log "Trying to install a newer os ($TARGET_OS_REV_MAJOR) while running on an older os ($OS_REV_MAJOR), this does not work" error
+	if [ $OS_REV_MAJOR -ne $TARGET_OS_REV_MAJOR ]; then
+		log "$PROGRAM line number $LINENO: Trying to install 10.$TARGET_OS_REV_MAJOR while running on 10.$OS_REV_MAJOR, this is unsupported" error
 		exit 1
 	fi
 	
@@ -735,7 +733,7 @@ create_and_mount_image() {
 	SHADOW_FILE_LOCATION="$HOST_MOUNT_FOLDER/`/usr/bin/uuidgen`"
 	log "Shadow file location: $SHADOW_FILE_LOCATION.sparseimage" detail
 	
-	/usr/bin/hdiutil create -size $DMG_SIZE -volname "$ASR_FILESYSTEM_NAME" -layout "$LAYOUT_TYPE" -type SPARSE -fs "HFS+" "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/bin/hdiutil create -size $DMG_SIZE -volname "$ASR_FILESYSTEM_NAME" -layout "$LAYOUT_TYPE" -type SPARSE -fs "HFS+J" "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	if [ $? -ne 0 ]; then
 		log "Failed to create targetimage: $SHADOW_FILE_LOCATION" error
 		exit 1

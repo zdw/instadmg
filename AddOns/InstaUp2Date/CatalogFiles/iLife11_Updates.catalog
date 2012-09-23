@@ -5,11 +5,11 @@ Third Party Software:
 	iWeb 3.0.4	http://support.apple.com/downloads/DL1413/en_US/iWeb304.dmg	sha1:b4c63bd81b57b00575974a481081f563f9a69cbd
 	iDVD 7.1.2	http://support.apple.com/downloads/DL1414/en_US/iDVD7.1.2Update.dmg	sha1:32801de30b53a02aa124274f2580c8331d5acc8a
 	GarageBand 6.0.5 Update	http://support.apple.com/downloads/DL1507/en_US/GarageBand6.0.5Update.dmg	sha1:234acc0ef6fd6e4080965d95974e02053d66cb18
-	#iMovie 9.0.5+ requires 10.7.x, so remove following # for 10.6 images
+	#Newer updates require 10.7.x+, so remove # from the next line for 10.6 images, and add # to the beginning of the line after that if applicable
 	#iMovie 9.0.4	http://support.apple.com/downloads/DL1412/en_US/iMovie9.0.4Update.dmg	sha1:702f21e434fe9a1711c083c1bc7b5bb89caad01e
-	iMovie9.0.6	http://support.apple.com/downloads/DL1541/en_US/iMovie9.0.6Update.dmg	sha1:ca940dbfb5fb611d4967015ea0ffe25ce314860e
+	iMovie9.0.8	http://support.apple.com/downloads/DL1574/en_US/iMovie9.0.8Update.dmg	sha1:bca4d0cef81d2f87a9a8217403f8d8402f466a84
 	iPhoto 9.1	http://support.apple.com/downloads/DL1322/en_US/iPhoto9.1Update.dmg	sha1:bfbf863dad051b07553f75a0b7e05e0e041bdc4c
-	#Same as iMovie, iPhoto 9.3.x requires 10.7.x
+	#Same as iMovie, iPhoto 9.3+ requires 10.7.x
 	#iPhoto 9.2.3 Update	http://support.apple.com/downloads/DL1514/en_US/iPhoto9.2.3Update.dmg	sha1:9edfb9ee85879efdea684811045e4a62fce505d2	
-	iPhoto 9.3.2	http://support.apple.com/downloads/DL1562/en_US/iPhoto9.3.2Update.dmg	sha1:46c96d251a097ae760d9908aa22d30a45380cb27
+	iPhoto 9.4	http://support.apple.com/downloads/DL1589/en_US/iPhoto9.4Update.dmg	sha1:ea5174cc5d27efcdd6bf00e0d6caac19222072a8
 	Digital Camera Raw Compatibility Update 3.13	http://support.apple.com/downloads/DL1535/en_US/RAWCameraUpdate3.dmg	sha1:a9eb27e137156e75d8d99d628697c524a423794c
