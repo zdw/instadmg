@@ -9,7 +9,7 @@
 # Latest news, releases, and user forums @ http://www.afp548.com
 #
 
-SVN_REVISION=452 # killing svn-based revision expansion as of 17 May 2012. formerly: `/bin/echo '$Revision$' | /usr/bin/awk '{ print $2 }'`
+SVN_REVISION=459 # killing svn-based revision expansion as of 17 May 2012. formerly: `/bin/echo '$Revision$' | /usr/bin/awk '{ print $2 }'`
 VERSION="1.6rc1 (svn revision: $SVN_REVISION)"
 PROGRAM=$( (basename $0) )
 
@@ -649,12 +649,21 @@ mount_cached_image() {
 	SHADOW_FILE_LOCATION="$HOST_MOUNT_FOLDER/`/usr/bin/uuidgen`.shadowfile"
 	log "Shadow file location: $SHADOW_FILE_LOCATION" detail
 	
+	# Check if the 10.7+ Recovery partition is in the cached image
+	RECOVERY=`/usr/bin/hdiutil fsid "$TARGET_IMAGE_FILE" 2>/dev/null | /usr/bin/grep -c Recovery`
+	
 	# Mount the image and the shadow file
 	log "Mounting the shadow file ($SHADOW_FILE_LOCATION) onto the cached image ($TARGET_IMAGE_FILE)" information
-	if [ $ENABLE_NON_PARANOID_MODE == true ]; then
-		/usr/bin/hdiutil attach "$TARGET_IMAGE_FILE" -nobrowse -noautofsck -noverify -owners on -mountpoint "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+	if [ $RECOVERY -eq 0 ]; then
+    	if [ $ENABLE_NON_PARANOID_MODE == true ]; then
+    		/usr/bin/hdiutil attach "$TARGET_IMAGE_FILE" -nobrowse -noautofsck -noverify -owners on -mountpoint "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+    	else
+    		/usr/bin/hdiutil attach "$TARGET_IMAGE_FILE" -nobrowse -owners on -mountpoint "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+    	fi
 	else
-		/usr/bin/hdiutil attach "$TARGET_IMAGE_FILE" -nobrowse -owners on -mountpoint "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+	    log "Recovery Partition Found" information
+	    /usr/bin/hdiutil attach "$TARGET_IMAGE_FILE" -nobrowse -noautofsck -noverify -owners on -mountroot "$TARGET_IMAGE_MOUNT" -shadow "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+	    TARGET_IMAGE_MOUNT="$TARGET_IMAGE_MOUNT/Macintosh HD"
 	fi
 	
 	# Check that the host OS is the same major version as the target
@@ -1166,9 +1175,14 @@ clean_up() {
 	fi
 	
 	log "Ejecting images" information
-	if [ ! -z "TARGET_IMAGE_MOUNT" ] && [ -d "$TARGET_IMAGE_MOUNT" ]; then
+	if [ ! -z "$TARGET_IMAGE_MOUNT" ] && [ -d "$TARGET_IMAGE_MOUNT" ]; then
 		unmount_dmg "$TARGET_IMAGE_MOUNT" "Target Disk"
-		/bin/rmdir "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+		if [ $RECOVERY -eq 1 ]; then
+		    unmount_dmg "$TARGET_IMAGE_MOUNT"/../Recovery\ HD "Recovery Partition"
+		    /bin/rmdir "$TARGET_IMAGE_MOUNT"/../ 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+		else
+		    /bin/rmdir "$TARGET_IMAGE_MOUNT" 2>&1 | (while read INPUT; do log "$INPUT " detail; done)
+		fi
 	fi
 	
 	# Unmount everything that is still mounted
