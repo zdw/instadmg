@@ -1,18 +1,18 @@
-#Generated: 2012-08-23
+# Creates a 10.6 image with all the items that would appear in software update
 # $Rev$ from $Date$
 
 Installer Disc Builds:	10A432, 10B504, 10C540, 10D573, 10D575, 10F569
 
-Output Volume Name:	Macintosh HD
-Output File Name:	10.6_vanilla
+Output Volume Name:		Macintosh HD
+Output File Name:		10.6.8 Vanilla
 
 OS Updates:
-	iTunes 10.6.3	http://appldnld.apple.com/itunes10/041-6244.20120611.bbhi8/iTunes10.6.3.dmg	sha1:e673e5cbd2955130efbc92a788fff178e66bd155
-	Safari 5.1.7	http://appldnld.apple.com/Safari5/041-5476.20120509.oXWEO/Safari5.1.7SnowLeopard.dmg	sha1:32d1dca993b455bc5c230caef95ab70c702e6fee
+	AirPort Utility 5.6.1	http://support.apple.com/downloads/DL1536/en_US/AirPortUtility5.6.1.dmg	sha1:66943c0eb6de4567954c730f59a40bd5537055b3
+	Remote Desktop Client 3.5.3	http://support.apple.com/downloads/DL1532/en_US/RemoteDesktopClient.dmg	sha1:3ece5926985cbc336aca10eba995cc1353724f6a
 	iLife Support 9.0.4	http://support.apple.com/downloads/DL1009/en_US/iLifeSupport904.dmg	sha1:7cda1492d1bab91383b5738a7cda2cde24f72d2c
-	Java for Mac OS X 10.6 Update 9	http://support.apple.com/downloads/DL1550/en_US/JavaForMacOSX10.6.dmg	sha1:c2fcc844b7073d8243588f3407eb3ce1d497043d
-	Mac OS X 10.6.8 Update Combo v1.1	http://support.apple.com/downloads/DL1399/en_US/MacOSXUpdCombo10.6.8.dmg	sha1:e0742e7537f80c9e01376ea3b3c09df993900643
-	Apple Remote Desktop 3.5.3 Client	http://support.apple.com/downloads/DL1532/en_US/RemoteDesktopClient.dmg	sha1:3ece5926985cbc336aca10eba995cc1353724f6a
-	Apple Software Installer Update 1.0	http://support.apple.com/downloads/DL1512/en_US/AppleSoftwareInstallerUpdate.dmg	sha1:f03170aedca0fbb7e58026de0436bc614a4dab8f
-	Security Update 2012-002 (Snow Leopard)	http://support.apple.com/downloads/DL1526/en_US/SecUpd2012-002Snow.dmg	sha1:9669fbd9952419e70ac20109cf4db37f9932e9f8
-	AirPort Utility 5.6.1 for Leopard-Snow Leopard	http://support.apple.com/downloads/DL1536/en_US/AirPortUtility5.6.1.dmg	sha1:66943c0eb6de4567954c730f59a40bd5537055b3
+	Mac OS X 10.6.8 Combo Update v1.1	http://support.apple.com/downloads/DL1399/en_US/MacOSXUpdCombo10.6.8.dmg	sha1:e0742e7537f80c9e01376ea3b3c09df993900643
+	Safari 5.1.7	http://appldnld.apple.com/Safari5/041-5476.20120509.oXWEO/Safari5.1.7SnowLeopard.dmg	sha1:32d1dca993b455bc5c230caef95ab70c702e6fee
+	Java For Mac OS X 10.6 Update 10	http://support.apple.com/downloads/DL1573/en_US/JavaForMacOSX10.6.dmg	sha1:6218979ae4eaef5ea7849cb4455e2c6f8bf362d2
+	Apple Software Installer Update	http://support.apple.com/downloads/DL1512/en_US/AppleSoftwareInstallerUpdate.dmg	sha1:f03170aedca0fbb7e58026de0436bc614a4dab8f
+	Security Update 2012-004	http://support.apple.com/downloads/DL1586/en_US/SecUpd2012-004.dmg	sha1:5b136e29a871d41012f0c6ea1362d6210c8b4fb7
+	iTunes 10.7	http://appldnld.apple.com/iTunes10/041-7195.20120912.d3uzQ/iTunes10.7.dmg	sha1:0ff7c404f87122f89d49ed6c411b3692f1016e0a
