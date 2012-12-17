@@ -45,6 +45,7 @@ CREATE_DATE=`/bin/date +%y-%m-%d`
 
 # Default values
 DMG_SIZE=300g									# Size of the sparse image, this should be large enough
+DMG_FS=HFS+J									# Sparse filesystem created, which affects recovery partition 
 ISO_CODE="en"									# ISO code that installer will use for the install language
 DISABLE_CHROOT=false							# Use a chroot jail while installing updates
 DISABLE_INSTALLD_CHROOT=false					# replace roots installd daemon with a chrooted version
@@ -742,7 +743,7 @@ create_and_mount_image() {
 	SHADOW_FILE_LOCATION="$HOST_MOUNT_FOLDER/`/usr/bin/uuidgen`"
 	log "Shadow file location: $SHADOW_FILE_LOCATION.sparseimage" detail
 	
-	/usr/bin/hdiutil create -size $DMG_SIZE -volname "$ASR_FILESYSTEM_NAME" -layout "$LAYOUT_TYPE" -type SPARSE -fs "HFS+J" "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
+	/usr/bin/hdiutil create -size $DMG_SIZE -volname "$ASR_FILESYSTEM_NAME" -layout "$LAYOUT_TYPE" -type SPARSE -fs $DMG_FS "$SHADOW_FILE_LOCATION" | (while read INPUT; do log "$INPUT " detail; done)
 	if [ $? -ne 0 ]; then
 		log "Failed to create targetimage: $SHADOW_FILE_LOCATION" error
 		exit 1

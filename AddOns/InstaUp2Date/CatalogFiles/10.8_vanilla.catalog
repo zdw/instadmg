@@ -1,11 +1,11 @@
-Installer Disc Builds:	12A269, 12B19, 12C54
+Installer Disc Builds:	12A269, 12B19, 12C60
 
 Output Volume Name:	Macintosh HD
 Output File Name:	10.8_vanilla
 
 OS Updates:
-# We're assuming you're using the newest 10.8.2 build 12C54 as your install 'media', otherwise uncomment (remove # from the beginning of) the next line
-#	OS X Mountain Lion Update v10.8.2	http://support.apple.com/downloads/DL1581/en_US/OSXUpdCombo10.8.2.dmg	sha1:b08f10233d362e39f20b69f91d1d73f5e7b68a2c
-	iTunes 10.7	http://appldnld.apple.com/iTunes10/041-7195.20120912.d3uzQ/iTunes10.7.dmg	sha1:0ff7c404f87122f89d49ed6c411b3692f1016e0a
-	Java for OS X 2012-005	http://support.apple.com/downloads/DL1572/en_US/JavaForOSX.dmg	sha1:e0750c72972b8a2ccbcb3144bb31d74419276387
-	OS X Mountain Lion 10.8.2 Supplemental Update	http://support.apple.com/downloads/DL1600/en_US/OSXUpd10.8.2Supp.dmg	sha1:ccd53770fd5beff7c457594599907d8a36e40807
+# We're assuming you're using the newest 10.8.2 build 12C60 as your install 'media', otherwise you'll need to track down the combo updater and the supplemental update
+# You may not want java for your build, but:
+	Java for OS X 2012-006	http://support.apple.com/downloads/DL1572/en_US/JavaForOSX.dmg	sha1:eff777cdc39b4e3336b3477f60e8ad769ded8532
+	iTunes 11.0.1	http://appldnld.apple.com/iTunes11/041-8973.20121213.T1fc2/iTunes11.0.1.dmg	sha1:83e703e3ab604fdc1f8eba492e153f4d81c5e94f
+	Safari 6.0.2	http://swcdn.apple.com/content/downloads/53/02/041-8081/jex01nudh37t8cusghkiy1eki5crm76f4b/Safari6.0.2Mountain.pkg	sha1:9bb8555ad450db677b764e88b667a9c202313efc
