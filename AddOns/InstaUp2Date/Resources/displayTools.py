@@ -1,13 +1,37 @@
 #!/usr/bin/python
 
-import os, sys, time, math, curses
+import os, sys, time, math, curses, atexit
 
-curses.setupterm()
-eraseToLineEndChar		= curses.tigetstr('el')
-gotoLineBeginingChar	= curses.tigetstr('cr')
+try:
+	curses.setupterm()
+	cursesAvailable = True
+	eraseToLineEndChar		= curses.tigetstr('el')
+	gotoLineBeginingChar	= curses.tigetstr('cr')
+except:
+	cursesAvailable = False
 tabLength				= 8 # ToDo: figure out how to get this from the terminal
 
+# global list of exitHandlers
+# all statusHandler objects in the list will have finishLine called atexit.
+exitHandlers = list()
+
+def addAtExit(handler):
+	exitHandlers.append(handler)
+
+def removeAtExit(handler):
+	exitHandlers.remove(handler)
+
+def finishLinesAtExit():
+	for handler in exitHandlers[:]:
+		handler.finishLine()
+
+atexit.register(finishLinesAtExit)
+
+
 class statusHandler:
+	'''Display dynamic status messages. A taskMessage is followed by a
+	statusMessage or a progress report, generated from a progressTemplate.
+	'''
 	
 	throttleUpdateSeconds		= .125			# limit updates to once every this many seconds, 0 is constant updates
 	
@@ -88,29 +112,38 @@ class statusHandler:
 			self.throttleUpdateSeconds = float(throttleUpdateSeconds)
 		
 		# if the outputChannel is the terminal, go to the start of the line and erase everything
-		if self.outputChannel.isatty():
+		if self.useCurses():
 			self.outputChannel.write(gotoLineBeginingChar + eraseToLineEndChar)
 		
 		self.update(taskMessage=taskMessage, statusMessage=statusMessage, progressTemplate=progressTemplate, value=value, expectedLength=expectedLength)
+		
+		# Add a this object to the atexit handler
+		addAtExit(self)
 	
 	def __exit__(self, type, value, traceback):
 		self.finishLine()
 	
+	def useCurses(self):
+		'''Check if we're on a tty with curses setup.'''
+		
+		if self.outputChannel is not None:
+			return self.outputChannel.isatty() and cursesAvailable
+		return False
+	
 	def update(self, taskMessage=None, statusMessage=None, progressTemplate=None, value=None, expectedLength=None, forceUpdate=False):
 		
-		if self.throttleUpdateSeconds == 0:
+		if (self.throttleUpdateSeconds == 0) or (not self.useCurses()):
 			forceUpdate = True
 		
 		if taskMessage is not None:
 			
 			# move the cursor back to the start position
-			if self.outputChannel.isatty():
+			if self.useCurses():
 				self.outputChannel.write(gotoLineBeginingChar + eraseToLineEndChar)
-			else:
-				self.outputChannel.seek(-1 * (len(self.lastTaskMessage) + len(self.lastStatusMessage) + len(self.lastProgressMessage)), 1)
+				# write out the new taskMessage
+				self.outputChannel.write(taskMessage)
 			
-			# write out the new taskMessage, and record it
-			self.outputChannel.write(taskMessage)
+			# record the new taskMessage
 			self.lastTaskMessage = taskMessage
 			
 			# reset lastStatusMessage, lastProgressMessage, and progressTemplate
@@ -121,14 +154,13 @@ class statusHandler:
 		if statusMessage is not None:
 			
 			# move the cursor back to the start position
-			if self.outputChannel.isatty():
+			if self.useCurses():
 				lengthToErase = len((self.lastTaskMessage + self.lastStatusMessage + self.lastProgressMessage).expandtabs()) - len(self.lastTaskMessage.expandtabs())
 				self.outputChannel.write(('\b' * lengthToErase) + eraseToLineEndChar)
-			else:
-				self.outputChannel.seek(-1 * (len(self.lastStatusMessage) + len(self.lastProgressMessage)), 1)
+				# write out the new statusMessage
+				self.outputChannel.write(statusMessage)
 			
-			# write out the new taskMessage and record it
-			self.outputChannel.write(statusMessage)
+			# record the new statusMessage
 			self.lastStatusMessage = statusMessage
 			
 			# reset lastProgressMessage and progressTemplate
@@ -176,29 +208,36 @@ class statusHandler:
 			}
 			
 			# move the cursor back and adjust the lengthToOverwrite
-			if self.outputChannel.isatty():
+			if self.useCurses():
 				lengthToErase = len((self.lastTaskMessage + self.lastStatusMessage + self.lastProgressMessage).expandtabs()) - len((self.lastTaskMessage + self.lastStatusMessage).expandtabs())
 				self.outputChannel.write('\b' * lengthToErase)
-			else:
-				self.outputChannel.seek(-1 * len(self.lastProgressMessage), 1)
+				# write out the new progressMessage
+				self.outputChannel.write(newProgressMessage)
 			
-			# write out the new progressMessage and record it
-			self.outputChannel.write(newProgressMessage)
+			# record the new progressMessage
 			self.lastProgressMessage = newProgressMessage
 			
 			# update lastTimeProgressWritten
 			self._lastTimeProgressWritten = time.time()
 			self._lastValueWritten = self._value
 		
-		if not self.outputChannel.isatty():
-			self.outputChannel.truncate()
-		
 		self.outputChannel.flush()
+
 	
 	def finishLine(self):
 		'''Finish the line... adding a newline'''
 		
+		# Remove this object from the atexit handler
+		removeAtExit(self)
+		
 		if self._lineFinished is False:
+			if not self.useCurses():
+				if self.lastTaskMessage:
+					self.outputChannel.write(self.lastTaskMessage)
+				for s in (self.lastStatusMessage, self.lastProgressMessage):
+					if s:
+						self.outputChannel.write(s)
+						break
 			self.outputChannel.write('\n')
 			self.outputChannel.flush()
 		
@@ -255,16 +294,27 @@ def bytesToRedableSize(bytes):
 		return "%i Bytes" % bytes
 
 if __name__ == '__main__':
-	myHandler = statusHandler(taskMessage='AAAA')
-	myHandler.update(taskMessage='a')
+	myHandler = statusHandler(taskMessage="This is the task ")
+	myHandler.update(progressTemplate='and this is progress %(progressPercentage)i%%', expectedLength=10)
+	for i in range(11):
+		time.sleep(0.1)
+		myHandler.update(value=i)
 	myHandler.finishLine()
 	
-	myHandler = statusHandler(statusMessage='BBBB')
-	myHandler.update(statusMessage='b')
+	myHandler = statusHandler(taskMessage="This is the task ")
+	for s in ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"):
+		time.sleep(0.1)
+		myHandler.update(statusMessage="and this is status %s" % s)
+	myHandler.update(statusMessage="and this is done")
 	myHandler.finishLine()
 	
-	myHandler = statusHandler(progressTemplate='CCCC')
-	myHandler.update(progressTemplate='c')
+	myHandler = statusHandler(taskMessage='This task is in progress')
+	time.sleep(0.5)
+	myHandler.update(taskMessage='This task is done')
 	myHandler.finishLine()
 	
+	h1 = statusHandler(taskMessage='This is task 1 and it will be aborted, but printed anyway')
+	h2 = statusHandler(taskMessage='This is task 2 and it will be aborted, but printed anyway')
+	h3 = statusHandler(taskMessage='This is task 3 and it will be aborted, but printed anyway')
+	sys.exit()
 
