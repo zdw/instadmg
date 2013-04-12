@@ -1,14 +1,24 @@
-#Generated: 2013-01-06
+#Generated: 2013-04-12
 # $Rev$ from $Date$
 # Catalog assumes your InstallESD is at the lastest build available on the Mac App Store. If you are on an older build, uncomment the combo updater.
 
-Installer Disc Builds:	12A269, 12B19, 12C60
-
+Installer Disc Builds:        12A269, 12B19, 12C60, 12D78
+ 
 Output Volume Name:	Macintosh HD
 Output File Name:	10.8_vanilla
-
+ 
 OS Updates:
-	iTunes 11.0.1	http://appldnld.apple.com/iTunes11/041-8973.20121213.T1fc2/iTunes11.0.1.dmg	sha1:83e703e3ab604fdc1f8eba492e153f4d81c5e94f
-	Safari 6.0.2	http://swcdn.apple.com/content/downloads/53/02/041-8081/jex01nudh37t8cusghkiy1eki5crm76f4b/Safari6.0.2Mountain.pkg	sha1:9bb8555ad450db677b764e88b667a9c202313efc
-	Java for OS X 2012-006	http://support.apple.com/downloads/DL1572/en_US/JavaForOSX.dmg	sha1:eff777cdc39b4e3336b3477f60e8ad769ded8532
-#	OS X Mountain Lion Update v10.8.2 (Combo)	http://support.apple.com/downloads/DL1581/en_US/OSXUpdCombo10.8.2.dmg	sha1:1b0884333c01d9f7183aa0038d448f556ef38503
+ 
+# OS X Mountain Lion Update 10.8.3 -  http://support.apple.com/kb/DL1640, http://support.apple.com/kb/HT5612
+#	OS X Mountain Lion Update v10.8.3 (Combo)	http://support.apple.com/downloads/DL1640/en_US/OSXUpdCombo10.8.3.dmg	sha1:1bc49fde5ff6e252aa7908b4cb1f9cb9c8a5fa29
+ 
+# Safari 6.0.3 is in the 10.8.3 combo update
+ 
+# iTunes 11.0.2 - http://support.apple.com/kb/DL1614, http://support.apple.com/kb/HT1222
+	iTunes 11.0.2	http://appldnld.apple.com/iTunes11/041-9794.20130220.DdPy6/iTunes11.0.2.dmg	sha1:e8eba6c2b83b9e24116a9944c808525bed260aa0
+ 
+# Java 2013-002 - http://support.apple.com/kb/dl1572, http://support.apple.com/kb/HT5675
+	Java for OS X 2013-002	http://support.apple.com/downloads/DL1572/en_US/JavaForOSX2013-002.dmg	sha1:47e38cf089a6a7bba9e2b0b387fe09e2b77e10a6
+
+# Airport Utility 6.2 - http://support.apple.com/kb/dl1628
+	Airport Utility 6.2	http://support.apple.com/downloads/DL1628/en_US/AirPortUtility6.2.dmg	sha1:0c29c371b54413a3b1374174f52ab7b74e587c5c
