@@ -1,17 +1,18 @@
-# Creates a 10.7 image with all the items that would appear in software update
+# Creates a 10.7 Server image with all the items that would appear in software update
 # $Rev$ from $Date$
 
-Installer Disc Builds:	11A2061, 11B26, 11C74, 11D50, 11D2001, 11E53, 11G56
+Installer Disc Builds:	11A2061, 11B26, 11C74, 11D50, 11D2001, 11E53, 11G56, 11G63
 
 Output Volume Name:		ServerHD
 Output File Name:		10.7 Server
 
 OS Updates:
-	OS X Lion Server Update 10.7.5	http://support.apple.com/downloads/DL1585/en_US/MacOSXServerUpdCombo10.7.5.dmg	sha1:df6e1748ab0a3c9e05c890be49d514673efd965e
-	Remote Desktop Client Update 3.6.1	http://support.apple.com/downloads/DL1594/en_US/RemoteDesktopClient.dmg	sha1:724985be9aca897f71f06e2ee8940b50f4c5e666
+#	OS X Lion Server Update 10.7.5	http://support.apple.com/downloads/DL1585/en_US/MacOSXServerUpdCombo10.7.5.dmg	sha1:df6e1748ab0a3c9e05c890be49d514673efd965e
 	Flashback Removal Security Update	http://support.apple.com/downloads/DL1534/en_US/FlashbackRemovalUpdate.dmg	sha1:64231192a3b6d0ac8b0fe61c6ea7be5c829cc9f9
-# As far as I can tell, this still isn't publicly available, therefore crazy URLs
-	Safari 6.0.1	http://swcdn.apple.com/content/downloads/49/18/041-6773/wzbv8ta766d0ab5u260pcio6riqiqwbo5k/Safari6.0.1Lion.pkg	sha1:a3280c298d8066018982e251a0b9bb8fa4964c11
-	Java for OS X Lion 2012-005	http://support.apple.com/downloads/DL1572/en_US/JavaForOSX.dmg	sha1:e0750c72972b8a2ccbcb3144bb31d74419276387
-# According to the KB these are supposed to be publicly available, but as of now they're not
-	Server Admin Tools 10.7.5	http://swcdn.apple.com/content/downloads/15/00/11G56_ServerAdminTools/ir12zepg0ix8cphpj10tparlnkbeps5u3k/ServerAdminTools.pkg	sha1:3a8bbfc4b1b45c5a59d1cf92d0ba5ad67cc91779
+	Airport Utility 6.2	http://support.apple.com/downloads/DL1628/en_US/AirPortUtility6.2.dmg	sha1:0c29c371b54413a3b1374174f52ab7b74e587c5c
+	OSX Lion 10.7.5 Supplemental Update	http://support.apple.com/downloads/DL1599/en_US/MacOSXUpd10.7.5Supp.dmg	sha1:644284dd913a207214c02a9e84945195d7b20c9a
+	Safari 6.0.3	http://swcdn.apple.com/content/downloads/49/44/041-8709/a8wz12kl2lfw6574aeff3gsde8twub3z7x/Safari6.0.3Lion.pkg	sha1:93e58c61737807938c884e94a071144c6ba2e0b4
+	Remote Desktop Client Update 3.6.2	http://support.apple.com/downloads/DL1594/en_US/RemoteDesktopClient.dmg	sha1:609965234e30f1a48ce7cd20d98cd3bc5b79712d
+	Security Update 2013-001	http://support.apple.com/downloads/DL1643/en_US/SecUpd2013-001.dmg	sha1:5bc540a208c720fce3448f853d852336781e1a17
+	Java for OS X 2013-002	http://support.apple.com/downloads/DL1572/en_US/JavaForOSX2013-002.dmg	sha1:47e38cf089a6a7bba9e2b0b387fe09e2b77e10a6
+	Server Admin Tools 10.7.5	http://support.apple.com/downloads/DL1596/en_US/ServerAdminTools.dmg	sha1:6c77e6e49a936582b2b4ee737126945743af0a0a
