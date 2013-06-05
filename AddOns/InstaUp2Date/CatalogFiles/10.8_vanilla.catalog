@@ -2,7 +2,7 @@
 # $Rev$ from $Date$
 # Catalog assumes your InstallESD is the latest build available on the Mac App Store. If you are on an older build, uncomment the combo updater.
 
-Installer Disc Builds:        12A269, 12B19, 12C60, 12D78
+Installer Disc Builds:        12A269, 12B19, 12C60, 12D78, 12E55
  
 Output Volume Name:	Macintosh HD
 Output File Name:	10.8_vanilla
@@ -10,7 +10,7 @@ Output File Name:	10.8_vanilla
 OS Updates:
  
 # OS X Mountain Lion Update 10.8.4 -  http://support.apple.com/kb/DL1658, http://support.apple.com/kb/HT5730
-	OS X Mountain Lion Update v10.8.4 (Combo)	http://support.apple.com/downloads/DL1659/en_US/OSXUpdCombo10.8.4.dmg	sha1:3c95d0c8d0c7f43339a5f4e137e386dd5fe409c3
+#	OS X Mountain Lion Update v10.8.4 (Combo)	http://support.apple.com/downloads/DL1659/en_US/OSXUpdCombo10.8.4.dmg	sha1:3c95d0c8d0c7f43339a5f4e137e386dd5fe409c3
  
 # Safari 6.0.5 is in 10.8.4
  
