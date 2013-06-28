@@ -1,25 +1,12 @@
-#Generated: 2013-04-12
+# Generated: 2013-06-27
 # $Rev$ from $Date$
-# Catalog assumes your InstallESD is the latest build available on the Mac App Store. If you are on an older build, uncomment the combo updater.
 
-Installer Disc Builds:        12A269, 12B19, 12C60, 12D78
- 
+Installer Disc Builds:	12A269, 12B19, 12C54, 12D78, 12E55
+
 Output Volume Name:	Macintosh HD
 Output File Name:	10.8_vanilla
- 
-OS Updates:
- 
-# OS X Mountain Lion Update 10.8.3 -  http://support.apple.com/kb/DL1640, http://support.apple.com/kb/HT5612
-#	OS X Mountain Lion Update v10.8.3 (Combo)	http://support.apple.com/downloads/DL1640/en_US/OSXUpdCombo10.8.3.dmg	sha1:1bc49fde5ff6e252aa7908b4cb1f9cb9c8a5fa29
- 
-# Safari 6.0.4 - http://support.apple.com/kb/HT5678 http://support.apple.com/kb/ht5701
-	Safari 6.0.4	http://swcdn.apple.com/content/downloads/42/19/041-9948/ukb1udm7ie7zsfjc8o1lkzs8dcpax9d8gt/Safari6.0.4Mountain.pkg	sha1:ebcb909c0c9cc6a85a188cea2c2890724c1cbfe6
- 
-# iTunes 11.0.3 - http://support.apple.com/kb/DL1614, http://support.apple.com/kb/HT5766
-	iTunes 11.0.3	http://appldnld.apple.com/iTunes11/041-9783.20130516.BbgyL/iTunes11.0.3.dmg	sha1:83f4afc5d3b5698c811c87c27b975824116bbf1d
- 
-# Java 2013-002 - http://support.apple.com/kb/DL1572, http://support.apple.com/kb/HT5682
-	Java for OS X 2013-003	http://support.apple.com/downloads/DL1572/en_US/JavaForOSX2013-003.dmg	sha1:3393ff8642b6e29cacaf10fbb04f76e657cc313a
 
-# Airport Utility 6.2 - http://support.apple.com/kb/dl1628
-	Airport Utility 6.2	http://support.apple.com/downloads/DL1628/en_US/AirPortUtility6.2.dmg	sha1:0c29c371b54413a3b1374174f52ab7b74e587c5c
+OS Updates:
+	iTunes 11.0.4	http://appldnld.apple.com/iTunes11/091-6058.20130605.Cw321/iTunes11.0.4.dmg	sha1:cd9f00b54f2c7b2b46083f8c3d2813e0b3bc3b30
+	Java for OS X 2013-004	http://support.apple.com/downloads/DL1572/en_US/JavaForOSX2013-004.dmg	sha1:e9a1954c8d77666380526e5107825c2ffeaf314a
+	AirPort Utility 6.3 for Mac	http://support.apple.com/downloads/DL1664/en_US/AirPortUtility6.3.dmg	sha1:a3877a8d61b6acae4dc1e21aa3c849da80d54cdd
