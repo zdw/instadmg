@@ -1,16 +1,14 @@
 # $Rev$ from $Date$
 
-Installer Disc Builds:        12A269, 12B19, 12C60, 12D78, 12E55
+Installer Disc Builds:        12A269, 12B19, 12C60, 12D78, 12E55, 12F37
  
 Output Volume Name:	Macintosh HD
 Output File Name:	10.8_vanilla
  
 OS Updates:
  
-# OS X Mountain Lion Update 10.8.4 -  http://support.apple.com/kb/DL1658, http://support.apple.com/kb/HT5730
-#	OS X Mountain Lion Update v10.8.4 (Combo)	http://support.apple.com/downloads/DL1659/en_US/OSXUpdCombo10.8.4.dmg	sha1:3c95d0c8d0c7f43339a5f4e137e386dd5fe409c3
- 
-# Safari 6.0.5 is in 10.8.4
+# OS X Mountain Lion Update 10.8.5 - http://support.apple.com/kb/DL1675, http://support.apple.com/kb/HT5815
+#	OS X Mountain Lion Update v10.8.5 (Combo)	http://support.apple.com/downloads/DL1675/en_US/OSXUpd10.8.5.dmg    sha1:a74ab6d9501778437e7afba0bbed47b776a52b11 
  
 # iTunes 11.0.4 - http://support.apple.com/kb/DL1614, http://support.apple.com/kb/HT1222
 	iTunes 11.0.4	http://appldnld.apple.com/iTunes11/091-6058.20130605.Cw321/iTunes11.0.4.dmg	sha1:cd9f00b54f2c7b2b46083f8c3d2813e0b3bc3b30
@@ -18,8 +16,5 @@ OS Updates:
 # Java 2013-004 - http://support.apple.com/kb/DL1572, http://support.apple.com/kb/HT1222 
 	Java for OS X 2013-004	http://support.apple.com/downloads/DL1572/en_US/JavaForOSX2013-004.dmg	sha1:e9a1954c8d77666380526e5107825c2ffeaf314a
 
-# Airport Utility 6.2 - http://support.apple.com/kb/DL1664
+# Airport Utility 6.3.1 - http://support.apple.com/kb/DL1664
 	AirPort Utility 6.3.1 for Mac	http://support.apple.com/downloads/DL1664/en_US/AirPortUtility6.3.1.dmg	sha1:7cb449454ef5c2cf478a2a5394f652a9705c9481
-
-# Security Update 2013-03 - http://support.apple.com/kb/DL1667
-	Security Update 2013-003 (Mountain Lion)	http://support.apple.com/downloads/DL1667/en_US/SecUpd2013-003.dmg	sha1:5452c463819106ec30e9f365031f65f1b6c538c0
