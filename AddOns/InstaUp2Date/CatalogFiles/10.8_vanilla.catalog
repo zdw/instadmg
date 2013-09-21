@@ -7,13 +7,13 @@ Output File Name:	10.8_vanilla
  
 OS Updates:
  
-# OS X Mountain Lion Update 10.8.5 - http://support.apple.com/kb/DL1675, http://support.apple.com/kb/HT5815
+# OS X Mountain Lion Update 10.8.5 - http://support.apple.com/kb/DL1675, http://support.apple.com/kb/HT5815, http://support.apple.com/kb/HT5880
 #	OS X Mountain Lion Update v10.8.5 (Combo)	http://support.apple.com/downloads/DL1675/en_US/OSXUpd10.8.5.dmg    sha1:a74ab6d9501778437e7afba0bbed47b776a52b11 
  
-# iTunes 11.0.5 - http://support.apple.com/kb/DL1614, http://support.apple.com/kb/HT1222
-	iTunes 11.0.5	https://secure-appldnld.apple.com/iTunes11/091-9268.20130816.Bbgtr/iTunes11.0.5.dmg	sha1:04f7e86e1621c15738ee48f817b402910e856b40
+# iTunes 11.1 - http://support.apple.com/kb/DL1614, http://support.apple.com/kb/HT5936
+	iTunes 11.1	https://secure-appldnld.apple.com/iTunes11/041-8596.20130918.VL65G/iTunes11.1.dmg	sha1:66b75a92d234affaed19484810d8dc53ed4608dd
  
-# Java 2013-004 - http://support.apple.com/kb/DL1572, http://support.apple.com/kb/HT1222 
+# Java 2013-004 - http://support.apple.com/kb/DL1572, http://support.apple.com/kb/HT5797
 	Java for OS X 2013-004	http://support.apple.com/downloads/DL1572/en_US/JavaForOSX2013-004.dmg	sha1:e9a1954c8d77666380526e5107825c2ffeaf314a
 
 # Airport Utility 6.3.1 - http://support.apple.com/kb/DL1664
